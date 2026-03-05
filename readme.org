@@ -1,0 +1,37 @@
+#+title: Emacs Configuration
+#+author: scs
+
+* Overview
+
+Personal Emacs configuration for Emacs 30.x.
+
+Uses ~use-package~ for most package management, with ~el-get~ (via
+~el-get-bundle~) for select packages. The ~no-littering~ package keeps
+data and cache files organized outside =~/.config/emacs/=.
+
+* Structure
+
+| File              | Purpose                                    |
+|-------------------+--------------------------------------------|
+| =init.el=         | Main configuration                         |
+| =custom.el=       | Emacs customize settings (auto-generated)  |
+| =early-init.el=   | Early initialization (before UI)           |
+| =changes.org=     | Changelog of manual fixes and changes      |
+| =tasks.org=       | Outstanding and completed tasks            |
+| =status.org=      | Current configuration health status        |
+| =insights.org=    | Technical notes and lessons learned         |
+
+* Revision Control
+
+Files are tracked with RCS. Revision history is stored in the =RCS/=
+subdirectory. Use ~ci -l <file>~ to check in and ~rlog <file>~ to
+view history.
+
+* Key Packages
+
+- *Completion:* corfu, cape, vertico, orderless, marginalia, consult
+- *Org:* org-mode, denote, org-contrib
+- *Lisp:* slime, sly, paredit
+- *UI:* hl-todo, delight, which-key
+- *Files:* no-littering, recentf
+- *Remote:* tramp
