@@ -1,4 +1,4 @@
-# $Id: insights.org,v 1.3 2026/03/05 17:07:06 scs Exp $
+# $Id: insights.org,v 1.4 2026/03/05 17:08:18 scs Exp $
 #+title: Technical Insights
 #+author: scs
 
@@ -60,18 +60,19 @@ installs the package but doesn't configure it. Give it its own block.
 
 * RCS keyword expansion
 
-RCS expands keywords like ~$Id: insights.org,v 1.3 2026/03/05 17:07:06 scs Exp $~ on check-in (~ci~). The keyword must
-be present in the working file before the first check-in. Once
-expanded (e.g., ~$Id: insights.org,v 1.3 2026/03/05 17:07:06 scs Exp $~), RCS
-recognizes and re-expands it on subsequent check-ins automatically.
+RCS expands keywords on check-in (~ci~). The keyword pattern
+(dollar-sign + name + dollar-sign) must be present in the working file
+before the first check-in. Once expanded, RCS recognizes and
+re-expands it on subsequent check-ins automatically.
 
-Useful keywords:
-- ~$Id: insights.org,v 1.3 2026/03/05 17:07:06 scs Exp $~ — filename, revision, date, author, state, locker
-- ~$Log: insights.org,v $
-- ~Revision 1.3  2026/03/05 17:07:06  scs
-- ~Update all org files: reflect org-contrib consolidation, ob-ly fix, RCS keywords, lexical-binding
-- ~~ — accumulates commit messages (can bloat files)
-- ~$Date: 2026/03/05 17:07:06 $~, ~$Author: scs $~, ~$Revision: 1.3 $~ — individual fields
+*Caution:* RCS expands /every/ matching keyword pattern in the file,
+including ones in documentation text. Avoid writing literal keyword
+patterns in body text — they will be expanded and mangled on check-in.
+
+Useful keywords (by name):
+- *Id* — filename, revision, date, author, state, locker
+- *Log* — accumulates commit messages (can bloat files)
+- *Date*, *Author*, *Revision* — individual fields
 
 Emacs VC mode (~C-x v v~) auto-detects RCS and handles check-in/out.
 

@@ -1,4 +1,4 @@
-# $Id: tasks.org,v 1.3 2026/03/05 17:07:06 scs Exp $
+# $Id: tasks.org,v 1.4 2026/03/05 17:08:18 scs Exp $
 #+title: Emacs Configuration Tasks
 #+author: scs
 
@@ -32,6 +32,6 @@ CLOSED: [2026-03-05]
 Removed ~el-get-bundle org-contrib~ and duplicate ~:ensure org-contrib~.
 Single ~use-package org-contrib~ block now requires ~ob-ly~ and ~org-expiry~.
 
-* DONE Add RCS $Id: tasks.org,v 1.3 2026/03/05 17:07:06 scs Exp $ keywords and lexical-binding
+* DONE Add RCS Id keywords and lexical-binding
 CLOSED: [2026-03-05]
-All tracked files now carry ~$Id: tasks.org,v 1.3 2026/03/05 17:07:06 scs Exp $~. Added ~lexical-binding: t~ to =init.el=.
+All tracked files now carry the RCS Id keyword. Added ~lexical-binding: t~ to =init.el=.
