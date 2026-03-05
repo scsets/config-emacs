@@ -1,6 +1,45 @@
-# $Id: changes.org,v 1.6 2026/03/05 17:24:31 scs Exp $
+# $Id: changes.org,v 1.7 2026/03/05 17:46:36 scs Exp $
 #+title: Emacs Configuration Changelog
 #+author: scs
+
+* 2026-03-05 Clean up early-init.el and init.el
+
+** Comment style standardization
+- All section headers use ~;;;~ (top-level) and ~;;;;~ (subsection),
+  following standard Emacs Lisp conventions and ~outline-minor-mode~.
+- Regular comments use ~;;~, end-of-line annotations use ~;~.
+- Replaced decorative separator lines (~======~, ~********~) with
+  clean ~;;; ---~ where a visual break is warranted.
+
+** early-init.el
+- Renamed ~prot-emacs--~ variable prefix to ~scs--~ (personal config).
+- Normalized spacing: single blank between items, double between sections.
+
+** init.el -- section reordering
+- Reordered into logical sections: Compatibility, Custom functions,
+  Package managers, General settings, Custom file, Keybindings,
+  Packages (alphabetical), Sample keymaps, Finalization.
+- All commented-out code and annotation tags (~:gem:~, ~:vip:~, etc.)
+  preserved in place.
+
+** Formatting fixes
+- Consistent 2-space indentation inside ~use-package~ blocks.
+- Fixed leading space on ~(use-package company~ form.
+- No trailing ~)~ on its own line in ~use-package~ blocks where possible.
+- Single blank line between items, double between sections.
+- Cleaned up timestamp lambda formatting.
+
+** Specific fixes
+- Rebind timestamp from ~<f9>~ to ~<S-f9>~ to avoid conflict with howm's
+  ~<f9>~ binding.
+- Replaced bare ~custom-set-variables~ call for psvn with ~setq~ to avoid
+  conflict with the ~custom-set-variables~ block in =custom.el=.
+
+** What did NOT change
+- No code removed; all commented-out blocks preserved.
+- No semantic/behavioral changes; same guards, same settings.
+- =custom.el= untouched.
+- el-get bootstrap logic kept as-is.
 
 * 2026-03-05 Cross-platform adaptation (macOS / FreeBSD / SmartOS)
 
