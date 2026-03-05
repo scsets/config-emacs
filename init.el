@@ -1,5 +1,5 @@
 ;;; init -- scs  -*- lexical-binding: t -*-
-;; $Id: init.el,v 1.3 2026/03/05 17:15:20 scs Exp $
+;; $Id: init.el,v 1.4 2026/03/05 17:23:35 scs Exp $
 ;;; Commentary:
 
 ;;; 2025-03-02
@@ -74,6 +74,7 @@
 
 (use-package exec-path-from-shell
   :ensure t
+  :if (eq system-type 'darwin)
   :init
   (exec-path-from-shell-initialize)
   (exec-path-from-shell-copy-envs '("LIBRARY_PATH" "INFOPATH" "CPATH" "MANPATH")))
@@ -195,7 +196,8 @@
 ;; Start Emacs in server mode
 
 
-(setq server-use-tcp t) ;; for scrim macos app
+(when (eq system-type 'darwin)
+  (setq server-use-tcp t)) ;; for scrim macos app
 
 (require 'server)
 (unless (server-running-p) (server-start))
@@ -211,7 +213,8 @@
 
 
 ;; Make scrolling smoother
-(unless (version< emacs-version "29.1")
+(when (and (not (version< emacs-version "29.1"))
+           (display-graphic-p))
   (pixel-scroll-precision-mode))
 
 
@@ -267,14 +270,15 @@
 
 ;; * Keybindings
 
-;; set keys for emacs in osx
-(setq mac-command-modifier 'control) ; make cmd key do Meta
-(setq mac-option-modifier 'meta) ; make opt key do Super
-(setq mac-control-modifier 'super) ; make Control key do Control
+;; set keys for emacs in osx (macOS-only variables)
+(when (eq system-type 'darwin)
+  (setq mac-command-modifier 'control) ; make cmd key do Meta
+  (setq mac-option-modifier 'meta) ; make opt key do Super
+  (setq mac-control-modifier 'super) ; make Control key do Control
 
-;; We define CAPS LOCK as Fn with Karabiner, then we can use it here
-;; it works well!
-(setq ns-function-modifier 'hyper)  ; make Fn key do Hyper
+  ;; We define CAPS LOCK as Fn with Karabiner, then we can use it here
+  ;; it works well!
+  (setq ns-function-modifier 'hyper))  ; make Fn key do Hyper
 
 ;; Another possibility would be to define each one separately
 ;; (define-key key-translation-map (kbd "C-M-S-s") (kbd "H"))
@@ -553,32 +557,19 @@ At top-level, as an editor command, this simply beeps."
 
 ;; * flyspell
 
-;; (executable-find "aspell")
-
-(setq ispell-program-name "aspell")
-;; (setq ispell-program-name "hunspell")
-
-(setq ispell-local-dictionary "en_GB-ise")
-;; (setq ispell-local-dictionary "en_GB")
+(when (executable-find "aspell")
+  (setq ispell-program-name "aspell"
+        ispell-local-dictionary "en_GB-ise"
+        ispell-dictionary "en_GB-ise"
+        ispell-local-dictionary-alist
+        '(("en_GB-ise" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil ("-d" "en_GB-ise") nil utf-8))
+        ispell-extra-args '("--sug-mode=ultra" "--lang=en_GB-ise.multi")))
 
 (setq flyspell-issue-message-flag nil)
 
 (setq dictionary-default-dictionary "*")
 (setq dictionary-server "dict.org")
 (setq dictionary-use-single-buffer t)
-
-
-
-(setq ispell-dictionary "en_GB-ise")
-;; (setq ispell-dictionary "en_GB")
-
-
-(setq ispell-local-dictionary-alist
-      '(("en_GB-ise" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil ("-d" "en_GB-ise") nil utf-8)))
-
-
-;; Please note ispell-extra-args contains ACTUAL parameters passed to aspell
-(setq ispell-extra-args '("--sug-mode=ultra" "--lang=en_GB-ise.multi"))
 
 (use-package flyspell
   :unless (eq window-system 'w32)
@@ -597,7 +588,8 @@ At top-level, as an editor command, this simply beeps."
 ;;; * ugrep
 ;; https://github.com/Genivia/ugrep?tab=readme-ov-file#emacs
 
-(setq-default xref-search-program 'ugrep)
+(when (executable-find "ugrep")
+  (setq-default xref-search-program 'ugrep))
 
 ;;; * hooks
 
@@ -620,14 +612,16 @@ At top-level, as an editor command, this simply beeps."
   (setq howm-file-name-format "%Y-%m-%d-%H%M%S.org")
   (setq howm-view-title-header "*")
   (setq howm-dtime-format (format "<%s>" (cdr org-timestamp-formats)))
-  ;; Use ripgrep for fast searching.
+  ;; Use ripgrep for fast searching if available, fall back to grep.
   (setq howm-view-use-grep t)
-  (setq howm-view-grep-command "rg")
-  (setq howm-view-grep-option "-nH --no-heading --color never")
-  (setq howm-view-grep-extended-option nil)
-  (setq howm-view-grep-fixed-option "-F")
-  (setq howm-view-grep-expr-option nil)
-  (setq howm-view-grep-file-stdin-option nil)
+  (if (executable-find "rg")
+      (progn
+        (setq howm-view-grep-command "rg")
+        (setq howm-view-grep-option "-nH --no-heading --color never")
+        (setq howm-view-grep-extended-option nil)
+        (setq howm-view-grep-fixed-option "-F")
+        (setq howm-view-grep-expr-option nil)
+        (setq howm-view-grep-file-stdin-option nil)))
   ;; Make the "comefrom links" case-insensitive.
   (setq howm-keyword-case-fold-search t)
   ;; Get rid of the old-fashioned separators.
@@ -818,11 +812,15 @@ At top-level, as an editor command, this simply beeps."
   (use-package ob-plantuml)
   (use-package ob-ditaa)
 
-  (setq org-confirm-babel-evaluate nil
-        org-plantuml-jar-path
-        (expand-file-name "lib/plantuml.jar" (getenv "PROFILE_DIR"))
-        org-ditaa-jar-path
-        (expand-file-name "lib/ditaa.jar" (getenv "PROFILE_DIR")))
+  (setq org-confirm-babel-evaluate nil)
+  (let ((pdir (getenv "PROFILE_DIR")))
+    (when pdir
+      (let ((plantuml (expand-file-name "lib/plantuml.jar" pdir))
+            (ditaa (expand-file-name "lib/ditaa.jar" pdir)))
+        (when (file-exists-p plantuml)
+          (setq org-plantuml-jar-path plantuml))
+        (when (file-exists-p ditaa)
+          (setq org-ditaa-jar-path ditaa)))))
 
   (add-to-list 'org-src-lang-modes (quote ("plantuml" . plantuml))))
 
@@ -889,6 +887,7 @@ At top-level, as an editor command, this simply beeps."
 
 (use-package reveal-in-osx-finder
   :ensure t
+  :if (eq system-type 'darwin)
   :no-require t
   :bind ("C-c M-v" .
          (lambda () (interactive)
