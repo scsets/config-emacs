@@ -1,19 +1,8 @@
 ;;; init -- scs  -*- lexical-binding: t -*-
-;; $Id: init.el,v 1.2 2026/03/05 17:04:48 scs Exp $
+;; $Id: init.el,v 1.3 2026/03/05 17:15:20 scs Exp $
 ;;; Commentary:
 
 ;;; 2025-03-02
-
-;; Disable warnings about obsolete functions when compiling
-
-(setq native-comp-async-report-warnings-errors 'silent)
-
-(setq warning-minimum-level :emergency)
-
-;; Native compilation
-
-(when (string-match "NATIVE_COMP" system-configuration-features)
-  (setq package-native-compile t))
 
 ;; * defalias for compatibility and practicality.
 
@@ -73,35 +62,7 @@
 ;;              '(foreground-color . "grey86"))
 
 
-;; Mute annoying warnings, not useful to a non-developer
-(setq byte-compile-warnings '(not free-vars obsolete cl-functions lexical))
-
-;; https://emacs.stackexchange.com/a/19507
-  ;; free-vars   references to variables not in the current lexical scope.
-  ;; unresolved  calls to unknown functions.
-  ;; callargs    function calls with args that don't match the definition.
-  ;; redefine    function name redefined from a macro to ordinary function or vice
-  ;;             versa, or redefined to take a different number of arguments.
-  ;; obsolete    obsolete variables and functions.
-  ;; noruntime   functions that may not be defined at runtime (typically
-  ;;             defined only under `eval-when-compile').
-  ;; cl-functions    calls to runtime functions (as distinguished from macros and
-  ;;                 aliases) from the old CL package (not the newer cl-lib).
-  ;; interactive-only
-  ;;         commands that normally shouldn't be called from Lisp code.
-  ;; lexical     global/dynamic variables lacking a prefix.
-  ;; make-local  calls to make-variable-buffer-local that may be incorrect.
-  ;; mapcar      mapcar called for effect.
-  ;; constants   let-binding of, or assignment to, constants/nonvariables.
-  ;; suspicious  constructs that usually don't do what the coder wanted.
-
-;; ** Package manager
-
-(require 'package)
-
-(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
-
-(package-initialize)
+;; ** Package manager (setup in early-init.el)
 
 
 (unless (package-installed-p 'use-package)
@@ -239,9 +200,6 @@
 (require 'server)
 (unless (server-running-p) (server-start))
 
-
-;; Hide toolbar
-(tool-bar-mode 0)
 
 ;; column numbers
 (setq column-number-mode t)
