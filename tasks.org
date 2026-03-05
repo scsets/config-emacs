@@ -1,0 +1,30 @@
+#+title: Emacs Configuration Tasks
+#+author: scs
+
+* TODO Resolve el-get / package.el load-order warnings
+The packages =framemove= and =org-contrib= are loaded by both ~package.el~
+and ~el-get~. Choose one package manager per package to silence warnings.
+
+* TODO Fix missing ob-ly (Org Babel LilyPond)
+~ob-ly~ was removed from Org core. If LilyPond Babel blocks are needed,
+install it from =org-contrib= or a standalone package.
+
+* TODO Verify ~/lisp/lispworks/lw-console path exists
+The SLIME and SLY configs reference =~/lisp/lispworks/lw-console=.
+Confirm this binary exists for the current user, or update the path.
+
+* DONE Fix Emacs 30 plist-put startup crash
+CLOSED: [2026-03-05]
+Patched =el-get-bundle.el= and deleted stale bytecode.
+
+* DONE Fix Unicode smart quote in init.el
+CLOSED: [2026-03-05]
+Replaced U+2018 with ASCII apostrophe on line 741.
+
+* DONE Replace undefined ~user-data~ function
+CLOSED: [2026-03-05]
+Using ~no-littering-expand-var-file-name~ instead.
+
+* DONE Make user paths OS-independent
+CLOSED: [2026-03-05]
+Replaced hardcoded =/Users/priyadarshan/= with =~/= and ~expand-file-name~.

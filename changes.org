@@ -1,0 +1,27 @@
+#+title: Emacs Configuration Changelog
+#+author: scs
+
+* 2026-03-05 Fix Emacs 30 startup failure and clean up stale paths
+
+** Blocking: el-get plist-put crash
+- File: =el-get/el-get/el-get-bundle.el:92-94=
+- Emacs 30 enforces strict type checking on ~plist-put~; passing a string
+  (from ~(car spec)~) instead of a plist caused:
+  ~wrong-type-argument plistp "impatient-mode"~
+- Fix: initialize ~s~ as ~nil~ instead of ~(car spec)~.
+- Deleted stale =el-get-bundle.elc= so the patched source takes effect.
+
+** Unicode smart quote in init.el
+- File: =init.el:741=
+- A Unicode LEFT SINGLE QUOTATION MARK (U+2018) was used instead of ASCII
+  apostrophe (U+0027) in a ~setq~ form, causing ~void-variable~.
+- Also removed erroneous quoting of the variable name in ~setq~.
+
+** Undefined function ~user-data~
+- File: =init.el:1051=
+- Replaced ~(user-data "tramp")~ with ~(no-littering-expand-var-file-name "tramp")~.
+
+** Hardcoded user paths
+- Files: =init.el:1014,1024= and =custom.el:11=
+- Replaced ~/Users/priyadarshan/...~ with =~/...= and ~expand-file-name~
+  for OS-independent home directory resolution.
