@@ -1,0 +1,44 @@
+#+title: Technical Insights
+#+author: scs
+
+* Emacs 30 strict plist checking
+
+In Emacs < 30, ~plist-put~ on a non-plist (like a string) silently
+created a new plist and discarded the original value — it "worked" by
+accident. Emacs 30 added strict type checking for plist operations, so
+passing a string now signals ~wrong-type-argument plistp~. Any
+third-party code that relied on this leniency will break on upgrade.
+
+When patching =.el= files managed by package managers like el-get,
+always delete the corresponding =.elc= — Emacs loads bytecode
+preferentially, so a stale =.elc= silently ignores your source fix.
+
+* Unicode smart quotes in Emacs Lisp
+
+The character =' (U+2018, LEFT SINGLE QUOTATION MARK) looks like a
+quote but is a multi-byte Unicode character. Emacs Lisp reads it as a
+symbol name, not as the ~quote~ special form.  This means ~'foo~
+produces the symbol ~'foo~ (with the curly quote as part of the name)
+rather than ~(quote foo)~.
+
+Common source: pasting code from web pages, PDFs, or rich-text editors
+that auto-convert ASCII quotes to typographic quotes.
+
+* Portable home directory paths
+
+Emacs resolves =~= to the user's home directory via ~expand-file-name~
+internally. This works on macOS (=/Users/scs=), Linux (=/home/scs=),
+and Windows (=C:/Users/scs=). Using =~/= instead of hardcoded absolute
+paths makes configs portable across machines and usernames.
+
+For paths consumed by external programs (like ~inferior-lisp-program~),
+wrapping with ~expand-file-name~ ensures =~= is resolved to an absolute
+path immediately, which is safer for subprocess invocation.
+
+* no-littering for data file paths
+
+Rather than defining custom helper functions (like ~user-data~) for
+locating data files, use ~no-littering-expand-var-file-name~ (for
+variable/state data) and ~no-littering-expand-etc-file-name~ (for
+configuration data). These place files under =var/= and =etc/=
+subdirectories respectively, keeping the Emacs directory clean.
