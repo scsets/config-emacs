@@ -1,4 +1,4 @@
-# $Id: status.org,v 1.2 2026/03/05 17:04:50 scs Exp $
+# $Id: status.org,v 1.3 2026/03/05 17:07:06 scs Exp $
 #+title: Emacs Configuration Status
 #+author: scs
 #+date: 2026-03-05
@@ -8,12 +8,16 @@
 | Component          | Status | Notes                                  |
 |--------------------+--------+----------------------------------------|
 | Startup            | OK     | Loads without errors                   |
-| el-get             | WARN   | Load-order warnings for framemove,     |
-|                    |        | org-contrib (non-fatal)                |
-| ob-ly              | WARN   | Missing Org Babel LilyPond backend     |
+| el-get             | WARN   | Load-order warning for framemove       |
+|                    |        | (org-contrib resolved)                 |
+| org-contrib        | OK     | Via use-package; provides ob-ly,       |
+|                    |        | org-expiry                             |
+| ob-ly              | OK     | Loaded via org-contrib use-package     |
 | SLIME/SLY paths    | CHECK  | Verify ~/lisp/lispworks/ exists        |
 | no-littering       | OK     | Managing var/etc directories           |
 | tramp              | OK     | Persistency file via no-littering      |
+| lexical-binding    | OK     | Enabled in init.el                     |
+| RCS                | OK     | $Id: status.org,v 1.3 2026/03/05 17:07:06 scs Exp $ keywords in all tracked files     |
 
 * Emacs Version
 

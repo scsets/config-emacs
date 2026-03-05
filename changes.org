@@ -1,4 +1,4 @@
-# $Id: changes.org,v 1.2 2026/03/05 17:04:50 scs Exp $
+# $Id: changes.org,v 1.3 2026/03/05 17:07:06 scs Exp $
 #+title: Emacs Configuration Changelog
 #+author: scs
 
@@ -26,3 +26,18 @@
 - Files: =init.el:1014,1024= and =custom.el:11=
 - Replaced ~/Users/priyadarshan/...~ with =~/...= and ~expand-file-name~
   for OS-independent home directory resolution.
+
+** Consolidate org-contrib into use-package
+- Removed duplicate ~:ensure org-contrib~ from the ~org~ use-package block.
+- Replaced ~(el-get-bundle org-contrib)~ with a standalone ~use-package~
+  block that requires ~ob-ly~ and ~org-expiry~ in its ~:config~.
+- This eliminates the el-get / package.el load-order warning for org-contrib
+  and ensures ~ob-ly~ is available for Org Babel LilyPond blocks.
+
+** Add lexical-binding to init.el
+- Added ~-*- lexical-binding: t -*-~ to the first line of =init.el=.
+
+** Add RCS $Id: changes.org,v 1.3 2026/03/05 17:07:06 scs Exp $ keywords
+- Inserted ~$Id: changes.org,v 1.3 2026/03/05 17:07:06 scs Exp $~ in =init.el=, =custom.el=, =changes.org=, =tasks.org=,
+  =readme.org=, =status.org=, and =insights.org=.
+- All files checked into RCS at revision 1.2.

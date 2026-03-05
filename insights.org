@@ -1,4 +1,4 @@
-# $Id: insights.org,v 1.2 2026/03/05 17:04:50 scs Exp $
+# $Id: insights.org,v 1.3 2026/03/05 17:07:06 scs Exp $
 #+title: Technical Insights
 #+author: scs
 
@@ -43,3 +43,42 @@ locating data files, use ~no-littering-expand-var-file-name~ (for
 variable/state data) and ~no-littering-expand-etc-file-name~ (for
 configuration data). These place files under =var/= and =etc/=
 subdirectories respectively, keeping the Emacs directory clean.
+
+* Consolidating package managers for a single package
+
+When a package is loaded by both ~package.el~ (via ~:ensure~) and
+~el-get~ (via ~el-get-bundle~), Emacs warns about the conflict at
+startup. The fix is to choose one manager per package. For packages
+like ~org-contrib~ that provide multiple features (~ob-ly~,
+~org-expiry~, etc.), a ~use-package~ block with ~:config~ that
+requires the sub-features is cleaner than scattered ~require~ calls,
+because it centralizes the dependency and makes the load order explicit.
+
+Avoid ~:ensure pkg~ on a /different/ package's ~use-package~ block
+(e.g., ~:ensure org-contrib~ inside ~(use-package org ...)~) — this
+installs the package but doesn't configure it. Give it its own block.
+
+* RCS keyword expansion
+
+RCS expands keywords like ~$Id: insights.org,v 1.3 2026/03/05 17:07:06 scs Exp $~ on check-in (~ci~). The keyword must
+be present in the working file before the first check-in. Once
+expanded (e.g., ~$Id: insights.org,v 1.3 2026/03/05 17:07:06 scs Exp $~), RCS
+recognizes and re-expands it on subsequent check-ins automatically.
+
+Useful keywords:
+- ~$Id: insights.org,v 1.3 2026/03/05 17:07:06 scs Exp $~ — filename, revision, date, author, state, locker
+- ~$Log: insights.org,v $
+- ~Revision 1.3  2026/03/05 17:07:06  scs
+- ~Update all org files: reflect org-contrib consolidation, ob-ly fix, RCS keywords, lexical-binding
+- ~~ — accumulates commit messages (can bloat files)
+- ~$Date: 2026/03/05 17:07:06 $~, ~$Author: scs $~, ~$Revision: 1.3 $~ — individual fields
+
+Emacs VC mode (~C-x v v~) auto-detects RCS and handles check-in/out.
+
+* lexical-binding in init.el
+
+Adding ~-*- lexical-binding: t -*-~ to the first line of =init.el=
+enables lexical scoping. This is the modern Emacs default for new
+files and is required by many packages. Without it, all variables use
+dynamic binding, which can cause subtle bugs with closures and
+~let~-bound variables in callbacks or hooks.

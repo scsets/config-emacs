@@ -1,14 +1,11 @@
-# $Id: tasks.org,v 1.2 2026/03/05 17:04:50 scs Exp $
+# $Id: tasks.org,v 1.3 2026/03/05 17:07:06 scs Exp $
 #+title: Emacs Configuration Tasks
 #+author: scs
 
-* TODO Resolve el-get / package.el load-order warnings
-The packages =framemove= and =org-contrib= are loaded by both ~package.el~
-and ~el-get~. Choose one package manager per package to silence warnings.
-
-* TODO Fix missing ob-ly (Org Babel LilyPond)
-~ob-ly~ was removed from Org core. If LilyPond Babel blocks are needed,
-install it from =org-contrib= or a standalone package.
+* TODO Resolve el-get / package.el load-order warning for framemove
+=framemove= is still loaded by both ~package.el~ and ~el-get~.
+Choose one package manager to silence the warning.
+(org-contrib warning resolved — now loaded solely via ~use-package~.)
 
 * TODO Verify ~/lisp/lispworks/lw-console path exists
 The SLIME and SLY configs reference =~/lisp/lispworks/lw-console=.
@@ -29,3 +26,12 @@ Using ~no-littering-expand-var-file-name~ instead.
 * DONE Make user paths OS-independent
 CLOSED: [2026-03-05]
 Replaced hardcoded =/Users/priyadarshan/= with =~/= and ~expand-file-name~.
+
+* DONE Consolidate org-contrib into use-package; add ob-ly
+CLOSED: [2026-03-05]
+Removed ~el-get-bundle org-contrib~ and duplicate ~:ensure org-contrib~.
+Single ~use-package org-contrib~ block now requires ~ob-ly~ and ~org-expiry~.
+
+* DONE Add RCS $Id: tasks.org,v 1.3 2026/03/05 17:07:06 scs Exp $ keywords and lexical-binding
+CLOSED: [2026-03-05]
+All tracked files now carry ~$Id: tasks.org,v 1.3 2026/03/05 17:07:06 scs Exp $~. Added ~lexical-binding: t~ to =init.el=.
