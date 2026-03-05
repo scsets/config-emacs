@@ -1,4 +1,5 @@
 ;;; -*- lexical-binding: t -*-
+;; $Id: custom.el,v 1.2 2026/03/05 17:04:49 scs Exp $
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.

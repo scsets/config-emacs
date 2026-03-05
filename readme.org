@@ -1,3 +1,4 @@
+# $Id: readme.org,v 1.2 2026/03/05 17:04:50 scs Exp $
 #+title: Emacs Configuration
 #+author: scs
 
