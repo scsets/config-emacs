@@ -1,4 +1,4 @@
-# $Id: tasks.org,v 1.4 2026/03/05 17:08:18 scs Exp $
+# $Id: tasks.org,v 1.5 2026/03/05 17:15:20 scs Exp $
 #+title: Emacs Configuration Tasks
 #+author: scs
 
@@ -35,3 +35,14 @@ Single ~use-package org-contrib~ block now requires ~ob-ly~ and ~org-expiry~.
 * DONE Add RCS Id keywords and lexical-binding
 CLOSED: [2026-03-05]
 All tracked files now carry the RCS Id keyword. Added ~lexical-binding: t~ to =init.el=.
+
+* DONE Fix critical file-name-handler-alist / vc-handled-backends bug in early-init.el
+CLOSED: [2026-03-05]
+Restore was commented out — TRAMP and VC were permanently broken.
+
+* DONE Improve early-init.el: move compilation, package, and UI settings
+CLOSED: [2026-03-05]
+Moved ~native-comp-async-report-warnings-errors~, ~warning-minimum-level~,
+~byte-compile-warnings~, ~package-native-compile~, ~package-archives~,
+~package-initialize~, and ~tool-bar-mode~ from =init.el= to =early-init.el=.
+Added lexical-binding and RCS Id keyword.

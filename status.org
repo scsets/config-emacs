@@ -1,4 +1,4 @@
-# $Id: status.org,v 1.4 2026/03/05 17:08:18 scs Exp $
+# $Id: status.org,v 1.5 2026/03/05 17:15:20 scs Exp $
 #+title: Emacs Configuration Status
 #+author: scs
 #+date: 2026-03-05
@@ -7,7 +7,8 @@
 
 | Component          | Status | Notes                                  |
 |--------------------+--------+----------------------------------------|
-| Startup            | OK     | Loads without errors                   |
+| Startup            | OK     | Loads without errors; early-init.el    |
+|                    |        | handles UI, packages, and compilation  |
 | el-get             | WARN   | Load-order warning for framemove       |
 |                    |        | (org-contrib resolved)                 |
 | org-contrib        | OK     | Via use-package; provides ob-ly,       |
@@ -15,8 +16,9 @@
 | ob-ly              | OK     | Loaded via org-contrib use-package     |
 | SLIME/SLY paths    | CHECK  | Verify ~/lisp/lispworks/ exists        |
 | no-littering       | OK     | Managing var/etc directories           |
-| tramp              | OK     | Persistency file via no-littering      |
-| lexical-binding    | OK     | Enabled in init.el                     |
+| tramp              | OK     | Persistency file via no-littering;     |
+|                    |        | file-name-handler-alist restored       |
+| lexical-binding    | OK     | Enabled in init.el and early-init.el   |
 | RCS                | OK     | Id keywords in all tracked files       |
 
 * Emacs Version

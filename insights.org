@@ -1,4 +1,4 @@
-# $Id: insights.org,v 1.4 2026/03/05 17:08:18 scs Exp $
+# $Id: insights.org,v 1.5 2026/03/05 17:15:20 scs Exp $
 #+title: Technical Insights
 #+author: scs
 
@@ -75,6 +75,37 @@ Useful keywords (by name):
 - *Date*, *Author*, *Revision* — individual fields
 
 Emacs VC mode (~C-x v v~) auto-detects RCS and handles check-in/out.
+
+* early-init.el save-and-restore pattern
+
+Setting ~file-name-handler-alist~ or ~vc-handled-backends~ to ~nil~
+during startup is a common optimization, but you /must/ save the
+original value beforehand and restore it in ~emacs-startup-hook~.
+Failing to restore ~file-name-handler-alist~ breaks TRAMP (remote file
+access), compressed file reading (=.gz=, =.bz2=), and any filename
+"magic" (e.g., =jka-compr=). Failing to restore ~vc-handled-backends~
+disables all version control detection permanently.
+
+The safe pattern is:
+
+#+begin_example
+(defvar my--saved-fha file-name-handler-alist)
+(setq file-name-handler-alist nil)
+(add-hook 'emacs-startup-hook
+          (lambda () (setq file-name-handler-alist my--saved-fha)))
+#+end_example
+
+* Why move UI settings to early-init.el
+
+Emacs evaluates ~early-init.el~ /before/ creating the initial frame.
+Settings like ~(tool-bar-mode -1)~ placed in ~init.el~ cause the
+toolbar to first appear (frame creation) then disappear (init.el
+loads), producing a visible flicker. In ~early-init.el~, the mode is
+disabled before the frame exists, so the toolbar never draws at all.
+
+Similarly, ~package-initialize~ in ~early-init.el~ means packages are
+available immediately when ~init.el~ starts, eliminating the need for
+~package-enable-at-startup~ juggling.
 
 * lexical-binding in init.el
 
