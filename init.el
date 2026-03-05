@@ -1,4 +1,5 @@
-;;; init -- scs
+;;; init -- scs  -*- lexical-binding: t -*-
+;; $Id: init.el,v 1.2 2026/03/05 17:04:48 scs Exp $
 ;;; Commentary:
 
 ;;; 2025-03-02
@@ -730,7 +731,6 @@ At top-level, as an editor command, this simply beeps."
 ;;; * org
 (use-package org
   :ensure t
-  :ensure org-contrib
   :init
   :config)
 
@@ -762,10 +762,13 @@ At top-level, as an editor command, this simply beeps."
 (setq org-startup-folded t)
 
 ;; from org-contrib
-(el-get-bundle org-contrib)
-(require 'org-expiry)
-(org-expiry-insinuate)
-(setq org-expiry-inactive-timestamps t)
+(use-package org-contrib
+  :ensure t
+  :config
+  (require 'ob-ly)
+  (require 'org-expiry)
+  (org-expiry-insinuate)
+  (setq org-expiry-inactive-timestamps t))
 
 
 ;; TODO keywords.
