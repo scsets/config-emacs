@@ -1,4 +1,4 @@
-# $Id: changes.org,v 1.4 2026/03/05 17:08:18 scs Exp $
+# $Id: changes.org,v 1.5 2026/03/05 17:15:20 scs Exp $
 #+title: Emacs Configuration Changelog
 #+author: scs
 
@@ -41,3 +41,30 @@
 - Inserted the RCS Id keyword in =init.el=, =custom.el=, =changes.org=,
   =tasks.org=, =readme.org=, =status.org=, and =insights.org=.
 - All files checked into RCS at revision 1.2.
+
+* 2026-03-05 Improve early-init.el
+
+** Critical fix: restore file-name-handler-alist and vc-handled-backends
+- =early-init.el= set both to ~nil~ for startup speed but the ~defvar~
+  save and ~emacs-startup-hook~ restore were commented out.
+- This permanently broke TRAMP, compressed file handling, and VC detection.
+- Fix: uncommented save/restore; both are now properly restored after startup.
+
+** Move settings from init.el to early-init.el
+- ~native-comp-async-report-warnings-errors~, ~warning-minimum-level~,
+  ~byte-compile-warnings~: suppress warnings before any compilation fires.
+- ~package-native-compile~, ~package-archives~, ~package-initialize~:
+  configure and initialize packages in early-init where they take effect
+  earliest, replacing the old ~package-enable-at-startup nil~ pattern.
+- ~(tool-bar-mode -1)~: prevent toolbar from drawing then hiding (flicker).
+
+** Add lexical-binding and RCS Id to early-init.el
+- Added ~-*- lexical-binding: t -*-~ and RCS Id keyword.
+
+** Add user-emacs-directory for no-littering
+- Set ~user-emacs-directory~ explicitly so paths are established before
+  anything else runs.
+
+** Updated scs.org
+- Removed tangled code that was moved to early-init.el.
+- Added notes explaining the relocation.
