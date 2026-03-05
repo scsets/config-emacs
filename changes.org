@@ -1,6 +1,39 @@
-# $Id: changes.org,v 1.5 2026/03/05 17:15:20 scs Exp $
+# $Id: changes.org,v 1.6 2026/03/05 17:24:31 scs Exp $
 #+title: Emacs Configuration Changelog
 #+author: scs
+
+* 2026-03-05 Cross-platform adaptation (macOS / FreeBSD / SmartOS)
+
+** Guiding principle: CLI-first, no unnecessary dependencies
+- GUI and macOS features are now opt-in via guards.
+- On FreeBSD/SmartOS terminal, everything works with zero extra packages.
+
+** early-init.el guards
+- ~(tool-bar-mode -1)~ wrapped with ~(display-graphic-p)~.
+- ~undecorated-round~ frame parameter wrapped with ~(eq window-system 'ns)~ (macOS GUI only).
+- ~set-frame-name~ wrapped with ~(display-graphic-p)~.
+
+** init.el — macOS-specific guards
+- Mac modifier keys (~mac-command-modifier~, ~mac-option-modifier~,
+  ~mac-control-modifier~, ~ns-function-modifier~) wrapped in ~(eq system-type 'darwin)~.
+- ~exec-path-from-shell~ guarded with ~:if (eq system-type 'darwin)~.
+- ~reveal-in-osx-finder~ guarded with ~:if (eq system-type 'darwin)~.
+- ~server-use-tcp~ (for scrim macOS app) guarded with ~(eq system-type 'darwin)~.
+
+** init.el — executable-find guards
+- aspell settings wrapped in ~(executable-find "aspell")~.
+- ugrep xref-search-program wrapped in ~(executable-find "ugrep")~.
+- howm ripgrep settings wrapped in ~(executable-find "rg")~ with grep fallback.
+
+** init.el — GUI-only guards
+- ~pixel-scroll-precision-mode~ additionally guarded with ~(display-graphic-p)~.
+
+** init.el — safe jar paths for org-babel
+- ~org-plantuml-jar-path~ and ~org-ditaa-jar-path~ now guarded with
+  ~(getenv "PROFILE_DIR")~ and ~file-exists-p~ checks.
+
+** Housekeeping
+- Moved =scs.org= to =attic/= (literate config not actively tangled).
 
 * 2026-03-05 Fix Emacs 30 startup failure and clean up stale paths
 

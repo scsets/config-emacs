@@ -1,4 +1,4 @@
-# $Id: insights.org,v 1.5 2026/03/05 17:15:20 scs Exp $
+# $Id: insights.org,v 1.6 2026/03/05 17:24:31 scs Exp $
 #+title: Technical Insights
 #+author: scs
 
@@ -106,6 +106,36 @@ disabled before the frame exists, so the toolbar never draws at all.
 Similarly, ~package-initialize~ in ~early-init.el~ means packages are
 available immediately when ~init.el~ starts, eliminating the need for
 ~package-enable-at-startup~ juggling.
+
+* Cross-platform predicates: system-type vs window-system vs display-graphic-p
+
+Three predicates serve different cross-platform purposes:
+
+- ~system-type~ — identifies the OS kernel: ~'darwin~ (macOS), ~'gnu/linux~,
+  ~'berkeley-unix~ (FreeBSD), etc. Use for OS-specific variables like
+  ~mac-command-modifier~ that exist only in macOS Emacs builds.
+
+- ~window-system~ — identifies the display backend for the /current frame/:
+  ~'ns~ (macOS GUI), ~'x~ (X11), ~'w32~ (Windows), ~nil~ (terminal).
+  Use for frame-parameter settings specific to a display system, e.g.
+  ~undecorated-round~ is NS-only.
+
+- ~(display-graphic-p)~ — returns non-nil when the current frame is a GUI
+  frame (any backend), ~nil~ in terminal (~emacs -nw~) and ~--batch~ modes.
+  Use for features that require a graphical display (toolbar, pixel
+  scrolling, frame naming).
+
+Rule of thumb: start with ~display-graphic-p~ (broadest GUI check), narrow
+to ~window-system~ for display-backend specifics, use ~system-type~ for
+OS-level concerns independent of display.
+
+* executable-find for optional external tools
+
+Wrapping configuration for external programs in ~(executable-find "prog")~
+makes the config portable: settings are silently skipped on systems where
+the tool isn't installed, avoiding "Searching for program: No such file or
+directory" errors. This is especially useful for tools like ~aspell~,
+~ugrep~, and ~rg~ that may not be present on all platforms.
 
 * lexical-binding in init.el
 

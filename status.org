@@ -1,4 +1,4 @@
-# $Id: status.org,v 1.5 2026/03/05 17:15:20 scs Exp $
+# $Id: status.org,v 1.6 2026/03/05 17:24:31 scs Exp $
 #+title: Emacs Configuration Status
 #+author: scs
 #+date: 2026-03-05
@@ -24,6 +24,15 @@
 * Emacs Version
 
 Tested on Emacs 30.2.
+
+* Target Platforms
+
+| Platform | Mode    | Status | Notes                                    |
+|----------+---------+--------+------------------------------------------|
+| macOS    | GUI(NS) | OK     | Primary development platform             |
+| macOS    | CLI     | OK     | Guards skip GUI-only settings             |
+| FreeBSD  | CLI     | TARGET | No macOS-specific vars; exec guards       |
+| SmartOS  | CLI     | TARGET | No macOS-specific vars; exec guards       |
 
 * Last Verified
 
