@@ -1,0 +1,23 @@
+#+title: Emacs Configuration Status
+#+author: scs
+#+date: 2026-03-05
+
+* Health
+
+| Component          | Status | Notes                                  |
+|--------------------+--------+----------------------------------------|
+| Startup            | OK     | Loads without errors                   |
+| el-get             | WARN   | Load-order warnings for framemove,     |
+|                    |        | org-contrib (non-fatal)                |
+| ob-ly              | WARN   | Missing Org Babel LilyPond backend     |
+| SLIME/SLY paths    | CHECK  | Verify ~/lisp/lispworks/ exists        |
+| no-littering       | OK     | Managing var/etc directories           |
+| tramp              | OK     | Persistency file via no-littering      |
+
+* Emacs Version
+
+Tested on Emacs 30.2.
+
+* Last Verified
+
+[2026-03-05] — batch load completes; interactive launch succeeds.
