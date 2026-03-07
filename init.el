@@ -1,5 +1,5 @@
 ;;; init.el --- Personal configuration  -*- lexical-binding: t -*-
-;; $Id: init.el,v 1.11 2026/03/07 17:13:55 scs Exp $
+;; $Id: init.el,v 1.12 2026/03/07 17:43:49 scs Exp $
 
 ;;; Commentary:
 
@@ -683,12 +683,14 @@ At top-level, as an editor command, this simply beeps."
   ;; Format: my-note-title_tag1-tag2_2026-03-07.org
   (defun scs--howm-slugify (str)
     "Convert STR to a lowercase slug (alphanumeric and hyphens)."
-    (downcase
-     (replace-regexp-in-string
-      "-\\{2,\\}" "-"
+    (replace-regexp-in-string
+     "^-\\|-$" ""
+     (downcase
       (replace-regexp-in-string
-       "[^a-zA-Z0-9-]" "-"
-       (string-trim str)))))
+       "-\\{2,\\}" "-"
+       (replace-regexp-in-string
+        "[^a-zA-Z0-9-]" "-"
+        (string-trim str))))))
 
   (defun scs--howm-desired-filename ()
     "Compute the desired filename from the note's title, filetags, and date."
@@ -703,7 +705,7 @@ At top-level, as an editor command, this simply beeps."
                     (when (re-search-forward
                            "^#\\+filetags: *\\(.+\\)$" nil t)
                       (match-string 1))))
-            (date (format-time-string "%Y-%m-%d")))
+            (date (format-time-string "%Y%m%d")))
         (when (and title (not (string-blank-p title)))
           (let ((slug (scs--howm-slugify title))
                 (tag-part (if (and tags (not (string-blank-p tags)))
