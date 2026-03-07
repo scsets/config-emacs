@@ -1,4 +1,4 @@
-# $Id: insights.org,v 1.10 2026/03/07 17:00:06 scs Exp $
+# $Id: insights.org,v 1.11 2026/03/07 17:00:22 scs Exp $
 #+title: Technical Insights
 #+author: scs
 
@@ -200,15 +200,30 @@ The fix is to guard with ~package-installed-p~:
 This way ~package-vc-install~ only runs on first install, not on
 every startup.
 
-* RCS lock workflow: rcs -l vs co -l
+* RCS lock workflow: rcs -l then ci -u
 
-After ~ci -u~ (check in, unlock), the working file is unlocked.
-To make further edits:
+After ~ci -u~ (check in, unlock), the working file is read-only and
+unlocked.  The safe cycle for subsequent edits is:
 
-- Use ~rcs -l file~ to lock *without* overwriting the working file.
-- Do *NOT* use ~co -l file~ — that checks out the repo version and
-  *overwrites* any local changes in the working file.
-- Then ~ci -u -m"message" file~ to commit.
+1. ~rcs -l file~ — lock the file *without* overwriting the working copy.
+   This is critical: it preserves your local changes while acquiring
+   the lock needed for check-in.
+2. Edit the file.
+3. ~ci -u -m"message" file~ — check in and immediately unlock, leaving
+   the working file in place with updated RCS keywords.
+
+*Why not ~co -l~?*  The ~co -l~ command checks out the /repository/
+version and *overwrites* the working file.  If you have local edits
+that haven't been checked in, they are silently destroyed.  Always
+use ~rcs -l~ to lock an existing working file.
+
+For batch check-ins (multiple files, same message):
+
+#+begin_example
+for f in init.el changes.org status.org; do
+  rcs -l "$f" && ci -u -m"commit message" "$f"
+done
+#+end_example
 
 * Dual Emacs server: sockets + TCP
 
