@@ -1,6 +1,21 @@
-# $Id: changes.org,v 1.8 2026/03/07 13:22:15 scs Exp $
+# $Id: changes.org,v 1.9 2026/03/07 16:58:59 scs Exp $
 #+title: Emacs Configuration Changelog
 #+author: scs
+
+* 2026-03-07 Add howm/org-node integration, fix Emacs server
+
+- Removed ~server-use-tcp t~ for default server; now uses Unix domain sockets
+  (works on macOS, FreeBSD, SmartOS). Added second TCP server named "scrim"
+  for the Scrim macOS app via ~let~-bound ~server-name~ / ~server-use-tcp~.
+- Enhanced howm configuration:
+  - Org-mode template with ~#+filetags:~ line.
+  - Increased menu/schedule visibility: 30 recent notes, 30-day lookahead.
+  - Moved ~howm-keyword-file~ and ~howm-history-file~ into ~no-littering~ paths.
+  - Added hooks: ~howm-mode-set-buffer-name~, ~(org-mode . howm-mode)~.
+  - Enabled ~howm-view-split-horizontally~ and ~howm-view-contents-limit~.
+- Added ~use-package org-node~ (from Baty's howm+org-node article):
+  - ~(howm-create . org-node-nodeify-entry)~ hook auto-adds org IDs to new notes.
+  - Populates ~org-id-extra-files~ from howm directory.
 
 * 2026-03-07 Optimise startup (4s -> 0.6s)
 

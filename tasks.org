@@ -1,4 +1,4 @@
-# $Id: tasks.org,v 1.6 2026/03/07 13:22:15 scs Exp $
+# $Id: tasks.org,v 1.7 2026/03/07 16:58:59 scs Exp $
 #+title: Emacs Configuration Tasks
 #+author: scs
 
@@ -60,6 +60,11 @@ Removed orphaned denote/xeft settings.
 CLOSED: [2026-03-07]
 Added eshell, eshell-toggle (C-x C-z), eshell-bookmark, eshell-up, eshell-z.
 Cross-platform for macOS, FreeBSD, SmartOS.
+
+* DONE Add howm/org-node integration
+CLOSED: [2026-03-07]
+Enhanced howm with org-node hooks, better template, no-littering paths.
+Switched Emacs server from TCP to Unix sockets; added separate TCP server for Scrim.
 
 * DONE Optimise startup time (4s -> 0.6s)
 CLOSED: [2026-03-07]

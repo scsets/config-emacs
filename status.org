@@ -1,4 +1,4 @@
-# $Id: status.org,v 1.9 2026/03/07 13:22:15 scs Exp $
+# $Id: status.org,v 1.10 2026/03/07 16:58:59 scs Exp $
 #+title: Emacs Configuration Status
 #+author: scs
 #+date: 2026-03-07
@@ -19,6 +19,10 @@
 | corfu              | GONE   | Removed; Company is active backend     |
 | framemove          | OK     | Via package-vc; guarded install        |
 | SLIME/SLY paths    | CHECK  | Verify ~/lisp/lispworks/ exists        |
+| howm               | OK     | Org-mode notes; rg search; org-node   |
+| org-node           | NEW    | ID-based linking for howm notes        |
+| server (socket)    | OK     | Default server via Unix domain socket  |
+| server (TCP/scrim) | OK     | Second server for Scrim macOS app      |
 | no-littering       | OK     | Managing var/etc directories           |
 | tramp              | OK     | Settings consolidated in use-package   |
 | lexical-binding    | OK     | Enabled in init.el and early-init.el   |
@@ -41,3 +45,4 @@ Tested on Emacs 30.2.
 
 [2026-03-07] — 0.6s startup, clean (no errors/warnings). Eshell added.
 custom.el eliminated. psvn and ob-ly removed (upstream gone).
+Howm enhanced with org-node integration. Server switched to Unix sockets.

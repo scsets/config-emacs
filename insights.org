@@ -1,4 +1,4 @@
-# $Id: insights.org,v 1.8 2026/03/07 13:22:15 scs Exp $
+# $Id: insights.org,v 1.9 2026/03/07 16:58:59 scs Exp $
 #+title: Technical Insights
 #+author: scs
 
@@ -209,6 +209,41 @@ To make further edits:
 - Do *NOT* use ~co -l file~ — that checks out the repo version and
   *overwrites* any local changes in the working file.
 - Then ~ci -u -m"message" file~ to commit.
+
+* Dual Emacs server: sockets + TCP
+
+Emacs supports multiple server instances by varying ~server-name~.
+Using ~let~ to dynamically bind ~server-name~ and ~server-use-tcp~
+around a second ~server-start~ call creates an independent server
+without altering the global defaults.
+
+Unix domain sockets (the default) work on all Unix-like platforms
+(macOS, FreeBSD, SmartOS/illumos) and are what ~emacsclient~ looks
+for automatically. TCP mode requires passing ~-f~ / ~--server-file~
+to ~emacsclient~ with the path to an auth file.
+
+Pattern:
+
+#+begin_example
+;; Default server: Unix socket (works with plain emacsclient)
+(server-start)
+
+;; Second server: TCP for apps that need it
+(let ((server-name "scrim")
+      (server-use-tcp t))
+  (unless (server-running-p "scrim") (server-start)))
+#+end_example
+
+* org-node for howm notes
+
+~org-node~ provides fast, cache-based ID lookup across org files.
+The ~(howm-create . org-node-nodeify-entry)~ hook automatically
+adds an ~:ID:~ property to new howm notes, making them discoverable
+via ~org-id~ and linkable with standard ~[[id:...]]~ links.
+
+The ~(org-mode . howm-mode)~ hook enables howm's action-lock minor
+mode in all org buffers, so comefrom links (~<<< keyword~) work
+everywhere — not just in files opened through howm.
 
 * lexical-binding in init.el
 

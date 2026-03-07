@@ -1,5 +1,5 @@
 ;;; init.el --- Personal configuration  -*- lexical-binding: t -*-
-;; $Id: init.el,v 1.9 2026/03/07 13:32:55 scs Exp $
+;; $Id: init.el,v 1.10 2026/03/07 16:58:59 scs Exp $
 
 ;;; Commentary:
 
@@ -130,11 +130,14 @@ At top-level, as an editor command, this simply beeps."
 
 ;;;; Server
 
-(when (eq system-type 'darwin)
-  (setq server-use-tcp t)) ;; for scrim macos app
-
 (require 'server)
 (unless (server-running-p) (server-start))
+
+;; Second server instance via TCP for Scrim
+(when (eq system-type 'darwin)
+  (let ((server-name "scrim")
+        (server-use-tcp t))
+    (unless (server-running-p "scrim") (server-start))))
 
 ;;;; Column numbers
 
@@ -618,28 +621,79 @@ At top-level, as an editor command, this simply beeps."
   (setq howm-file-name-format "%Y-%m-%d-%H%M%S.org")
   (setq howm-view-title-header "*")
   (setq howm-dtime-format (format "<%s>" (cdr org-timestamp-formats)))
+
   ;; Use ripgrep for fast searching if available, fall back to grep.
   (setq howm-view-use-grep t)
-  (if (executable-find "rg")
-      (progn
-        (setq howm-view-grep-command "rg")
-        (setq howm-view-grep-option "-nH --no-heading --color never")
-        (setq howm-view-grep-extended-option nil)
-        (setq howm-view-grep-fixed-option "-F")
-        (setq howm-view-grep-expr-option nil)
-        (setq howm-view-grep-file-stdin-option nil)))
+  (when (executable-find "rg")
+    (setq howm-view-grep-command "rg")
+    (setq howm-view-grep-option "-nH --no-heading --color never")
+    (setq howm-view-grep-extended-option nil)
+    (setq howm-view-grep-fixed-option "-F")
+    (setq howm-view-grep-expr-option nil)
+    (setq howm-view-grep-file-stdin-option nil))
+
   ;; Make the "comefrom links" case-insensitive.
   (setq howm-keyword-case-fold-search t)
   ;; Get rid of the old-fashioned separators.
   (setq howm-view-summary-sep "\t")
+
+  ;; Org-mode template: title as org heading, date, file link, tags line.
+  (setq howm-template
+        (concat "* %title%cursor\n"
+                "%date %file\n"
+                "#+filetags:\n\n"))
+
+  ;; Menu: show more context.
+  (setq howm-menu-recent-num 30)
+  (setq howm-list-recent-days 30)
+  (setq howm-menu-todo-num 30)
+
+  ;; Schedule: look ahead 30 days, back 3 days.
+  (setq howm-menu-schedule-days 30)
+  (setq howm-menu-schedule-days-before 3)
+
+  ;; Keep howm metadata inside the note directory via no-littering.
+  (setq howm-keyword-file (no-littering-expand-var-file-name "howm/keys"))
+  (setq howm-history-file (no-littering-expand-var-file-name "howm/history"))
+
   :bind
-  ;; Keybindings to list or create notes.
   ("<f9>" . howm-list-all)
   ("<C-f9>" . howm-create)
+
+  :hook
+  ;; Set buffer names from note title.
+  (howm-mode . howm-mode-set-buffer-name)
+  ;; Enable howm minor mode in all org buffers for comefrom links.
+  (org-mode . howm-mode)
+
   :config
-  ;; Where to store data.
   (setq howm-directory "~/note")
-  (setq howm-home-directory howm-directory))
+  (setq howm-home-directory howm-directory)
+
+  ;; Sort by mtime so recently-touched notes appear first.
+  (setq howm-normalizer 'howm-sort-items-by-mtime)
+  ;; Preview contents in summary view.
+  (setq howm-view-contents-limit 200)
+  ;; Open summary and content side-by-side.
+  (setq howm-view-split-horizontally t)
+  ;; Keep summary visible when selecting an item.
+  (setq howm-view-summary-persistent t))
+
+;;;; org-node (find howm notes by ID)
+
+;; https://baty.net/posts/2025/12/finding-howm-notes-with-org-node/
+;; org-node gives us fast ID-based linking across howm notes.
+(use-package org-node
+  :ensure t
+  :after howm
+  :hook
+  ;; New howm notes automatically get an org-id via org-node.
+  (howm-create . org-node-nodeify-entry)
+  :config
+  ;; Include the howm directory in org-id's search scope.
+  (add-to-list 'org-id-extra-files
+               (directory-files-recursively howm-directory "\\.org\\'"))
+  (org-node-cache-ensure))
 
 ;;;; imenu-list
 
@@ -1031,6 +1085,7 @@ At top-level, as an editor command, this simply beeps."
 (defun my/tramp-cleanup ()
   "Clean up all TRAMP connections and buffers."
   (interactive)
+  (require 'tramp)
   (tramp-cleanup-all-connections)
   (tramp-cleanup-all-buffers)
   (message "TRAMP: all connections and buffers cleaned up"))
