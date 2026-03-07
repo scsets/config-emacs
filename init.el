@@ -1,5 +1,5 @@
 ;;; init.el --- Personal configuration  -*- lexical-binding: t -*-
-;; $Id: init.el,v 1.13 2026/03/07 17:54:29 scs Exp $
+;; $Id: init.el,v 1.14 2026/03/07 18:18:05 scs Exp $
 
 ;;; Commentary:
 
@@ -736,15 +736,10 @@ Prompts before renaming; the user can choose to keep the old name."
   (add-hook 'after-save-hook #'scs--howm-maybe-rename)
 
   ;; Tag/name action-lock rules: #tag, +tag, @name become clickable links.
-  ;; Clicking greps across ~/notes using ripgrep (or grep as fallback).
+  ;; Clicking searches across howm notes (uses rg via howm-view-grep).
   (defun scs--howm-grep-tag (tag)
-    "Search howm notes for TAG using ripgrep or grep."
-    (let ((dir (expand-file-name howm-directory)))
-      (if (executable-find "rg")
-          (grep (format "rg -nH --no-heading --color never -F %s %s"
-                        (shell-quote-argument tag) (shell-quote-argument dir)))
-        (grep (format "grep -rnH -F %s %s"
-                      (shell-quote-argument tag) (shell-quote-argument dir))))))
+    "Search howm notes for TAG using howm's native search."
+    (howm-keyword-search tag nil nil))
 
   (defun scs--howm-add-tag-rules ()
     "Add action-lock rules for #tag, +tag, and @name patterns."
