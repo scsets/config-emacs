@@ -1,5 +1,5 @@
 ;;; init.el --- Personal configuration  -*- lexical-binding: t -*-
-;; $Id: init.el,v 1.10 2026/03/07 16:58:59 scs Exp $
+;; $Id: init.el,v 1.11 2026/03/07 17:13:55 scs Exp $
 
 ;;; Commentary:
 
@@ -667,7 +667,7 @@ At top-level, as an editor command, this simply beeps."
   (org-mode . howm-mode)
 
   :config
-  (setq howm-directory "~/note")
+  (setq howm-directory "~/notes")
   (setq howm-home-directory howm-directory)
 
   ;; Sort by mtime so recently-touched notes appear first.
@@ -677,7 +677,61 @@ At top-level, as an editor command, this simply beeps."
   ;; Open summary and content side-by-side.
   (setq howm-view-split-horizontally t)
   ;; Keep summary visible when selecting an item.
-  (setq howm-view-summary-persistent t))
+  (setq howm-view-summary-persistent t)
+
+  ;; Rename howm files to title_tags_date.org on save.
+  ;; Format: my-note-title_tag1-tag2_2026-03-07.org
+  (defun scs--howm-slugify (str)
+    "Convert STR to a lowercase slug (alphanumeric and hyphens)."
+    (downcase
+     (replace-regexp-in-string
+      "-\\{2,\\}" "-"
+      (replace-regexp-in-string
+       "[^a-zA-Z0-9-]" "-"
+       (string-trim str)))))
+
+  (defun scs--howm-desired-filename ()
+    "Compute the desired filename from the note's title, filetags, and date."
+    (save-excursion
+      (goto-char (point-min))
+      (let ((title (when (re-search-forward
+                          (concat "^" howm-view-title-header " +\\(.+\\)$")
+                          nil t)
+                     (match-string 1)))
+            (tags (progn
+                    (goto-char (point-min))
+                    (when (re-search-forward
+                           "^#\\+filetags: *\\(.+\\)$" nil t)
+                      (match-string 1))))
+            (date (format-time-string "%Y-%m-%d")))
+        (when (and title (not (string-blank-p title)))
+          (let ((slug (scs--howm-slugify title))
+                (tag-part (if (and tags (not (string-blank-p tags)))
+                              (scs--howm-slugify
+                               (replace-regexp-in-string ":" " " tags))
+                            nil)))
+            (concat slug
+                    (when tag-part (concat "_" tag-part))
+                    "_" date ".org"))))))
+
+  (defun scs--howm-maybe-rename ()
+    "Rename the current howm file if the title or tags changed.
+Prompts before renaming; the user can choose to keep the old name."
+    (when (and howm-mode
+               buffer-file-name
+               (file-in-directory-p buffer-file-name howm-directory))
+      (let ((desired (scs--howm-desired-filename)))
+        (when (and desired
+                   (not (string= (file-name-nondirectory buffer-file-name)
+                                 desired)))
+          (let ((new-path (expand-file-name desired
+                                            (file-name-directory buffer-file-name))))
+            (when (and (not (file-exists-p new-path))
+                       (y-or-n-p (format "Rename to %s? " desired)))
+              (rename-file buffer-file-name new-path)
+              (set-visited-file-name new-path t t)))))))
+
+  (add-hook 'after-save-hook #'scs--howm-maybe-rename))
 
 ;;;; org-node (find howm notes by ID)
 
