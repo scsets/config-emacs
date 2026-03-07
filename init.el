@@ -1,5 +1,5 @@
 ;;; init.el --- Personal configuration  -*- lexical-binding: t -*-
-;; $Id: init.el,v 1.12 2026/03/07 17:43:49 scs Exp $
+;; $Id: init.el,v 1.13 2026/03/07 17:54:29 scs Exp $
 
 ;;; Commentary:
 
@@ -733,7 +733,35 @@ Prompts before renaming; the user can choose to keep the old name."
               (rename-file buffer-file-name new-path)
               (set-visited-file-name new-path t t)))))))
 
-  (add-hook 'after-save-hook #'scs--howm-maybe-rename))
+  (add-hook 'after-save-hook #'scs--howm-maybe-rename)
+
+  ;; Tag/name action-lock rules: #tag, +tag, @name become clickable links.
+  ;; Clicking greps across ~/notes using ripgrep (or grep as fallback).
+  (defun scs--howm-grep-tag (tag)
+    "Search howm notes for TAG using ripgrep or grep."
+    (let ((dir (expand-file-name howm-directory)))
+      (if (executable-find "rg")
+          (grep (format "rg -nH --no-heading --color never -F %s %s"
+                        (shell-quote-argument tag) (shell-quote-argument dir)))
+        (grep (format "grep -rnH -F %s %s"
+                      (shell-quote-argument tag) (shell-quote-argument dir))))))
+
+  (defun scs--howm-add-tag-rules ()
+    "Add action-lock rules for #tag, +tag, and @name patterns."
+    (dolist (rule
+             (list
+              ;; #tag — topics/categories
+              (action-lock-general #'scs--howm-grep-tag
+                                   "\\(?:^\\|[ \t]\\)\\(#[a-zA-Z0-9_-]+\\)" 1 1)
+              ;; +tag — projects/groups
+              (action-lock-general #'scs--howm-grep-tag
+                                   "\\(?:^\\|[ \t]\\)\\(\\+[a-zA-Z0-9_-]+\\)" 1 1)
+              ;; @name or @@tag — people, files, resources
+              (action-lock-general #'scs--howm-grep-tag
+                                   "\\(?:^\\|[ \t]\\)\\(@@?[a-zA-Z0-9_.-]+\\)" 1 1)))
+      (add-to-list 'action-lock-rules rule t)))
+
+  (add-hook 'howm-mode-hook #'scs--howm-add-tag-rules))
 
 ;;;; org-node (find howm notes by ID)
 
