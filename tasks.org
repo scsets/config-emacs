@@ -1,15 +1,15 @@
-# $Id: tasks.org,v 1.5 2026/03/05 17:15:20 scs Exp $
+# $Id: tasks.org,v 1.6 2026/03/07 13:22:15 scs Exp $
 #+title: Emacs Configuration Tasks
 #+author: scs
 
-* TODO Resolve el-get / package.el load-order warning for framemove
-=framemove= is still loaded by both ~package.el~ and ~el-get~.
-Choose one package manager to silence the warning.
-(org-contrib warning resolved — now loaded solely via ~use-package~.)
-
 * TODO Verify ~/lisp/lispworks/lw-console path exists
-The SLIME and SLY configs reference =~/lisp/lispworks/lw-console=.
+The SLIME config references =~/lisp/lispworks/lw-console=.
 Confirm this binary exists for the current user, or update the path.
+
+* DONE Remove el-get, migrate all packages to use-package
+CLOSED: [2026-03-05]
+Removed el-get bootstrap. Migrated impatient-mode, hl-todo, psvn
+to use-package.
 
 * DONE Fix Emacs 30 plist-put startup crash
 CLOSED: [2026-03-05]
@@ -27,22 +27,47 @@ Using ~no-littering-expand-var-file-name~ instead.
 CLOSED: [2026-03-05]
 Replaced hardcoded =/Users/priyadarshan/= with =~/= and ~expand-file-name~.
 
-* DONE Consolidate org-contrib into use-package; add ob-ly
+* DONE Consolidate org-contrib into use-package
 CLOSED: [2026-03-05]
-Removed ~el-get-bundle org-contrib~ and duplicate ~:ensure org-contrib~.
-Single ~use-package org-contrib~ block now requires ~ob-ly~ and ~org-expiry~.
+Single ~use-package org-contrib~ block. ~ob-ly~ later removed (gone from
+org-contrib 0.8).
 
 * DONE Add RCS Id keywords and lexical-binding
 CLOSED: [2026-03-05]
-All tracked files now carry the RCS Id keyword. Added ~lexical-binding: t~ to =init.el=.
+All tracked files now carry the RCS Id keyword.
 
-* DONE Fix critical file-name-handler-alist / vc-handled-backends bug in early-init.el
+* DONE Fix file-name-handler-alist / vc-handled-backends restore in early-init.el
 CLOSED: [2026-03-05]
 Restore was commented out — TRAMP and VC were permanently broken.
 
-* DONE Improve early-init.el: move compilation, package, and UI settings
+* DONE Improve early-init.el
 CLOSED: [2026-03-05]
-Moved ~native-comp-async-report-warnings-errors~, ~warning-minimum-level~,
-~byte-compile-warnings~, ~package-native-compile~, ~package-archives~,
-~package-initialize~, and ~tool-bar-mode~ from =init.el= to =early-init.el=.
-Added lexical-binding and RCS Id keyword.
+Moved compilation, package, and UI settings from init.el.
+
+* DONE Clean, optimise init.el
+CLOSED: [2026-03-07]
+- Removed dead code: test keymaps, corfu, commented blocks, toggle-read-only alias
+- Fixed bugs: quoted lambda, babel spacing, savehist double-activate
+- Fixed vc-handled-backends early-init timing conflict
+- Removed duplicate org-confirm-babel-evaluate
+
+* DONE Eliminate custom.el
+CLOSED: [2026-03-07]
+All settings moved to init.el. ~custom-file~ redirected to =/tmp/=.
+Removed orphaned denote/xeft settings.
+
+* DONE Add eshell section
+CLOSED: [2026-03-07]
+Added eshell, eshell-toggle (C-x C-z), eshell-bookmark, eshell-up, eshell-z.
+Cross-platform for macOS, FreeBSD, SmartOS.
+
+* DONE Optimise startup time (4s -> 0.6s)
+CLOSED: [2026-03-07]
+- Removed use-package bootstrap (built-in since Emacs 29)
+- Fixed package-vc re-install loop for framemove (guard with package-installed-p)
+- Removed psvn (repo gone from GitHub); use built-in vc-svn
+- Removed ob-ly (gone from org-contrib 0.8)
+- Deferred heavy packages: company, cape, flycheck, which-key, recentf
+- Deferred org-babel to :after org
+- Deferred org-protocol to after server starts
+- Consolidated tramp settings into use-package block

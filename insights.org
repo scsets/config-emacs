@@ -1,4 +1,4 @@
-# $Id: insights.org,v 1.7 2026/03/07 13:05:01 scs Exp $
+# $Id: insights.org,v 1.8 2026/03/07 13:22:15 scs Exp $
 #+title: Technical Insights
 #+author: scs
 
@@ -177,6 +177,38 @@ makes the closure opaque to the compiler. In modern Emacs (24+),
 ;; RIGHT
 (define-key global-map (kbd "<S-f9>") (lambda () (interactive) ...))
 #+end_example
+
+* package-vc :rev :newest triggers network on every startup
+
+When ~use-package~ specifies ~:vc (:url "..." :rev :newest)~, the
+~:rev :newest~ (or the default ~:last-release~) tells ~package-vc~ to
+check the remote repository for updates. This triggers
+~package-refresh-contents~ (contacting 3 archive servers) and, if the
+package is already installed, prompts "Overwrite previous checkout?"
+— blocking startup entirely in daemon mode.
+
+The fix is to guard with ~package-installed-p~:
+
+#+begin_example
+(unless (package-installed-p 'framemove)
+  (package-vc-install '(framemove :url "https://...")))
+
+(use-package framemove
+  :init ...)
+#+end_example
+
+This way ~package-vc-install~ only runs on first install, not on
+every startup.
+
+* RCS lock workflow: rcs -l vs co -l
+
+After ~ci -u~ (check in, unlock), the working file is unlocked.
+To make further edits:
+
+- Use ~rcs -l file~ to lock *without* overwriting the working file.
+- Do *NOT* use ~co -l file~ — that checks out the repo version and
+  *overwrites* any local changes in the working file.
+- Then ~ci -u -m"message" file~ to commit.
 
 * lexical-binding in init.el
 

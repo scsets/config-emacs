@@ -1,6 +1,71 @@
-# $Id: changes.org,v 1.7 2026/03/05 17:46:36 scs Exp $
+# $Id: changes.org,v 1.8 2026/03/07 13:22:15 scs Exp $
 #+title: Emacs Configuration Changelog
 #+author: scs
+
+* 2026-03-07 Optimise startup (4s -> 0.6s)
+
+- Removed ~use-package~ bootstrap (~package-install~) — built-in since Emacs 29.
+- Fixed ~package-vc~ re-install loop: ~framemove~ and ~psvn~ with ~:vc :rev :newest~
+  triggered ~package-refresh-contents~ and "Overwrite?" prompt on every startup.
+  Now guarded with ~(unless (package-installed-p ...))~.
+- Deferred heavy packages with idle timers:
+  ~company~ and ~cape~ at 2s, ~flycheck~ at 3s, ~which-key~ and ~recentf~ at 1s.
+- Changed ~org-babel~ from ~:demand t~ to ~:after org~ (loads only when org loads).
+- Changed ~org-protocol~ from eager ~require~ to ~with-eval-after-load 'server~.
+- Removed ~psvn~ — GitHub repo (emacsmirror/psvn) no longer exists.
+  Using built-in ~vc-svn~ instead.
+- Removed ~ob-ly~ — no longer included in org-contrib 0.8.
+  Removed ~(ly . t)~ from ~org-babel-load-languages~.
+
+* 2026-03-07 Clean and optimise init.el
+
+** Dead code removed
+- Test/sample keymaps (~test-command~, ~test-prefix-*-map~) that hijacked ~C-z~.
+- Unused ~corfu~ use-package block (Company is the active backend).
+- Commented-out code: el-get remnants, helm/outshine/dsvn, dired settings,
+  ~remember~ block, theme/dark-mode block.
+- Obsolete ~(defalias 'toggle-read-only 'read-only-mode)~ (built-in since 24.3).
+- Commented ~helm-mode~ delight reference.
+
+** Bugs fixed
+- ~S-f9~ timestamp binding: restored ~org-mode~ guard, fixed ~'(lambda ...)~
+  to unquoted ~(lambda ...)~ for byte-compilation.
+- Babel language alist: ~(lisp .t)~ -> ~(lisp . t)~ (missing space in cons).
+- ~savehist-mode~ activated twice (~:custom~ and ~:config~); removed duplicate.
+- Duplicate ~org-confirm-babel-evaluate~ (set both inside and outside ~ob~ block).
+- ~vc-handled-backends~ in ~:custom~ conflicted with early-init.el nil-ing;
+  moved to ~:config~ with ~setq~.
+
+** Consolidation
+- Tramp settings (lines 925-930) moved from loose ~setq~ into ~use-package tramp~.
+- Redundant ~ibuffer~ binding removed (kept only ~[remap list-buffers]~).
+- Cleaned empty ~:init :config~ from ~(use-package org)~.
+
+* 2026-03-07 Eliminate custom.el
+
+- All ~custom-set-variables~ settings migrated to init.el as proper elisp:
+  mode toggles, ~load-theme~, ~set-face-attribute~, ~setq~ calls.
+- Removed orphaned denote/xeft settings (no use-package declarations).
+- ~custom-file~ redirected to ~/tmp/custom.el~ to prevent regeneration.
+- Deleted =custom.el= from config directory.
+
+* 2026-03-07 Add eshell section
+
+- Added ~use-package eshell~ with 50k history, custom prompt, isearch map,
+  ~&!~ spawn trick, su/sudo passthrough.
+- Added ~eshell-toggle~ (~C-x C-z~), ~eshell-bookmark~, ~eshell-up~, ~eshell-z~.
+- Cross-platform for macOS, FreeBSD, SmartOS.
+
+* 2026-03-05 Remove el-get, migrate packages to use-package
+
+- Removed el-get bootstrap and setup block from init.el.
+- Migrated ~impatient-mode~ and ~hl-todo~ to ~use-package~ with ~:ensure t~.
+- Migrated ~psvn~ to ~use-package~ with ~:vc~ (emacsmirror repo).
+- Converted commented-out ~el-get-bundle~ forms (helm, outshine, dsvn)
+  to commented-out ~use-package~ forms.
+- Removed ~(el-get 'sync)~ call.
+- Eliminates startup warnings for framemove/org-contrib
+  ("already loaded by package.el").
 
 * 2026-03-05 Clean up early-init.el and init.el
 

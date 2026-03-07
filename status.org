@@ -1,26 +1,26 @@
-# $Id: status.org,v 1.8 2026/03/07 13:19:25 scs Exp $
+# $Id: status.org,v 1.9 2026/03/07 13:22:15 scs Exp $
 #+title: Emacs Configuration Status
 #+author: scs
-#+date: 2026-03-05
+#+date: 2026-03-07
 
 * Health
 
 | Component          | Status | Notes                                  |
 |--------------------+--------+----------------------------------------|
-| Startup            | OK     | Loads without errors; early-init.el    |
-|                    |        | handles UI, packages, and compilation  |
-| el-get             | GONE   | Fully removed; all packages migrated   |
-|                    |        | to use-package                         |
-| custom.el          | GONE   | All settings moved to init.el;         |
+| Startup            | OK     | 0.6s; no network calls, no errors      |
+| el-get             | GONE   | Fully removed; migrated to use-package |
+| custom.el          | GONE   | All settings in init.el;               |
 |                    |        | custom-file redirected to /tmp/        |
-| org-contrib        | OK     | Via use-package; provides ob-ly,       |
-|                    |        | org-expiry                             |
-| eshell             | OK     | New section; eshell-toggle, eshell-z,  |
-|                    |        | eshell-up, eshell-bookmark             |
+| org-contrib        | OK     | Via use-package; provides org-expiry   |
+| ob-ly              | GONE   | Removed from org-contrib 0.8           |
+| eshell             | OK     | eshell-toggle, eshell-z, eshell-up,    |
+|                    |        | eshell-bookmark                        |
+| psvn               | GONE   | GitHub repo deleted; using vc-svn      |
+| corfu              | GONE   | Removed; Company is active backend     |
+| framemove          | OK     | Via package-vc; guarded install        |
 | SLIME/SLY paths    | CHECK  | Verify ~/lisp/lispworks/ exists        |
 | no-littering       | OK     | Managing var/etc directories           |
 | tramp              | OK     | Settings consolidated in use-package   |
-| corfu              | GONE   | Removed; Company is active backend     |
 | lexical-binding    | OK     | Enabled in init.el and early-init.el   |
 | RCS                | OK     | Id keywords in all tracked files       |
 
@@ -33,10 +33,11 @@ Tested on Emacs 30.2.
 | Platform | Mode    | Status | Notes                                    |
 |----------+---------+--------+------------------------------------------|
 | macOS    | GUI(NS) | OK     | Primary development platform             |
-| macOS    | CLI     | OK     | Guards skip GUI-only settings             |
-| FreeBSD  | CLI     | TARGET | No macOS-specific vars; exec guards       |
-| SmartOS  | CLI     | TARGET | No macOS-specific vars; exec guards       |
+| macOS    | CLI     | OK     | Guards skip GUI-only settings            |
+| FreeBSD  | CLI     | TARGET | No macOS-specific vars; exec guards      |
+| SmartOS  | CLI     | TARGET | No macOS-specific vars; exec guards      |
 
 * Last Verified
 
-[2026-03-07] — cleaned, optimised (0.6s startup), eshell added; custom.el eliminated; psvn removed (repo gone).
+[2026-03-07] — 0.6s startup, clean (no errors/warnings). Eshell added.
+custom.el eliminated. psvn and ob-ly removed (upstream gone).

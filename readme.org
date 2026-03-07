@@ -1,4 +1,4 @@
-# $Id: readme.org,v 1.4 2026/03/05 17:08:18 scs Exp $
+# $Id: readme.org,v 1.5 2026/03/07 13:22:15 scs Exp $
 #+title: Emacs Configuration
 #+author: scs
 
@@ -6,21 +6,24 @@
 
 Personal Emacs configuration for Emacs 30.x.
 
-Uses ~use-package~ for most package management, with ~el-get~ (via
-~el-get-bundle~) for select packages. The ~no-littering~ package keeps
-data and cache files organized outside =~/.config/emacs/=.
+Uses ~use-package~ (built-in) for package management, with ~package-vc~
+for packages not on MELPA. The ~no-littering~ package keeps data and
+cache files organized under =var/= and =etc/=.
 
 * Structure
 
 | File              | Purpose                                    |
 |-------------------+--------------------------------------------|
-| =init.el=         | Main configuration                         |
-| =custom.el=       | Emacs customize settings (auto-generated)  |
-| =early-init.el=   | Early initialization (before UI)           |
+| =init.el=         | Main configuration (all settings)          |
+| =early-init.el=   | Early initialization (GC, UI, packages)    |
 | =changes.org=     | Changelog of manual fixes and changes      |
 | =tasks.org=       | Outstanding and completed tasks            |
 | =status.org=      | Current configuration health status        |
 | =insights.org=    | Technical notes and lessons learned         |
+
+No =custom.el= — all settings live in =init.el=. The ~custom-file~
+variable is redirected to =/tmp/= so Emacs customize writes never
+pollute the config.
 
 * Revision Control
 
@@ -29,16 +32,22 @@ subdirectory. All tracked files carry the RCS Id keyword, which RCS
 expands to show filename, revision, date, and author.
 
 Common commands:
-- ~ci -l <file>~ — check in (keep locked for editing)
-- ~co -l <file>~ — check out with lock
+- ~ci -u <file>~ — check in (unlock working file)
+- ~rcs -l <file>~ — lock without overwriting working file
 - ~rlog <file>~ — view revision history
 - ~rcsdiff <file>~ — diff working file against last revision
 
 * Key Packages
 
-- *Completion:* corfu, cape, vertico, orderless, marginalia, consult
-- *Org:* org-mode, denote, org-contrib (ob-ly, org-expiry)
-- *Lisp:* slime, sly, paredit
-- *UI:* hl-todo, delight, which-key
+- *Completion:* fido-vertical-mode (built-in), company, cape
+- *Shell:* eshell, eshell-toggle, eshell-z, eshell-up
+- *Org:* org-mode, org-contrib (org-expiry), howm
+- *Lisp:* slime (LispWorks)
+- *UI:* hl-todo, delight, which-key, minions
 - *Files:* no-littering, recentf
 - *Remote:* tramp
+- *VCS:* vc (SVN, RCS, Git), framemove (via package-vc)
+
+* Target Platforms
+
+macOS (GUI + CLI), FreeBSD (CLI), SmartOS (CLI).
