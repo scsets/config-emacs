@@ -1,5 +1,5 @@
 ;;; init.el --- Personal configuration  -*- lexical-binding: t -*-
-;; $Id: init.el,v 1.6 2026/03/07 13:05:01 scs Exp $
+;; $Id: init.el,v 1.7 2026/03/07 13:07:48 scs Exp $
 
 ;;; Commentary:
 
@@ -984,8 +984,12 @@ At top-level, as an editor command, this simply beeps."
   (vc-command-messages t)
   (vc-follow-symlinks t)
   (vc-git-diff-switches '("-w" "-U3"))
-  (vc-handled-backends '(SVN RCS CVS Hg Git))
-  (vc-make-backup-files t))
+  (vc-make-backup-files t)
+  :config
+  ;; Set in :config (not :custom) because early-init.el nils out
+  ;; vc-handled-backends during startup and customize-set-variable
+  ;; tries to validate backends before they're restored.
+  (setq vc-handled-backends '(SVN RCS CVS Hg Git)))
 
 ;;;; which-function-mode :gem:
 
