@@ -1,5 +1,5 @@
 ;;; init.el --- Personal configuration  -*- lexical-binding: t -*-
-;; $Id: init.el,v 1.8 2026/03/07 13:19:06 scs Exp $
+;; $Id: init.el,v 1.9 2026/03/07 13:32:55 scs Exp $
 
 ;;; Commentary:
 
@@ -907,13 +907,6 @@ At top-level, as an editor command, this simply beeps."
   :config
   (save-place-mode 1))
 
-;;;; vc-svn
-
-;; psvn repo no longer available; use built-in vc-svn instead
-(with-eval-after-load 'vc-svn
-  (setq svn-status-svn-environment-var-list
-        '("LC_MESSAGES=C" "LANG=C" "LC_ALL=C")))
-
 ;;;; slime
 
 (use-package slime
@@ -947,33 +940,107 @@ At top-level, as an editor command, this simply beeps."
 
 (use-package tramp
   :defer t
-  :custom
-  (tramp-default-method "ssh")
-  (tramp-auto-save-directory "~/.local/share/emacs/backups")
-  (tramp-copy-size-limit (* 1024 1024)) ;; 1MB
-  (tramp-verbose 2)
   :config
-  (setq remote-file-name-inhibit-locks t
-        tramp-use-scp-direct-remote-copying t
-        remote-file-name-inhibit-auto-save-visited t)
+  (setq tramp-default-method "ssh")
+  (setq tramp-copy-size-limit (* 1024 1024))   ;; use scp above 1MB
+  (setq tramp-verbose 1)                       ;; minimal logging (raise to 6 for debugging)
+  (setq tramp-connection-timeout 10)           ;; fail fast on unreachable hosts
+  (setq tramp-persistency-file-name (no-littering-expand-var-file-name "tramp"))
+  (setq tramp-auto-save-directory
+        (expand-file-name "tramp-autosave" temporary-file-directory))
 
-  (add-to-list 'tramp-remote-path
-               (expand-file-name "bin" (getenv "PROFILE_DIR")))
+  ;; Emacs 30: built-in ControlMaster handling (defined in tramp-sh)
+  (with-eval-after-load 'tramp-sh
+    (setq tramp-use-connection-share t))
 
-  ;; Without this change, tramp ends up sending hundreds of shell commands to
-  ;; the remote side to ask what the temporary directory is.
+  ;; --- Performance ---
+
+  ;; Don't create lock files on remote (avoids extra round-trips)
+  (setq remote-file-name-inhibit-locks t)
+
+  ;; Don't auto-save-visited remote files (slow and unreliable)
+  (setq remote-file-name-inhibit-auto-save-visited t)
+
+  ;; Use direct SCP for remote-to-remote copies (no local bounce)
+  (setq tramp-use-scp-direct-remote-copying t)
+
+  ;; Cache remote file attributes longer (default 10s is too aggressive)
+  (setq remote-file-name-inhibit-cache 60)     ;; seconds; nil=forever, t=never
+
+  ;; VC exclusion for remote files is set in the vc use-package block below
+
+  ;; Hardcode /tmp to prevent hundreds of shell commands probing temp dir
   (put 'temporary-file-directory 'standard-value '("/tmp"))
 
-  ;; Setting this with `:custom' does not take effect.
-  (setq tramp-persistency-file-name (no-littering-expand-var-file-name "tramp")))
+  ;; --- Remote PATH discovery ---
+  ;; Extend path for FreeBSD, SmartOS, and custom profile directories
+  (setq tramp-remote-path
+        (append '("/usr/local/bin"             ;; FreeBSD ports
+                  "/usr/local/sbin"            ;; FreeBSD ports
+                  "/opt/local/bin"             ;; SmartOS pkgsrc
+                  "/opt/local/sbin"            ;; SmartOS pkgsrc
+                  tramp-default-remote-path)
+                tramp-remote-path))
+  (let ((pdir (getenv "PROFILE_DIR")))
+    (when pdir
+      (add-to-list 'tramp-remote-path (expand-file-name "bin" pdir))))
 
+  ;; --- Shell setup ---
+  ;; Use /bin/sh for speed (bash/zsh startup files add latency)
+  (setq tramp-encoding-shell "/bin/sh")
+
+  ;; --- Multihop / proxy support ---
+  ;; Example: reach internal hosts via a jump box
+  ;; (add-to-list 'tramp-default-proxies-alist
+  ;;              '("\\.internal\\'" nil "/ssh:jumpbox:"))
+  )
+
+;; --- Connection-local variables ---
+;; Direct async processes for all SSH connections (Emacs 30)
 (connection-local-set-profile-variables
  'remote-direct-async-process
  '((tramp-direct-async-process . t)))
 
 (connection-local-set-profiles
+ '(:application tramp :protocol "ssh")
+ 'remote-direct-async-process)
+
+(connection-local-set-profiles
  '(:application tramp :protocol "scp")
  'remote-direct-async-process)
+
+;; FreeBSD-specific: use GNU ls if available (for dired --dired flag)
+(connection-local-set-profile-variables
+ 'remote-bsd-process
+ '((insert-directory-program . "gls")))
+
+;; Apply to known FreeBSD hosts (add patterns as needed)
+;; (connection-local-set-profiles
+;;  '(:application tramp :machine "freebsd-host")
+;;  'remote-bsd-process)
+
+;; --- Eshell + TRAMP integration ---
+;; Opening eshell on a remote TRAMP path gives a remote shell automatically.
+;; cd /ssh:host:/path then M-x eshell — commands run on the remote host.
+
+;; --- Dired on remote hosts ---
+;; C-x d /ssh:host:/path — browse remote filesystem
+;; With ControlMaster, subsequent dired buffers on the same host are instant.
+
+;; --- Useful TRAMP shortcuts ---
+(defun my/tramp-cleanup ()
+  "Clean up all TRAMP connections and buffers."
+  (interactive)
+  (tramp-cleanup-all-connections)
+  (tramp-cleanup-all-buffers)
+  (message "TRAMP: all connections and buffers cleaned up"))
+
+(defun my/tramp-reopen ()
+  "Revert current remote buffer, refreshing from remote host."
+  (interactive)
+  (when (file-remote-p default-directory)
+    (revert-buffer t t)
+    (message "Refreshed from remote")))
 
 ;;;; vc
 
@@ -990,7 +1057,18 @@ At top-level, as an editor command, this simply beeps."
   ;; Set in :config (not :custom) because early-init.el nils out
   ;; vc-handled-backends during startup and customize-set-variable
   ;; tries to validate backends before they're restored.
-  (setq vc-handled-backends '(SVN RCS CVS Hg Git)))
+  (setq vc-handled-backends '(SVN RCS CVS Hg Git))
+
+  ;; Don't probe VC on remote files (saves many round-trips per file open)
+  (setq vc-ignore-dir-regexp
+        (format "%s\\|%s" vc-ignore-dir-regexp tramp-file-name-regexp)))
+
+;;;; vc-svn
+
+;; psvn repo no longer available; use built-in vc-svn instead
+(with-eval-after-load 'vc-svn
+  (setq svn-status-svn-environment-var-list
+        '("LC_MESSAGES=C" "LANG=C" "LC_ALL=C")))
 
 ;;;; which-function-mode :gem:
 
