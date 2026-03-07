@@ -1,4 +1,4 @@
-# $Id: insights.org,v 1.9 2026/03/07 16:58:59 scs Exp $
+# $Id: insights.org,v 1.10 2026/03/07 17:00:06 scs Exp $
 #+title: Technical Insights
 #+author: scs
 
@@ -234,6 +234,43 @@ Pattern:
   (unless (server-running-p "scrim") (server-start)))
 #+end_example
 
+** TCP auth files vs Unix sockets
+
+TCP mode creates a plain /auth file/ (containing IP, port, and auth
+key) in ~server-auth-dir~.  Socket mode creates a Unix domain /socket
+file/ in ~server-socket-dir~.  They look different on disk:
+
+- Auth file: regular file (e.g. =server/scrim=), contains ~127.0.0.1:56242 70858 ...~
+- Socket: socket file (=srwx------=) in the ~server-socket-dir~ tmpdir.
+
+~no-littering~ redirects ~server-auth-dir~ but not ~server-socket-dir~,
+so TCP auth files land under =var/server/auth/= while sockets still go
+to the OS tmpdir (e.g. =/var/folders/.../emacs501/=).
+
+** server-start and stale server files
+
+~server-start~ will prompt interactively ("server file already exists;
+delete it?") if it finds a leftover auth file or socket from a
+previous session.  This blocks daemon startup.  If switching from TCP
+to sockets (or vice versa), delete stale files before restarting, or
+call ~(server-force-delete)~ first.
+
+** emacsclient -a "" for daemon auto-start
+
+Passing ~-a ""~ (empty string as alternate editor) tells ~emacsclient~
+to start a new Emacs daemon if no server is found, then retry the
+connection.  Combined with ~-n~ (no-wait), this is a reliable way to
+ensure an Emacs server is always available from scripts or MCP tools:
+
+#+begin_example
+emacsclient -n -a "" -e '(emacs-version)'
+#+end_example
+
+*Caution:* the ~-a~ flag must be separated from its argument; combined
+forms like ~-nwa ""~ cause argument parsing errors on some builds (the
+parser reads ~""~ as the timeout for ~-a~ instead of the alternate
+editor string).
+
 * org-node for howm notes
 
 ~org-node~ provides fast, cache-based ID lookup across org files.
@@ -244,6 +281,10 @@ via ~org-id~ and linkable with standard ~[[id:...]]~ links.
 The ~(org-mode . howm-mode)~ hook enables howm's action-lock minor
 mode in all org buffers, so comefrom links (~<<< keyword~) work
 everywhere — not just in files opened through howm.
+
+Populating ~org-id-extra-files~ with ~directory-files-recursively~
+on the howm directory ensures that ~org-id-goto~ can jump to any
+howm note by ID, even if it was never opened in the current session.
 
 * lexical-binding in init.el
 
