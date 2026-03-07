@@ -1,6 +1,16 @@
-# $Id: changes.org,v 1.9 2026/03/07 16:58:59 scs Exp $
+# $Id: changes.org,v 1.10 2026/03/07 17:16:56 scs Exp $
 #+title: Emacs Configuration Changelog
 #+author: scs
+
+* 2026-03-07 Howm: semantic filenames and directory change
+
+- Changed ~howm-directory~ from =~/note= to =~/notes=.
+- Added ~scs--howm-maybe-rename~: on save, computes desired filename
+  from org heading title, ~#+filetags:~, and ISO date. Prompts with
+  ~y-or-n-p~ before renaming; user can decline to keep the old name.
+- Format: =my-note-title_tag1-tag2_2026-03-07.org=
+- Won't rename if target file already exists.
+- Helper ~scs--howm-slugify~ converts strings to lowercase hyphenated slugs.
 
 * 2026-03-07 Add howm/org-node integration, fix Emacs server
 

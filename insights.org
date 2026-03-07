@@ -1,4 +1,4 @@
-# $Id: insights.org,v 1.12 2026/03/07 17:02:29 scs Exp $
+# $Id: insights.org,v 1.13 2026/03/07 17:16:56 scs Exp $
 #+title: Technical Insights
 #+author: scs
 
@@ -300,6 +300,30 @@ everywhere — not just in files opened through howm.
 Populating ~org-id-extra-files~ with ~directory-files-recursively~
 on the howm directory ensures that ~org-id-goto~ can jump to any
 howm note by ID, even if it was never opened in the current session.
+
+* Semantic howm filenames via after-save-hook
+
+Howm's ~howm-file-name-format~ only supports ~strftime~ codes — it
+cannot include the note title or tags because those don't exist when
+the file is first created.  The workaround is an ~after-save-hook~
+that renames the file once the content is known.
+
+Key implementation details:
+
+- Use ~set-visited-file-name~ with the third argument ~t~
+  (~along-with-file~) to tell Emacs the file was already renamed on
+  disk.  This avoids an infinite save loop since the rename happens
+  inside ~after-save-hook~.
+- Guard with ~file-in-directory-p~ to only rename files in the howm
+  directory, not every org buffer.
+- Check ~(not (file-exists-p new-path))~ before renaming to avoid
+  clobbering an existing note with the same slug.
+- Use ~y-or-n-p~ to let the user decline the rename, preserving the
+  original filename when the title change was incidental.
+
+This pattern is similar to ~denote~'s filename convention
+(=DATE--TITLE__KEYWORDS.org=), adapted for howm with ~_~ as the
+field separator.
 
 * Stale MELPA archive cache and transitive dependencies
 

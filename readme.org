@@ -1,4 +1,4 @@
-# $Id: readme.org,v 1.6 2026/03/07 16:58:59 scs Exp $
+# $Id: readme.org,v 1.7 2026/03/07 17:16:56 scs Exp $
 #+title: Emacs Configuration
 #+author: scs
 
@@ -41,7 +41,8 @@ Common commands:
 
 - *Completion:* fido-vertical-mode (built-in), company, cape
 - *Shell:* eshell, eshell-toggle, eshell-z, eshell-up
-- *Org:* org-mode, org-contrib (org-expiry), howm, org-node
+- *Org:* org-mode, org-contrib (org-expiry)
+- *Notes:* howm (=~/notes=, semantic filenames), org-node (ID linking)
 - *Lisp:* slime (LispWorks)
 - *UI:* hl-todo, delight, which-key, minions
 - *Files:* no-littering, recentf

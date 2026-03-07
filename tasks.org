@@ -1,4 +1,4 @@
-# $Id: tasks.org,v 1.7 2026/03/07 16:58:59 scs Exp $
+# $Id: tasks.org,v 1.8 2026/03/07 17:16:56 scs Exp $
 #+title: Emacs Configuration Tasks
 #+author: scs
 
@@ -60,6 +60,11 @@ Removed orphaned denote/xeft settings.
 CLOSED: [2026-03-07]
 Added eshell, eshell-toggle (C-x C-z), eshell-bookmark, eshell-up, eshell-z.
 Cross-platform for macOS, FreeBSD, SmartOS.
+
+* DONE Howm semantic filenames (title_tags_date.org)
+CLOSED: [2026-03-07]
+Added ~scs--howm-maybe-rename~ hook on save. Prompts before renaming.
+Changed howm directory from ~/note to ~/notes.
 
 * DONE Add howm/org-node integration
 CLOSED: [2026-03-07]
