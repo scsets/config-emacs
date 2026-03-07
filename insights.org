@@ -1,4 +1,4 @@
-# $Id: insights.org,v 1.6 2026/03/05 17:24:31 scs Exp $
+# $Id: insights.org,v 1.7 2026/03/07 13:05:01 scs Exp $
 #+title: Technical Insights
 #+author: scs
 
@@ -136,6 +136,47 @@ makes the config portable: settings are silently skipped on systems where
 the tool isn't installed, avoiding "Searching for program: No such file or
 directory" errors. This is especially useful for tools like ~aspell~,
 ~ugrep~, and ~rg~ that may not be present on all platforms.
+
+* use-package :custom evaluates at expansion time
+
+The ~:custom~ keyword in ~use-package~ calls ~customize-set-variable~
+at *macro expansion time* — the value expression is evaluated
+immediately when init.el is byte-compiled or loaded, NOT when the
+package is lazily triggered via ~:commands~ or ~:defer~.
+
+This means function calls in ~:custom~ values must reference code
+that is *already loaded*:
+
+#+begin_example
+;; WRONG — no-littering may not be loaded yet when eshell :custom runs
+(use-package eshell
+  :commands eshell
+  :custom
+  (eshell-directory-name (no-littering-expand-var-file-name "eshell/")))
+
+;; RIGHT — locate-user-emacs-file is always available (built-in)
+(use-package eshell
+  :commands eshell
+  :custom
+  (eshell-directory-name (locate-user-emacs-file "var/eshell/")))
+#+end_example
+
+Alternative: move the setting into ~:config~ (which runs after the
+package loads and all prior init has completed).
+
+* Quoted vs unquoted lambdas
+
+Writing ~'(lambda ...)~ (with a quote) prevents byte-compilation and
+makes the closure opaque to the compiler. In modern Emacs (24+),
+~(lambda ...)~ is self-quoting — always use the unquoted form:
+
+#+begin_example
+;; WRONG
+(define-key global-map (kbd "<S-f9>") '(lambda () (interactive) ...))
+
+;; RIGHT
+(define-key global-map (kbd "<S-f9>") (lambda () (interactive) ...))
+#+end_example
 
 * lexical-binding in init.el
 

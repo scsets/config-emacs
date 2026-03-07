@@ -1,4 +1,4 @@
-# $Id: status.org,v 1.6 2026/03/05 17:24:31 scs Exp $
+# $Id: status.org,v 1.7 2026/03/07 13:05:01 scs Exp $
 #+title: Emacs Configuration Status
 #+author: scs
 #+date: 2026-03-05
@@ -9,15 +9,18 @@
 |--------------------+--------+----------------------------------------|
 | Startup            | OK     | Loads without errors; early-init.el    |
 |                    |        | handles UI, packages, and compilation  |
-| el-get             | WARN   | Load-order warning for framemove       |
-|                    |        | (org-contrib resolved)                 |
+| el-get             | GONE   | Fully removed; all packages migrated   |
+|                    |        | to use-package                         |
+| custom.el          | GONE   | All settings moved to init.el;         |
+|                    |        | custom-file redirected to /tmp/        |
 | org-contrib        | OK     | Via use-package; provides ob-ly,       |
 |                    |        | org-expiry                             |
-| ob-ly              | OK     | Loaded via org-contrib use-package     |
+| eshell             | OK     | New section; eshell-toggle, eshell-z,  |
+|                    |        | eshell-up, eshell-bookmark             |
 | SLIME/SLY paths    | CHECK  | Verify ~/lisp/lispworks/ exists        |
 | no-littering       | OK     | Managing var/etc directories           |
-| tramp              | OK     | Persistency file via no-littering;     |
-|                    |        | file-name-handler-alist restored       |
+| tramp              | OK     | Settings consolidated in use-package   |
+| corfu              | GONE   | Removed; Company is active backend     |
 | lexical-binding    | OK     | Enabled in init.el and early-init.el   |
 | RCS                | OK     | Id keywords in all tracked files       |
 
@@ -36,4 +39,4 @@ Tested on Emacs 30.2.
 
 * Last Verified
 
-[2026-03-05] — batch load completes; interactive launch succeeds.
+[2026-03-07] — cleaned, optimised, eshell added; custom.el eliminated.

@@ -1,16 +1,9 @@
 ;;; init.el --- Personal configuration  -*- lexical-binding: t -*-
-;; $Id: init.el,v 1.5 2026/03/05 17:46:36 scs Exp $
+;; $Id: init.el,v 1.6 2026/03/07 13:05:01 scs Exp $
 
 ;;; Commentary:
 
 ;;; Code:
-
-
-;;; Compatibility
-
-;; <2024-09-13> At some point emacs deprecated `toggle-read-only`.
-;; "toggle-read-only is an obsolete alias for read-only-mode"
-(defalias 'toggle-read-only 'read-only-mode)
 
 
 ;;; Custom functions
@@ -132,87 +125,6 @@ At top-level, as an editor command, this simply beeps."
 (require 'bind-key)
 (require 'use-package)
 
-;;;; el-get setup
-
-(add-to-list 'load-path
-             (expand-file-name "el-get/el-get" user-emacs-directory))
-
-(unless (require 'el-get nil 'noerror)
-  (with-current-buffer
-      (url-retrieve-synchronously
-       "https://raw.githubusercontent.com/dimitri/el-get/master/el-get-install.el")
-    (goto-char (point-max))
-    (eval-print-last-sexp)))
-
-(add-to-list 'el-get-recipe-path
-             (expand-file-name "el-get-recipes" user-emacs-directory))
-
-;;;; el-get packages
-
-(el-get-bundle impatient-mode) ;; local recipe
-
-;; (el-get-bundle simple-httpd)
-
-;; (setq httpd-root "/Users/priyadarshan/Sites")
-
-;; (httpd-start)
-;; (httpd-stop)
-
-;; (defservlet hello-world text/plain (path)
-;;   (insert "hello, " (file-name-nondirectory path)))
-
-;; (defservlet scratch text/plain ()
-;;   (insert-buffer-substring (get-buffer-create "init.el")))
-
-;; (el-get-bundle org-mode)
-
-;; helm
-;(el-get-bundle helm
-;  (helm-mode)
-;  (global-set-key (kbd "M-x") 'helm-M-x)
-;  (global-set-key (kbd "C-x r b") #'helm-filtered-bookmarks)
-;  (global-set-key (kbd "C-x C-f") #'helm-find-files))
-
-;; outshine
-;;(el-get-bundle outshine
-;;  (add-hook 'emacs-lisp-mode-hook 'outshine-mode))
-
-;; svn
-(require 'vc-svn)
-
-;; Original is at https://github.com/rosbo018/dsvn
-;; el-get recipe is from emacsmirror
-;; (el-get-bundle rosbo018/dsvn)
-
-;(el-get-bundle dsvn
-;  (autoload 'svn-status "dsvn" "Run `svn status'." t)
-;  (autoload 'svn-update "dsvn" "Run `svn update'." t))
-
-;; defalias needed. see top of initfile.
-(el-get-bundle psvn)
-
-(setq svn-status-svn-environment-var-list '("LC_MESSAGES=C" "LANG=C" "LC_ALL=C"))
-(autoload 'svn-status "psvn" nil t)
-
-;;(setq vc-handled-backends nil)
-
-;;(setq vc-follow-symlinks 'ask)
-
-(el-get-bundle tarsius/hl-todo
-  (global-hl-todo-mode)
-  (setq hl-todo-keyword-faces
-        '(("TODO"   . "#FF0000")
-          ("FIXME"  . "#FF0000")
-          ("DEBUG"  . "#A020F0")
-          ("GOTCHA" . "#FF4300")
-          ("STUB"   . "#1E90FF"))))
-
-;; Ensure that any currently installed packages will be initialized
-;; and any required packages will be installed.
-;; End of recipes, call `el-get' to make sure all packages (including
-;; dependencies) are setup.
-(el-get 'sync)
-
 
 ;;; General settings
 
@@ -290,11 +202,6 @@ At top-level, as an editor command, this simply beeps."
 
 ;;;; Dired settings
 
-;;(add-hook 'dired-mode-hook #'dired-hide-details-mode)
-;;(setq dired-auto-revert-buffer t
-;;      dired-dwim-target t
-;;      dired-listing-switches "-Alhv --time-style=+%Y-%m-%d --group-directories-first --ignore=.git")
-
 (setq dired-kill-when-opening-new-dired-buffer t)
 
 ;;;; Input method
@@ -342,9 +249,33 @@ At top-level, as an editor command, this simply beeps."
 
 ;;; Custom file
 
-(setq custom-file (concat user-emacs-directory "custom.el"))
-(when (file-exists-p custom-file)
-  (load custom-file))
+;; Redirect customize output so it never pollutes init.el
+(setq custom-file (expand-file-name "custom.el" temporary-file-directory))
+
+;;; Settings formerly in custom.el
+
+(blink-cursor-mode -1)
+(desktop-save-mode t)
+(size-indication-mode t)
+(load-theme 'tango-dark t)
+
+(setq byte-compile-error-on-warn nil)
+(setq grep-command "ugrep")
+(setq org-ql-search-directories-files-recursive t)
+(setq org-safe-remote-resources
+      '("\\`https://cdn\\.britannica\\.com/s:800x450,c:crop/66/195966-138-F9E7A828/facts-turtles\\.jpg\\'"))
+(setq safe-local-variable-values
+      '((tab . 4) (var . value) (Base . 10) (Package . CL-USER)
+        (Syntax . COMMON-LISP)))
+(setq windmove-wrap-around nil)
+
+;; Font (GUI only)
+(when (display-graphic-p)
+  (set-face-attribute 'default nil
+                      :family "Menlo"
+                      :height 180
+                      :weight 'normal
+                      :width 'normal))
 
 
 ;;; Keybindings
@@ -382,8 +313,7 @@ At top-level, as an editor command, this simply beeps."
 
 ;; (global-set-key "\C-x\C-b" 'buffer-menu)
 
-;; ibuffer is better than buffer-menu to me
-(global-set-key (kbd "C-x C-b") 'ibuffer)
+;; ibuffer is better than buffer-menu
 (global-set-key [remap list-buffers] 'ibuffer)
 
 ;;;; C-h/M-h as backspace
@@ -434,11 +364,9 @@ At top-level, as an editor command, this simply beeps."
 ;;;; Timestamp -- S-f9 (rebind from f9, conflicts with howm)
 
 (define-key global-map (kbd "<S-f9>")
-  '(lambda () (interactive)
-;;    (when (eq major-mode 'org-mode)
-     (org-insert-timestamp nil nil :inactive " " " pds")
-;;    (insert "\n")
-     ))
+  (lambda () (interactive)
+    (when (eq major-mode 'org-mode)
+      (org-insert-timestamp nil nil :inactive " " " pds"))))
 
 ;; Example of timestamp
 ;; (org-insert-timestamp nil nil :inactive "Date: " " pdn")
@@ -516,19 +444,6 @@ At top-level, as an editor command, this simply beeps."
 
   (global-company-mode))
 
-;;;; corfu
-
-(use-package corfu
-  :ensure t
-  :custom
-  (corfu-cycle t)
-  (corfu-separator ?\s)
-  (corfu-auto t)
-  (corfu-quit-no-match 'separator)
-  :init
-;  (global-corfu-mode)
-  )
-
 ;;;; delight
 
 (use-package delight :ensure t)
@@ -538,7 +453,6 @@ At top-level, as an editor command, this simply beeps."
   (auto-fill-function " AF")
   (visual-line-mode)
   (lisp-mode)
-;  (helm-mode)
   (eldoc-mode)
   (auto-revert-mode)
   (outline-minor-mode))
@@ -551,6 +465,97 @@ At top-level, as an editor command, this simply beeps."
   :init
   (exec-path-from-shell-initialize)
   (exec-path-from-shell-copy-envs '("LIBRARY_PATH" "INFOPATH" "CPATH" "MANPATH")))
+
+;;;; eshell
+
+(use-package eshell
+  :commands (eshell eshell-command)
+  :custom
+  (eshell-directory-name (locate-user-emacs-file "var/eshell/"))
+  (eshell-hist-ignoredups t)
+  (eshell-history-size 50000)
+  (eshell-ls-dired-initial-args '("-h"))
+  (eshell-ls-exclude-regexp "~\\'")
+  (eshell-ls-initial-args "-h")
+  (eshell-modules-list
+   '(eshell-alias
+     eshell-basic
+     eshell-cmpl
+     eshell-dirs
+     eshell-glob
+     eshell-hist
+     eshell-ls
+     eshell-pred
+     eshell-prompt
+     eshell-rebind
+     eshell-script
+     eshell-term
+     eshell-unix
+     eshell-xtra))
+  (eshell-prompt-function
+   (lambda nil
+     (concat (abbreviate-file-name (eshell/pwd))
+             (if (= (user-uid) 0)
+                 " # " " $ "))))
+  (eshell-rebind-keys-alist
+   '(([(control ?a)] . eshell-bol)
+     ([home]         . eshell-bol)
+     ([(control ?d)] . eshell-delchar-or-maybe-eof)
+     ([backspace]    . eshell-delete-backward-char)
+     ([delete]       . eshell-delete-backward-char)))
+  (eshell-save-history-on-exit t)
+  (eshell-stringify-t nil)
+  (eshell-term-name "ansi")
+  (eshell-visual-commands
+   '("vi" "top" "htop" "screen" "less" "lynx" "rlogin" "telnet" "ssh"))
+  :preface
+  (defvar eshell-isearch-map
+    (let ((map (copy-keymap isearch-mode-map)))
+      (define-key map [(control ?m)] 'eshell-isearch-return)
+      (define-key map [return]       'eshell-isearch-return)
+      (define-key map [(control ?r)] 'eshell-isearch-repeat-backward)
+      (define-key map [(control ?s)] 'eshell-isearch-repeat-forward)
+      (define-key map [(control ?g)] 'eshell-isearch-abort)
+      (define-key map [backspace]    'eshell-isearch-delete-char)
+      (define-key map [delete]       'eshell-isearch-delete-char)
+      map)
+    "Keymap used in isearch in Eshell.")
+
+  (defun eshell-spawn-external-command (beg end)
+    "Parse and expand any history references in current input."
+    (save-excursion
+      (goto-char end)
+      (when (looking-back "&!" beg)
+        (delete-region (match-beginning 0) (match-end 0))
+        (goto-char beg)
+        (insert "spawn "))))
+
+  (defun eshell-initialize ()
+    (add-hook 'eshell-expand-input-functions #'eshell-spawn-external-command)
+
+    (use-package em-unix
+      :defer t
+      :config
+      ;; Use the system su/sudo instead of Emacs's built-in Tramp wrappers
+      (unintern 'eshell/su nil)
+      (unintern 'eshell/sudo nil)))
+  :init
+  (add-hook 'eshell-first-time-mode-hook #'eshell-initialize))
+
+(use-package eshell-toggle
+  :ensure t
+  :bind ("C-x C-z" . eshell-toggle))
+
+(use-package eshell-bookmark
+  :hook (eshell-mode . eshell-bookmark-setup))
+
+(use-package eshell-up
+  :ensure t
+  :commands eshell-up)
+
+(use-package eshell-z
+  :ensure t
+  :after eshell)
 
 ;;;; flycheck
 
@@ -584,6 +589,19 @@ At top-level, as an editor command, this simply beeps."
 
 ;; https://github.com/port19x/haproxy-mode
 (use-package haproxy-mode :ensure t)
+
+;;;; hl-todo
+
+(use-package hl-todo
+  :ensure t
+  :config
+  (global-hl-todo-mode)
+  (setq hl-todo-keyword-faces
+        '(("TODO"   . "#FF0000")
+          ("FIXME"  . "#FF0000")
+          ("DEBUG"  . "#A020F0")
+          ("GOTCHA" . "#FF4300")
+          ("STUB"   . "#1E90FF"))))
 
 ;;;; howm (:after org -- comes after org)
 
@@ -631,6 +649,10 @@ At top-level, as an editor command, this simply beeps."
   (imenu-list-focus-after-activation t)
   (imenu-list-auto-resize nil))
 
+;;;; impatient-mode
+
+(use-package impatient-mode :ensure t)
+
 ;;;; keycast
 
 ;; (keycast-tab-bar-mode)
@@ -667,9 +689,7 @@ At top-level, as an editor command, this simply beeps."
 ;;;; org
 
 (use-package org
-  :ensure t
-  :init
-  :config)
+  :ensure t)
 
 (require 'org-protocol) ;; also for macOS scrim
 
@@ -764,8 +784,8 @@ At top-level, as an editor command, this simply beeps."
      (dot        . t)
      (makefile   . t)
      (org        . t)
-     (lisp       .t)
-     (ly         .t)
+     (lisp       . t)
+     (ly         . t)
      ;; (jupyter    . t)
      ))                  ; must be last
 
@@ -804,8 +824,6 @@ At top-level, as an editor command, this simply beeps."
 
   (add-to-list 'org-src-lang-modes (quote ("plantuml" . plantuml))))
 
-(setq org-confirm-babel-evaluate nil)
-
 ;; org-capture
 ;; (hook defined in Custom functions section above)
 
@@ -842,17 +860,6 @@ At top-level, as an editor command, this simply beeps."
                (recentf-expand-file-name no-littering-etc-directory))
   (recentf-mode 1))
 
-;;;; remember (built-in) :not-useful:
-
-;; Persistent notes (like persistent-scratch, but built-in)
-;; not useful, if not even annoying.
-
-;;(setq initial-buffer-choice 'remember-notes
-;;	  remember-data-file "~/note/remember-notes.org"
-;;	  remember-notes-initial-major-mode 'org-mode
-;;	  remember-notes-auto-save-visited-file-name t
-;;	  remember-in-new-frame t))
-
 ;;;; reveal-in-osx-finder (macOS only)
 
 (use-package reveal-in-osx-finder
@@ -886,9 +893,7 @@ At top-level, as an editor command, this simply beeps."
      query-replace-history
      yes-or-no-p-history
      kill-ring))
-  (savehist-mode t)
-  :config
-  (savehist-mode 1))
+  (savehist-mode t))
 
 ;;;; saveplace
 
@@ -896,6 +901,17 @@ At top-level, as an editor command, this simply beeps."
   :unless noninteractive
   :config
   (save-place-mode 1))
+
+;;;; psvn
+
+(require 'vc-svn)
+
+(use-package psvn
+  :vc (:url "https://github.com/emacsmirror/psvn" :rev :newest)
+  :commands svn-status
+  :config
+  (setq svn-status-svn-environment-var-list
+        '("LC_MESSAGES=C" "LANG=C" "LC_ALL=C")))
 
 ;;;; slime
 
@@ -933,7 +949,13 @@ At top-level, as an editor command, this simply beeps."
   :custom
   (tramp-default-method "ssh")
   (tramp-auto-save-directory "~/.local/share/emacs/backups")
+  (tramp-copy-size-limit (* 1024 1024)) ;; 1MB
+  (tramp-verbose 2)
   :config
+  (setq remote-file-name-inhibit-locks t
+        tramp-use-scp-direct-remote-copying t
+        remote-file-name-inhibit-auto-save-visited t)
+
   (add-to-list 'tramp-remote-path
                (expand-file-name "bin" (getenv "PROFILE_DIR")))
 
@@ -943,13 +965,6 @@ At top-level, as an editor command, this simply beeps."
 
   ;; Setting this with `:custom' does not take effect.
   (setq tramp-persistency-file-name (no-littering-expand-var-file-name "tramp")))
-
-(setq remote-file-name-inhibit-locks t
-      tramp-use-scp-direct-remote-copying t
-      remote-file-name-inhibit-auto-save-visited t)
-
-(setq tramp-copy-size-limit (* 1024 1024) ;; 1MB
-      tramp-verbose 2)
 
 (connection-local-set-profile-variables
  'remote-direct-async-process
@@ -994,68 +1009,8 @@ At top-level, as an editor command, this simply beeps."
         whitespace-style '(face lines-tail tabs trailing)))
 
 
-;;; Sample keymaps
-
-;;; ---
-
-(defun test-command ()
-  (interactive)
-  (message "Hello world"))
-
-(keymap-set global-map "C-z" #'test-command)
-
-;; Define key maps that will then be added to the prefix map
-(defvar-keymap test-prefix-buffer-map
-  :doc "My prefix key map for buffers."
-  "s" #'save-buffer
-  "w" #'write-file
-  "p" #'previous-buffer
-  "n" #'next-buffer)
-
-(defvar-keymap test-prefix-mode-map
-  :doc "My prefix key map for minor modes."
-  "l" #'display-line-numbers-mode
-  "h" #'hl-line-mode)
-
-;; Define a key map with commands and nested key maps
-(defvar-keymap test-prefix-map
-  :doc "My prefix key map."
-  "b" test-prefix-buffer-map
-  "m" test-prefix-mode-map
-  "f" #'find-file
-  "d" #'dired
-  "z" #'suspend-frame)
-
-;; Define how the nested keymaps are labelled in `which-key-mode'.
-(which-key-add-keymap-based-replacements test-prefix-map
-  "b" `("Buffer" . ,test-prefix-buffer-map)
-  "m" `("Testing" . ,test-prefix-mode-map))
-
-;; Bind the prefix key map to a key.  Notice the absence of a quote for
-;; the map's symbol.
-(keymap-set global-map "C-z" test-prefix-map)
-
 
 ;;; Finalization
-
-;;; ---
-
-;; * Theme
-
-;; Set dark mode. Prefix with C-- for light mode.
-;; (defun dark-mode (&optional light)
-;;   (interactive "P")
-;;   (if (not light)
-;;       (progn (set-background-color "black")
-;;              (set-foreground-color "grey86"))
-;;     (progn (set-background-color "grey86")
-;;            (set-foreground-color "black"))))
-;; (dark-mode)
-;; ;; New frames default to dark mode
-;; (add-to-list 'default-frame-alist
-;;              '(background-color . "black"))
-;; (add-to-list 'default-frame-alist
-;;              '(foreground-color . "grey86"))
 
 (provide 'init)
 
