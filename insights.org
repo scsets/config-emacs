@@ -1,4 +1,4 @@
-# $Id: insights.org,v 1.11 2026/03/07 17:00:22 scs Exp $
+# $Id: insights.org,v 1.12 2026/03/07 17:02:29 scs Exp $
 #+title: Technical Insights
 #+author: scs
 
@@ -300,6 +300,32 @@ everywhere — not just in files opened through howm.
 Populating ~org-id-extra-files~ with ~directory-files-recursively~
 on the howm directory ensures that ~org-id-goto~ can jump to any
 howm note by ID, even if it was never opened in the current session.
+
+* Stale MELPA archive cache and transitive dependencies
+
+MELPA is a rolling-release archive — packages get new version
+timestamps on every commit.  The local package archive cache (built
+by ~package-refresh-contents~) stores download URLs with specific
+version strings.  If a transitive dependency (e.g. ~el-job~, pulled
+in by ~org-node~) gets a new release between cache refreshes, the
+cached URL 404s with "Not found", even though the package still
+exists on MELPA.
+
+Fix: run ~package-refresh-contents~ (or ~M-x package-refresh-contents~)
+to rebuild the cache, then retry the install.  For init.el resilience,
+consider refreshing the cache on install failure:
+
+#+begin_example
+(unless (package-installed-p 'some-package)
+  (condition-case nil
+      (package-install 'some-package)
+    (error
+     (package-refresh-contents)
+     (package-install 'some-package))))
+#+end_example
+
+This pattern avoids refreshing on every startup (slow) while
+recovering gracefully from stale-cache errors.
 
 * lexical-binding in init.el
 
