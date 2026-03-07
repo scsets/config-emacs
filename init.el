@@ -1,5 +1,5 @@
 ;;; init.el --- Personal configuration  -*- lexical-binding: t -*-
-;; $Id: init.el,v 1.7 2026/03/07 13:07:48 scs Exp $
+;; $Id: init.el,v 1.8 2026/03/07 13:19:06 scs Exp $
 
 ;;; Commentary:
 
@@ -119,9 +119,9 @@ At top-level, as an editor command, this simply beeps."
 
 ;;;; use-package
 
-(unless (package-installed-p 'use-package)
-  (package-install 'use-package))
+;; use-package is built-in since Emacs 29
 (defvar use-package-enable-imenu-support t)
+(setq use-package-always-ensure nil)
 (require 'bind-key)
 (require 'use-package)
 
@@ -390,7 +390,7 @@ At top-level, as an editor command, this simply beeps."
 
 (use-package cape
   :ensure t
-  :demand t
+  :defer 2
   :bind (:prefix-map
          my-cape-map
          :prefix "C-c ."
@@ -419,6 +419,7 @@ At top-level, as an editor command, this simply beeps."
 
 (use-package company
   :ensure t
+  :defer 2
   :config
   (setq company-selection-default nil)
   (setq company-minimum-prefix-length 3)
@@ -561,6 +562,7 @@ At top-level, as an editor command, this simply beeps."
 
 (use-package flycheck
   :ensure t
+  :defer 3
   :config (global-flycheck-mode))
 
 ;;;; flyspell
@@ -578,9 +580,11 @@ At top-level, as an editor command, this simply beeps."
 ;; https://github.com/emacsmirror/emacswiki.org/blob/master/framemove.el
 ;; not on melpa
 ;; https://trey-jackson.blogspot.com/2010/02/emacs-tip-35-framemove.html
+;; Install via package-vc if missing (avoids re-install prompt on every startup)
+(unless (package-installed-p 'framemove)
+  (package-vc-install '(framemove :url "https://github.com/emacsmirror/framemove")))
+
 (use-package framemove
-  :vc (:url "https://github.com/emacsmirror/framemove"
-       :rev :newest)
   :init
   (windmove-default-keybindings)
   (setq framemove-hook-into-windmove t))
@@ -689,9 +693,12 @@ At top-level, as an editor command, this simply beeps."
 ;;;; org
 
 (use-package org
-  :ensure t)
+  :ensure t
+  :defer t)
 
-(require 'org-protocol) ;; also for macOS scrim
+;; org-protocol needed for macOS scrim — load after server starts
+(with-eval-after-load 'server
+  (require 'org-protocol))
 
 ;; :vip:
 (setq org-fold-catch-invisible-edits 'show-and-error)
@@ -721,7 +728,6 @@ At top-level, as an editor command, this simply beeps."
 (use-package org-contrib
   :ensure t
   :config
-  (require 'ob-ly)
   (require 'org-expiry)
   (org-expiry-insinuate)
   (setq org-expiry-inactive-timestamps t))
@@ -763,9 +769,9 @@ At top-level, as an editor command, this simply beeps."
   :config
   (org-auto-expand-mode))
 
-;; org-babel
+;; org-babel — loads when org loads
 (use-package ob
-  :demand t
+  :after org
   :config
   ;; load more languages for org-babel
   ;; https://orgmode.org/worg/org-contrib/babel/languages/index.html
@@ -785,7 +791,6 @@ At top-level, as an editor command, this simply beeps."
      (makefile   . t)
      (org        . t)
      (lisp       . t)
-     (ly         . t)
      ;; (jupyter    . t)
      ))                  ; must be last
 
@@ -831,7 +836,7 @@ At top-level, as an editor command, this simply beeps."
 
 ;; jwiegley
 (use-package recentf
-  :demand t
+  :defer 1
   :commands (recentf-mode
              recentf-add-file
              recentf-apply-filename-handlers)
@@ -902,14 +907,10 @@ At top-level, as an editor command, this simply beeps."
   :config
   (save-place-mode 1))
 
-;;;; psvn
+;;;; vc-svn
 
-(require 'vc-svn)
-
-(use-package psvn
-  :vc (:url "https://github.com/emacsmirror/psvn" :rev :newest)
-  :commands svn-status
-  :config
+;; psvn repo no longer available; use built-in vc-svn instead
+(with-eval-after-load 'vc-svn
   (setq svn-status-svn-environment-var-list
         '("LC_MESSAGES=C" "LANG=C" "LC_ALL=C")))
 
@@ -1001,6 +1002,7 @@ At top-level, as an editor command, this simply beeps."
 
 (use-package which-key
   :ensure t
+  :defer 1
   :config
   (which-key-mode t))
 
