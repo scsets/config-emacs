@@ -1,5 +1,5 @@
 ;;; init.el --- Personal configuration  -*- lexical-binding: t -*-
-;; $Id: init.el,v 1.14 2026/03/07 18:18:05 scs Exp $
+;; $Id: init.el,v 1.15 2026/03/08 12:11:14 scs Exp $
 
 ;;; Commentary:
 
@@ -679,10 +679,13 @@ At top-level, as an editor command, this simply beeps."
   ;; Keep summary visible when selecting an item.
   (setq howm-view-summary-persistent t)
 
-  ;; Rename howm files to title_tags_date.org on save.
-  ;; Format: my-note-title_tag1-tag2_2026-03-07.org
+  ;; Rename howm files to title_tags_date.org format.
+  ;; Call M-x howm-rename-to-slug interactively when ready to rename.
+  ;; Format example: my-note-title_tag1-tag2_20260307.org
+
   (defun scs--howm-slugify (str)
-    "Convert STR to a lowercase slug (alphanumeric and hyphens)."
+    "Convert STR to a lowercase slug (alphanumeric and hyphens).
+Strips leading/trailing hyphens and collapses runs of hyphens."
     (replace-regexp-in-string
      "^-\\|-$" ""
      (downcase
@@ -693,7 +696,9 @@ At top-level, as an editor command, this simply beeps."
         (string-trim str))))))
 
   (defun scs--howm-desired-filename ()
-    "Compute the desired filename from the note's title, filetags, and date."
+    "Compute the desired filename from the note's title, filetags, and date.
+Reads the first org heading as title and #+filetags: as tags.
+Returns a filename like title_tags_20260307.org, or nil if no title."
     (save-excursion
       (goto-char (point-min))
       (let ((title (when (re-search-forward
@@ -716,24 +721,31 @@ At top-level, as an editor command, this simply beeps."
                     (when tag-part (concat "_" tag-part))
                     "_" date ".org"))))))
 
-  (defun scs--howm-maybe-rename ()
-    "Rename the current howm file if the title or tags changed.
-Prompts before renaming; the user can choose to keep the old name."
-    (when (and howm-mode
-               buffer-file-name
-               (file-in-directory-p buffer-file-name howm-directory))
-      (let ((desired (scs--howm-desired-filename)))
-        (when (and desired
-                   (not (string= (file-name-nondirectory buffer-file-name)
-                                 desired)))
-          (let ((new-path (expand-file-name desired
-                                            (file-name-directory buffer-file-name))))
-            (when (and (not (file-exists-p new-path))
-                       (y-or-n-p (format "Rename to %s? " desired)))
-              (rename-file buffer-file-name new-path)
-              (set-visited-file-name new-path t t)))))))
-
-  (add-hook 'after-save-hook #'scs--howm-maybe-rename)
+  (defun howm-rename-to-slug ()
+    "Rename the current howm note to title_tags_date.org format.
+Derives the filename from the first org heading and #+filetags: line.
+Prompts for confirmation before renaming.  Does nothing if:
+- The buffer is not a howm note in `howm-directory'.
+- No title heading is found.
+- The filename already matches.
+- A file with the target name already exists."
+    (interactive)
+    (unless (and howm-mode buffer-file-name
+                 (file-in-directory-p buffer-file-name howm-directory))
+      (user-error "Not a howm note in %s" howm-directory))
+    (let ((desired (scs--howm-desired-filename)))
+      (unless desired
+        (user-error "No title heading found"))
+      (if (string= (file-name-nondirectory buffer-file-name) desired)
+          (message "Filename already matches: %s" desired)
+        (let ((new-path (expand-file-name desired
+                                          (file-name-directory buffer-file-name))))
+          (when (file-exists-p new-path)
+            (user-error "Target file already exists: %s" desired))
+          (when (y-or-n-p (format "Rename to %s? " desired))
+            (rename-file buffer-file-name new-path)
+            (set-visited-file-name new-path t t)
+            (message "Renamed to %s" desired))))))
 
   ;; Tag/name action-lock rules: #tag, +tag, @name become clickable links.
   ;; Clicking searches across howm notes (uses rg via howm-view-grep).
