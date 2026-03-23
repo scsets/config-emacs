@@ -1,4 +1,4 @@
-# $Id: insights.org,v 1.14 2026/03/23 08:17:31 scs Exp $
+# $Id: insights.org,v 1.15 2026/03/23 08:22:57 scs Exp $
 #+title: Technical Insights
 #+author: scs
 
@@ -489,3 +489,36 @@ your remote shell history fills up with TRAMP's internal probe commands
 Setting ~tramp-histfile-override~ to ~t~ makes TRAMP set ~HISTFILE~ to
 ~/dev/null~ for its shell sessions, keeping remote history clean. The
 user's normal SSH sessions still use the real history file.
+
+* Emacs Lisp hex escapes vs Unicode escapes in strings
+
+Emacs Lisp string escape sequences operate at the *character* level,
+not the byte level. This distinction matters for non-ASCII characters:
+
+- ~\xNN~ creates a character with code point NN (one character).
+  ~"\xef\xbf\xbd"~ creates *three* characters with code points
+  0xEF, 0xBF, and 0xBD respectively.
+
+- ~\uNNNN~ creates one character with Unicode code point NNNN.
+  ~"\uFFFD"~ creates *one* character: U+FFFD (the replacement character).
+
+These are not the same:
+
+#+begin_example
+(length "\xef\xbf\xbd")  ;; -> 3  (three separate characters)
+(length "\uFFFD")         ;; -> 1  (one Unicode character)
+#+end_example
+
+The confusion arises because in UTF-8 file encoding, the bytes
+EF BF BD represent U+FFFD. But Emacs Lisp ~\x~ escapes produce
+characters by code point, not UTF-8 byte sequences. To match a
+Unicode character in a regex while keeping the source file ASCII,
+use ~\uNNNN~:
+
+#+begin_example
+;; WRONG -- matches three separate characters, not U+FFFD
+(string-match "\xef\xbf\xbd" str)
+
+;; RIGHT -- matches the single U+FFFD character
+(string-match "\uFFFD" str)
+#+end_example
