@@ -1,6 +1,6 @@
 ;;; init.el --- Personal configuration  -*- lexical-binding: t; -*-
 ;;
-;; $Id: init.el,v 1.18 2026/03/23 08:22:57 scs Exp $
+;; $Id: init.el,v 1.19 2026/03/23 08:27:13 scs Exp $
 ;;
 ;;; Commentary:
 ;;  Main Emacs configuration.  Requires Emacs 29+.
@@ -200,7 +200,7 @@ The DWIM behaviour of this command is as follows:
 ;; History length
 ;; ----------------------------------------------------------
 
-(setq-default history-length 1000)
+(setq-default history-length 10000)
 
 ;; ----------------------------------------------------------
 ;; Fido-vertical-mode
@@ -226,17 +226,27 @@ The DWIM behaviour of this command is as follows:
 (add-hook 'after-init-hook
           (lambda () (activate-input-method "latin-prefix")))
 
-;;   italian-alt-postfix ('IT<' in mode line)
-;;   Italian (Italiano) input method with postfix modifiers
-
-;;   a' -> a'    A' -> A'    a` -> a`    A` -> A`    i^ -> i^    << -> <<
-;;   e' -> e'    E' -> E'    e` -> e`    E` -> E`    I^ -> I^    >> -> >>
-;;   i' -> i'    I' -> I'    i` -> i`    I` -> I`               o_ -> o_
-;;   o' -> o'    O' -> O'    o` -> o`    O` -> O`               a_ -> a_
-;;   u' -> u'    U' -> U'    u` -> u`    U` -> U`
-
-;;   This method is for purists who like accents the old way.
-;;   Doubling the postfix separates the letter and postfix: e.g. a`` -> a`
+;;   latin-prefix ('L>' in mode line)
+;;   Latin characters input method with prefix modifiers.
+;;   Union of various Latin-N input methods.
+;;
+;;    effect    | prefix | examples
+;;   -----------+--------+--------------------------------------
+;;    acute     |   '    | 'a -> á   'e -> é   '' -> ´
+;;    grave     |   `    | `a -> à   `e -> è
+;;    circumflex|   ^    | ^a -> â   ^e -> ê
+;;    diaeresis |   "    | "a -> ä   "u -> ü   "" -> ¨
+;;    tilde     |   ~    | ~a -> ã   ~n -> ñ
+;;    cedilla   |  , ~   | ,c -> ç   ~c -> ç
+;;    caron     |   ~    | ~c -> č   ~z -> ž
+;;    macron    |   -    | -a -> ā   -- -> ¯
+;;    dot above |  / .   | /g -> ġ   .g -> ġ
+;;    misc      | " ~ /  | "s -> ß   ~d -> ð   ~t -> þ   /a -> å   /e -> æ   /o -> ø
+;;    symbol    |   ~    | ~> -> »   ~< -> «   ~! -> ¡   ~? -> ¿
+;;    symbol    |  _ /   | _o -> º   _a -> ª   // -> °   /\ -> ×   _y -> ¥
+;;    symbol    |   ^    | ^r -> ®   ^c -> ©   ^1 -> ¹   ^2 -> ²   ^3 -> ³
+;;
+;;   Doubling the prefix separates it from the letter: e.g. ''a -> 'a
 
 ;; ----------------------------------------------------------
 ;; Visual-line-mode hook for text-mode
