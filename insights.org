@@ -1,4 +1,4 @@
-# $Id: insights.org,v 1.13 2026/03/07 17:16:56 scs Exp $
+# $Id: insights.org,v 1.14 2026/03/23 08:17:31 scs Exp $
 #+title: Technical Insights
 #+author: scs
 
@@ -358,3 +358,134 @@ enables lexical scoping. This is the modern Emacs default for new
 files and is required by many packages. Without it, all variables use
 dynamic binding, which can cause subtle bugs with closures and
 ~let~-bound variables in callbacks or hooks.
+
+* Emacs Lisp case sensitivity
+
+Emacs Lisp is case-sensitive for all symbol names. ~Set-input-method~
+and ~set-input-method~ are completely different symbols. This is unlike
+Common Lisp, which upcases symbol names by default via the reader.
+
+When Emacs hits a ~void-function~ error during init, it aborts loading
+the rest of the file. Everything after the error (packages, keybindings,
+hooks) is silently skipped. Use ~emacs --debug-init~ to start Emacs with
+the debugger enabled, showing exactly where and why init failed.
+
+* RCS ci and file permissions
+
+RCS ~ci~ (check-in) removes write permission by default. Using ~ci -u~
+checks in and immediately checks out an unlocked (but readable) copy.
+To keep the file writable afterward, run ~chmod u+w~ -- or use ~ci -l~
+to keep the lock (file stays writable).
+
+Emacs respects filesystem permissions: a file with mode 444 opens in
+~read-only-mode~. The modeline shows ~%%~ instead of ~--~ to indicate
+this. Use ~M-x revert-buffer~ after changing permissions externally.
+
+* The Hyper modifier key as a free namespace
+
+Most Emacs users run out of convenient keybindings because Control,
+Meta, and Super are heavily used by Emacs and the OS. The Hyper
+modifier (H-) provides an entirely free namespace of ~50+ keys that
+never conflict with built-in Emacs bindings or OS shortcuts.
+
+On macOS, mapping Caps Lock to Fn via Karabiner Elements, then setting
+~ns-function-modifier~ to ~'hyper~, gives a comfortable Hyper key on
+the home row. The bindings must be guarded with
+~(when (eq system-type 'darwin) ...)~ since Hyper is not available on
+other platforms without similar remapping.
+
+A column-header comment above grouped ~global-set-key~ calls documents
+the mnemonic for each binding at a glance, per the CLAUDE.md style for
+repeated positional calls.
+
+* corfu vs company
+
+Company and corfu solve the same problem (in-buffer completion popup)
+but use different architectures:
+
+- *company* maintains its own backend/frontend system. You configure
+  ~company-backends~ and ~company-frontends~ separately. This is
+  powerful but adds complexity and can conflict with Emacs's native
+  completion.
+
+- *corfu* uses Emacs's native ~completion-at-point-functions~ (capf)
+  infrastructure directly. The same capf functions that power
+  ~completion-at-point~ (M-TAB) also drive corfu's popup. This means
+  corfu works with any mode that provides capf support, and pairs
+  naturally with ~orderless~ for fuzzy matching.
+
+Cape (~completion-at-point-functions extensions~) adds additional capf
+backends (dabbrev, file, history, etc.) that work with both company
+and corfu. The ~cape~ configuration in init.el is preserved and works
+with corfu unchanged.
+
+* orderless completion style
+
+The ~orderless~ completion style treats each space-separated word in
+the input as an independent filter. "ob lan" matches
+"org-babel-load-languages" because "ob" matches somewhere and "lan"
+matches somewhere else, in any order. This is dramatically more
+flexible than the default ~basic~ and ~partial-completion~ styles.
+
+Setting ~(completion-styles '(orderless basic))~ means orderless is
+tried first, with ~basic~ as fallback for completion frameworks that
+don't support orderless (e.g. some TRAMP path completion).
+
+* eshell prompt and eshell-prompt-regexp
+
+The eshell prompt function and ~eshell-prompt-regexp~ must stay in
+sync. Eshell uses the regexp to determine where the prompt ends and
+user input begins -- it's how eshell knows which text is editable vs
+which is the prompt. If the regexp doesn't match the actual prompt
+string, eshell's command detection, C-a behavior, and input
+highlighting all break.
+
+When changing the prompt to include hostname, the regexp
+~"^[^#$\n]* [#$] "~ matches "anything up to the # or $ delimiter",
+which works for both ~hostname:path $~ and the old ~path $~ format.
+
+* eat vs vterm for terminal emulation
+
+Both ~eat~ and ~vterm~ provide full terminal emulation inside Emacs.
+The key difference is build requirements:
+
+- *vterm* requires ~libvterm~ (a C library) and compiles a dynamic
+  module (~vterm-module.so~) on first use. This fails on systems
+  without a C compiler or where the library isn't packaged (common
+  on SmartOS, some FreeBSD jails).
+
+- *eat* is pure Emacs Lisp with no C dependencies. It works on any
+  platform that runs Emacs. Performance is slightly lower for
+  high-throughput terminal output, but sufficient for interactive use.
+
+The ~(eat-eshell-mode)~ hook makes eat handle eshell's "visual
+commands" (like htop, vim, less) inside the eshell buffer itself,
+instead of spawning a separate ~*ansi-term*~ buffer.
+
+* diff-hl in terminal mode
+
+~diff-hl~ uses the fringe (the narrow strip beside the line numbers)
+to show VCS change markers in GUI Emacs. In terminal mode (emacs -nw),
+fringes don't exist. The ~diff-hl-margin-mode~ fallback uses the
+margin (the area beside the line numbers, rendered with text
+characters) instead. The guard:
+
+#+begin_example
+(unless (display-graphic-p)
+  (diff-hl-margin-mode))
+#+end_example
+
+ensures the right mode is activated based on the display type. diff-hl
+works with any VC backend supported by ~vc~ (Git, SVN, RCS, Hg, etc.),
+not just Git.
+
+* tramp-histfile-override
+
+By default, TRAMP runs a login shell on the remote host, which reads
+~.bash_history~ / ~.sh_history~ and appends commands to it. This means
+your remote shell history fills up with TRAMP's internal probe commands
+(~test -e /bin/sh~, ~stty~ calls, etc.).
+
+Setting ~tramp-histfile-override~ to ~t~ makes TRAMP set ~HISTFILE~ to
+~/dev/null~ for its shell sessions, keeping remote history clean. The
+user's normal SSH sessions still use the real history file.
