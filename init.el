@@ -1,6 +1,6 @@
 ;;; init.el --- Personal configuration  -*- lexical-binding: t; -*-
 ;;
-;; $Id: init.el,v 1.16 2026/03/23 07:36:21 scs Exp $
+;; $Id: init.el,v 1.17 2026/03/23 07:54:40 scs Exp $
 ;;
 ;;; Commentary:
 ;;  Main Emacs configuration.  Requires Emacs 29+.
@@ -284,7 +284,8 @@ The DWIM behaviour of this command is as follows:
 (load-theme 'tango-dark t)
 
 (setq byte-compile-error-on-warn nil)
-(setq grep-command "ugrep")
+(when (executable-find "ugrep")
+  (setq grep-command "ugrep"))
 (setq org-ql-search-directories-files-recursive t)
 (setq org-safe-remote-resources
       '("\\`https://cdn\\.britannica\\.com/s:800x450,c:crop/66/195966-138-F9E7A828/facts-turtles\\.jpg\\'"))
@@ -325,10 +326,32 @@ The DWIM behaviour of this command is as follows:
 ;; (define-key function-key-map (kbd "C-c H") 'event-apply-hyper-modifier)
 
 ;; ----------------------------------------------------------
-;; Hyper-x
+;; Hyper key shortcuts (macOS only, via Karabiner)
 ;; ----------------------------------------------------------
 
-(global-set-key (kbd "H-x") 'execute-extended-command) ; Execute an extended command (M-x)
+(when (eq system-type 'darwin)
+  ;;              key          command                   ;; mnemonic
+  (global-set-key (kbd "H-x") 'execute-extended-command) ;; eXecute
+  (global-set-key (kbd "H-b") 'switch-to-buffer)         ;; Buffer
+  (global-set-key (kbd "H-k") 'kill-current-buffer)      ;; Kill
+  (global-set-key (kbd "H-s") 'save-buffer)              ;; Save
+  (global-set-key (kbd "H-r") 'revert-buffer-quick)      ;; Revert
+  (global-set-key (kbd "H-g") 'grep)                     ;; Grep
+  (global-set-key (kbd "H-n") 'next-error)               ;; Next
+  (global-set-key (kbd "H-p") 'previous-error)           ;; Previous
+  (global-set-key (kbd "H-z") 'eshell-toggle)            ;; Z-shell
+  (global-set-key (kbd "H-o") 'other-window)             ;; Other
+  (global-set-key (kbd "H-w") 'delete-window)            ;; Window
+  (global-set-key (kbd "H-0") 'delete-window)            ;; 0 windows
+  (global-set-key (kbd "H-1") 'delete-other-windows)     ;; 1 window
+  (global-set-key (kbd "H-2") 'split-window-below)       ;; 2 horiz
+  (global-set-key (kbd "H-3") 'split-window-right)       ;; 3 vert
+  (global-set-key (kbd "H-t") 'my/tramp-cleanup)         ;; Tramp
+  (global-set-key (kbd "H-c") 'org-capture)              ;; Capture
+  (global-set-key (kbd "H-a") 'org-agenda)               ;; Agenda
+  (global-set-key (kbd "H-l") 'org-store-link)           ;; Link
+  (global-set-key (kbd "H-i") 'imenu)                    ;; Imenu
+  (global-set-key (kbd "H-j") 'avy-goto-char-timer))     ;; Jump (avy)
 
 ;; ----------------------------------------------------------
 ;; C-c w (compare-windows)
@@ -477,6 +500,7 @@ The DWIM behaviour of this command is as follows:
 
 (use-package company
   :ensure t
+  :disabled t
   :defer 2
   :config
   (setq company-selection-default nil)
@@ -502,6 +526,20 @@ The DWIM behaviour of this command is as follows:
   (define-key company-active-map (kbd "RET") #'my-company-return)
 
   (global-company-mode))
+
+;; ----------------------------------------------------------
+;; corfu
+;; ----------------------------------------------------------
+
+(use-package corfu
+  :ensure t
+  :custom
+  (corfu-auto t)
+  (corfu-auto-delay 0.2)
+  (corfu-auto-prefix 3)
+  (corfu-cycle t)
+  :init
+  (global-corfu-mode))
 
 ;; ----------------------------------------------------------
 ;; delight
@@ -559,9 +597,14 @@ The DWIM behaviour of this command is as follows:
      eshell-xtra))
   (eshell-prompt-function
    (lambda nil
-     (concat (abbreviate-file-name (eshell/pwd))
-             (if (= (user-uid) 0)
-                 " # " " $ "))))
+     (concat
+      (or (file-remote-p default-directory 'host)
+          (system-name))
+      ":"
+      (abbreviate-file-name (eshell/pwd))
+      (if (= (user-uid) 0)
+          " # " " $ "))))
+  (eshell-prompt-regexp "^[^#$\n]* [#$] ")
   (eshell-rebind-keys-alist
    '(([(control ?a)] . eshell-bol)
      ([home]         . eshell-bol)
@@ -606,7 +649,13 @@ The DWIM behaviour of this command is as follows:
       (unintern 'eshell/su nil)
       (unintern 'eshell/sudo nil)))
   :init
-  (add-hook 'eshell-first-time-mode-hook #'eshell-initialize))
+  (add-hook 'eshell-first-time-mode-hook #'eshell-initialize)
+  :config
+  (eshell/alias "ll"  "ls -lh $*")
+  (eshell/alias "la"  "ls -lAh $*")
+  (eshell/alias "ff"  "find-file $1")
+  (eshell/alias "d"   "dired $1")
+  (eshell/alias "cls" "clear-scrollback"))
 
 (use-package eshell-toggle
   :ensure t
@@ -1198,6 +1247,9 @@ Prompts for confirmation before renaming.  Does nothing if:
   (setq tramp-auto-save-directory
         (expand-file-name "tramp-autosave" temporary-file-directory))
 
+  ;; Prevent TRAMP from polluting remote shell history
+  (setq tramp-histfile-override t)
+
   ;; Emacs 30: built-in ControlMaster handling (defined in tramp-sh)
   (with-eval-after-load 'tramp-sh
     (setq tramp-use-connection-share t))
@@ -1275,9 +1327,9 @@ Prompts for confirmation before renaming.  Does nothing if:
  '((insert-directory-program . "gls")))
 
 ;; Apply to known FreeBSD hosts (add patterns as needed)
-;; (connection-local-set-profiles
-;;  '(:application tramp :machine "freebsd-host")
-;;  'remote-bsd-process)
+(connection-local-set-profiles
+ '(:application tramp :machine "dasfrp")
+ 'remote-bsd-process)
 
 ;; Opening eshell on a remote TRAMP path gives a remote shell automatically.
 ;; cd /ssh:host:/path then M-x eshell -- commands run on the remote host.
@@ -1300,6 +1352,9 @@ Prompts for confirmation before renaming.  Does nothing if:
   (when (file-remote-p default-directory)
     (revert-buffer t t)
     (message "Refreshed from remote")))
+
+(global-set-key (kbd "C-c t c") 'my/tramp-cleanup)
+(global-set-key (kbd "C-c t r") 'my/tramp-reopen)
 
 ;; ----------------------------------------------------------
 ;; vc
@@ -1360,6 +1415,75 @@ Prompts for confirmation before renaming.  Does nothing if:
   :config
   (setq whitespace-line-column 120
         whitespace-style '(face lines-tail tabs trailing)))
+
+
+;; ----------------------------------------------------------
+;; avy
+;; ----------------------------------------------------------
+
+;; Jump to any visible character on screen
+(use-package avy
+  :ensure t
+  :bind (("C-c j" . avy-goto-char-timer)))
+
+;; ----------------------------------------------------------
+;; diff-hl
+;; ----------------------------------------------------------
+
+;; Show VCS diff markers in the margin/fringe
+(use-package diff-hl
+  :ensure t
+  :config
+  (global-diff-hl-mode)
+  (unless (display-graphic-p)
+    (diff-hl-margin-mode)))
+
+;; ----------------------------------------------------------
+;; eat
+;; ----------------------------------------------------------
+
+;; Terminal emulator for eshell (lighter than vterm, no C compilation)
+(use-package eat
+  :ensure t
+  :hook (eshell-mode . eat-eshell-mode)
+  :custom
+  (eat-term-name "xterm-256color"))
+
+;; ----------------------------------------------------------
+;; fd-dired
+;; ----------------------------------------------------------
+
+;; Use fd instead of find for dired
+(use-package fd-dired
+  :ensure t
+  :if (executable-find "fd")
+  :bind ("C-c f" . fd-dired))
+
+;; ----------------------------------------------------------
+;; marginalia
+;; ----------------------------------------------------------
+
+;; Annotate minibuffer completions with docstrings, file sizes, etc.
+(use-package marginalia
+  :ensure t
+  :init (marginalia-mode))
+
+;; ----------------------------------------------------------
+;; orderless
+;; ----------------------------------------------------------
+
+;; Fuzzy/flex completion matching for fido-vertical-mode
+(use-package orderless
+  :ensure t
+  :custom
+  (completion-styles '(orderless basic)))
+
+;; ----------------------------------------------------------
+;; wgrep
+;; ----------------------------------------------------------
+
+;; Edit grep results in-place and apply changes back to files
+(use-package wgrep :ensure t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
