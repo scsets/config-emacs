@@ -1,17 +1,21 @@
-;;; init.el --- Personal configuration  -*- lexical-binding: t -*-
-;; $Id: init.el,v 1.15 2026/03/08 12:11:14 scs Exp $
-
+;;; init.el --- Personal configuration  -*- lexical-binding: t; -*-
+;;
+;; $Id: init.el,v 1.16 2026/03/23 07:36:21 scs Exp $
+;;
 ;;; Commentary:
-
+;;  Main Emacs configuration.  Requires Emacs 29+.
+;;
 ;;; Code:
 
 
-;;; Custom functions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Custom functions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; **exit**
 ;; https://emacs.stackexchange.com/a/28927
-;; Call this anywhere to end loading init file, good to debug
+;; Call this anywhere to end loading init file, good to debug.
 (defun my-exit ()
+  "Abort loading the current file by jumping to its end."
   (with-current-buffer " *load*"
     (goto-char (point-max))))
 
@@ -44,6 +48,7 @@
 
 ;; kill all dired buffers
 (defun kill-dired-buffers ()
+  "Kill every buffer whose major mode is `dired-mode'."
   (interactive)
   (mapc (lambda (buffer)
           (when (eq 'dired-mode (buffer-local-value 'major-mode buffer))
@@ -75,30 +80,6 @@ The DWIM behaviour of this command is as follows:
    (t
     (keyboard-quit))))
 
-;; This executes C-g typed while Emacs is waiting for a command.
-;; Quitting out of a program does not go through here;
-;; that happens in the maybe_quit function at the C code level.
-(defun keyboard-quit ()
-  "Signal a `quit' condition.
-During execution of Lisp code, this character causes a quit directly.
-At top-level, as an editor command, this simply beeps."
-  (interactive)
-  ;; Avoid adding the region to the window selection.
-  (setq saved-region-selection nil)
-  (let (select-active-regions)
-    (deactivate-mark))
-  (if (fboundp 'kmacro-keyboard-quit)
-      (kmacro-keyboard-quit))
-  (when completion-in-region-mode
-    (completion-in-region-mode -1))
-  ;; Force the next redisplay cycle to remove the "Def" indicator from
-  ;; all the mode lines.
-  (if defining-kbd-macro
-      (force-mode-line-update t))
-  (setq defining-kbd-macro nil)
-  (let ((debug-on-quit nil))
-    (signal 'quit nil)))
-
 ;; https://baty.net/posts/2026/02/global-org-capture-shortcut-in-kde/
 (defun my/org-capture-finalize-hook ()
   "Close frame after org-capture if it was opened for capture."
@@ -109,15 +90,20 @@ At top-level, as an editor command, this simply beeps."
 (add-hook 'org-capture-after-finalize-hook 'my/org-capture-finalize-hook)
 
 (defun my/switch-to-scratch-buffer (f)
+  "Switch to the *scratch* buffer in newly created frame F."
   (with-selected-frame f
     (remember-notes t)))
 
 (add-hook 'after-make-frame-functions #'my/switch-to-scratch-buffer)
 
 
-;;; Package managers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Package managers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;; use-package
+;; ----------------------------------------------------------
+;; use-package
+;; ----------------------------------------------------------
 
 ;; use-package is built-in since Emacs 29
 (defvar use-package-enable-imenu-support t)
@@ -126,9 +112,13 @@ At top-level, as an editor command, this simply beeps."
 (require 'use-package)
 
 
-;;; General settings
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; General settings
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;; Server
+;; ----------------------------------------------------------
+;; Server
+;; ----------------------------------------------------------
 
 (require 'server)
 (unless (server-running-p) (server-start))
@@ -139,24 +129,32 @@ At top-level, as an editor command, this simply beeps."
         (server-use-tcp t))
     (unless (server-running-p "scrim") (server-start))))
 
-;;;; Column numbers
+;; ----------------------------------------------------------
+;; Column numbers
+;; ----------------------------------------------------------
 
 (setq column-number-mode t)
 
-;;;; Auto-revert
+;; ----------------------------------------------------------
+;; Auto-revert
+;; ----------------------------------------------------------
 
 ;; Reload a buffer if it was changed by some other process
 (global-auto-revert-mode t)
 (setq global-auto-revert-non-file-buffers t)
 
-;;;; Pixel scroll (GUI only)
+;; ----------------------------------------------------------
+;; Pixel scroll (GUI only)
+;; ----------------------------------------------------------
 
 ;; Make scrolling smoother
 (when (and (not (version< emacs-version "29.1"))
            (display-graphic-p))
   (pixel-scroll-precision-mode))
 
-;;;; UTF-8, fill column, delete-selection, clipboard
+;; ----------------------------------------------------------
+;; UTF-8, fill column, delete-selection, clipboard
+;; ----------------------------------------------------------
 
 ;; Prefer UTF-8
 (prefer-coding-system 'utf-8)
@@ -176,13 +174,17 @@ At top-level, as an editor command, this simply beeps."
 (global-set-key (kbd "C-c y") 'clipboard-yank)
 ;; (global-set-key (kbd "C-c k") 'clipboard-kill-region)
 
-;;;; Final newline / trailing whitespace
+;; ----------------------------------------------------------
+;; Final newline / trailing whitespace
+;; ----------------------------------------------------------
 
 ;; Ensure that files end with a new line and contain no trailing whitespace
 (setq require-final-newline t)
 (add-hook 'before-save-hook #'delete-trailing-whitespace)
 
-;;;; Show-paren, indent tabs, sentence double-space
+;; ----------------------------------------------------------
+;; Show-paren, indent tabs, sentence double-space
+;; ----------------------------------------------------------
 
 ;; Mark matching pairs of parentheses
 (show-paren-mode t)
@@ -194,42 +196,57 @@ At top-level, as an editor command, this simply beeps."
 ;; A sentence is signalled by a double space.
 (setq sentence-end-double-space t)
 
-;;;; History length
+;; ----------------------------------------------------------
+;; History length
+;; ----------------------------------------------------------
 
 (setq-default history-length 1000)
 
-;;;; Fido-vertical-mode
+;; ----------------------------------------------------------
+;; Fido-vertical-mode
+;; ----------------------------------------------------------
 
 ;; <2024-04-13>
 (fido-vertical-mode t)
 
-;;;; Dired settings
+;; ----------------------------------------------------------
+;; Dired settings
+;; ----------------------------------------------------------
 
 (setq dired-kill-when-opening-new-dired-buffer t)
 
-;;;; Input method
+;; ----------------------------------------------------------
+;; Input method
+;; ----------------------------------------------------------
 
 ;; M-x list-input-methods
 ;; Display a list of all the supported input methods.
-(set-input-method "italian-alt-postfix")
+
+(setq default-input-method "latin-prefix")
+(add-hook 'after-init-hook
+          (lambda () (activate-input-method "latin-prefix")))
 
 ;;   italian-alt-postfix ('IT<' in mode line)
 ;;   Italian (Italiano) input method with postfix modifiers
 
-;;   a' -> á    A' -> Á    a` -> à    A` -> À    i^ -> î    << -> «
-;;   e' -> é    E' -> É    e` -> è    E` -> È    I^ -> Î    >> -> »
-;;   i' -> í    I' -> Í    i` -> ì    I` -> Ì               o_ -> º
-;;   o' -> ó    O' -> Ó    o` -> ò    O` -> Ò               a_ -> ª
-;;   u' -> ú    U' -> Ú    u` -> ù    U` -> Ù
+;;   a' -> a'    A' -> A'    a` -> a`    A` -> A`    i^ -> i^    << -> <<
+;;   e' -> e'    E' -> E'    e` -> e`    E` -> E`    I^ -> I^    >> -> >>
+;;   i' -> i'    I' -> I'    i` -> i`    I` -> I`               o_ -> o_
+;;   o' -> o'    O' -> O'    o` -> o`    O` -> O`               a_ -> a_
+;;   u' -> u'    U' -> U'    u` -> u`    U` -> U`
 
 ;;   This method is for purists who like accents the old way.
 ;;   Doubling the postfix separates the letter and postfix: e.g. a`` -> a`
 
-;;;; Visual-line-mode hook for text-mode
+;; ----------------------------------------------------------
+;; Visual-line-mode hook for text-mode
+;; ----------------------------------------------------------
 
 (add-hook 'text-mode-hook #'visual-line-mode)
 
-;;;; External tools (aspell, ugrep)
+;; ----------------------------------------------------------
+;; External tools (aspell, ugrep)
+;; ----------------------------------------------------------
 
 (when (executable-find "aspell")
   (setq ispell-program-name "aspell"
@@ -250,12 +267,16 @@ At top-level, as an editor command, this simply beeps."
   (setq-default xref-search-program 'ugrep))
 
 
-;;; Custom file
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Custom file
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; Redirect customize output so it never pollutes init.el
 (setq custom-file (expand-file-name "custom.el" temporary-file-directory))
 
-;;; Settings formerly in custom.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Settings formerly in custom.el
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (blink-cursor-mode -1)
 (desktop-save-mode t)
@@ -281,9 +302,13 @@ At top-level, as an editor command, this simply beeps."
                       :width 'normal))
 
 
-;;; Keybindings
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Keybindings
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;; macOS modifier keys
+;; ----------------------------------------------------------
+;; macOS modifier keys
+;; ----------------------------------------------------------
 
 ;; set keys for emacs in osx (macOS-only variables)
 (when (eq system-type 'darwin)
@@ -299,15 +324,21 @@ At top-level, as an editor command, this simply beeps."
 ;; (define-key key-translation-map (kbd "C-M-S-s") (kbd "H"))
 ;; (define-key function-key-map (kbd "C-c H") 'event-apply-hyper-modifier)
 
-;;;; Hyper-x
+;; ----------------------------------------------------------
+;; Hyper-x
+;; ----------------------------------------------------------
 
 (global-set-key (kbd "H-x") 'execute-extended-command) ; Execute an extended command (M-x)
 
-;;;; C-c w (compare-windows)
+;; ----------------------------------------------------------
+;; C-c w (compare-windows)
+;; ----------------------------------------------------------
 
 (global-set-key "\C-cw" 'compare-windows)
 
-;;;; C-x C-b (ibuffer) :vip:
+;; ----------------------------------------------------------
+;; C-x C-b (ibuffer) :vip:
+;; ----------------------------------------------------------
 
 ;; By default, C-x C-b runs the list-buffers command. This command lists your
 ;; buffers in another window. Since I almost always want to do something in that
@@ -319,7 +350,9 @@ At top-level, as an editor command, this simply beeps."
 ;; ibuffer is better than buffer-menu
 (global-set-key [remap list-buffers] 'ibuffer)
 
-;;;; C-h/M-h as backspace
+;; ----------------------------------------------------------
+;; C-h/M-h as backspace
+;; ----------------------------------------------------------
 
 ;; CTRL-H as delete
 ;; `help` is mapped to F1
@@ -337,7 +370,9 @@ At top-level, as an editor command, this simply beeps."
 
 ;; TODO: [mark-paragraph] may be useful
 
-;;;; C-x C-c protection
+;; ----------------------------------------------------------
+;; C-x C-c protection
+;; ----------------------------------------------------------
 
 ;; Do not exit with C-x C-c
 (global-unset-key (kbd "C-x C-c"))
@@ -346,25 +381,35 @@ At top-level, as an editor command, this simply beeps."
 (global-set-key (kbd "C-x C-c C-c") 'save-buffers-kill-terminal)
 (global-set-key (kbd "C-x C-c q")   'keyboard-escape-quit)
 
-;;;; C-o / M-o (window/frame navigation)
+;; ----------------------------------------------------------
+;; C-o / M-o (window/frame navigation)
+;; ----------------------------------------------------------
 
 (global-set-key (kbd "C-o") 'other-window) ;; was 'open-line
 (global-set-key (kbd "M-o") 'other-frame) ;; was unused
 
-;;;; S-mouse-3 (imenu, GUI only) :gem:
+;; ----------------------------------------------------------
+;; S-mouse-3 (imenu, GUI only) :gem:
+;; ----------------------------------------------------------
 
 (cond (window-system
        (define-key global-map [S-mouse-3] 'imenu)))
 
-;;;; C-% (goto-match-paren)
+;; ----------------------------------------------------------
+;; C-% (goto-match-paren)
+;; ----------------------------------------------------------
 
 (global-set-key (kbd "C-%") 'goto-match-paren)
 
-;;;; keyboard-quit remap
+;; ----------------------------------------------------------
+;; keyboard-quit remap
+;; ----------------------------------------------------------
 
 (global-set-key [remap keyboard-quit] #'prot/keyboard-quit-dwim)
 
-;;;; Timestamp -- S-f9 (rebind from f9, conflicts with howm)
+;; ----------------------------------------------------------
+;; Timestamp -- S-f9 (rebind from f9, conflicts with howm)
+;; ----------------------------------------------------------
 
 (define-key global-map (kbd "<S-f9>")
   (lambda () (interactive)
@@ -375,21 +420,29 @@ At top-level, as an editor command, this simply beeps."
 ;; (org-insert-timestamp nil nil :inactive "Date: " " pdn")
 
 
-;;; Packages (alphabetical, with dependency exceptions noted)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Packages (alphabetical, with dependency exceptions noted)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;; abbrev
+;; ----------------------------------------------------------
+;; abbrev
+;; ----------------------------------------------------------
 
 (use-package abbrev
   :init
   (abbrev-mode))
 
-;;;; calendar
+;; ----------------------------------------------------------
+;; calendar
+;; ----------------------------------------------------------
 
 ;; Use ISO calendar (YYYY-MM-DD)
 (use-package calendar
   :config (calendar-set-date-style 'iso))
 
-;;;; cape
+;; ----------------------------------------------------------
+;; cape
+;; ----------------------------------------------------------
 
 (use-package cape
   :ensure t
@@ -418,7 +471,9 @@ At top-level, as an editor command, this simply beeps."
   (add-to-list 'completion-at-point-functions #'cape-file)
   (add-to-list 'completion-at-point-functions #'cape-abbrev))
 
-;;;; company
+;; ----------------------------------------------------------
+;; company
+;; ----------------------------------------------------------
 
 (use-package company
   :ensure t
@@ -448,7 +503,9 @@ At top-level, as an editor command, this simply beeps."
 
   (global-company-mode))
 
-;;;; delight
+;; ----------------------------------------------------------
+;; delight
+;; ----------------------------------------------------------
 
 (use-package delight :ensure t)
 
@@ -461,7 +518,9 @@ At top-level, as an editor command, this simply beeps."
   (auto-revert-mode)
   (outline-minor-mode))
 
-;;;; exec-path-from-shell (macOS only)
+;; ----------------------------------------------------------
+;; exec-path-from-shell (macOS only)
+;; ----------------------------------------------------------
 
 (use-package exec-path-from-shell
   :ensure t
@@ -470,7 +529,9 @@ At top-level, as an editor command, this simply beeps."
   (exec-path-from-shell-initialize)
   (exec-path-from-shell-copy-envs '("LIBRARY_PATH" "INFOPATH" "CPATH" "MANPATH")))
 
-;;;; eshell
+;; ----------------------------------------------------------
+;; eshell
+;; ----------------------------------------------------------
 
 (use-package eshell
   :commands (eshell eshell-command)
@@ -535,6 +596,7 @@ At top-level, as an editor command, this simply beeps."
         (insert "spawn "))))
 
   (defun eshell-initialize ()
+    "Set up eshell input expansion and unbind Tramp su/sudo wrappers."
     (add-hook 'eshell-expand-input-functions #'eshell-spawn-external-command)
 
     (use-package em-unix
@@ -561,14 +623,18 @@ At top-level, as an editor command, this simply beeps."
   :ensure t
   :after eshell)
 
-;;;; flycheck
+;; ----------------------------------------------------------
+;; flycheck
+;; ----------------------------------------------------------
 
 (use-package flycheck
   :ensure t
   :defer 3
   :config (global-flycheck-mode))
 
-;;;; flyspell
+;; ----------------------------------------------------------
+;; flyspell
+;; ----------------------------------------------------------
 
 (use-package flyspell
   :unless (eq window-system 'w32)
@@ -577,7 +643,9 @@ At top-level, as an editor command, this simply beeps."
 ;;        (prog-mode . flyspell-prog-mode))
   )
 
-;;;; framemove
+;; ----------------------------------------------------------
+;; framemove
+;; ----------------------------------------------------------
 
 ;; https://www.emacswiki.org/emacs/FrameMove
 ;; https://github.com/emacsmirror/emacswiki.org/blob/master/framemove.el
@@ -592,12 +660,16 @@ At top-level, as an editor command, this simply beeps."
   (windmove-default-keybindings)
   (setq framemove-hook-into-windmove t))
 
-;;;; haproxy-mode
+;; ----------------------------------------------------------
+;; haproxy-mode
+;; ----------------------------------------------------------
 
 ;; https://github.com/port19x/haproxy-mode
 (use-package haproxy-mode :ensure t)
 
-;;;; hl-todo
+;; ----------------------------------------------------------
+;; hl-todo
+;; ----------------------------------------------------------
 
 (use-package hl-todo
   :ensure t
@@ -610,7 +682,9 @@ At top-level, as an editor command, this simply beeps."
           ("GOTCHA" . "#FF4300")
           ("STUB"   . "#1E90FF"))))
 
-;;;; howm (:after org -- comes after org)
+;; ----------------------------------------------------------
+;; howm (:after org -- comes after org)
+;; ----------------------------------------------------------
 
 ;; See also remember
 (use-package howm
@@ -757,20 +831,22 @@ Prompts for confirmation before renaming.  Does nothing if:
     "Add action-lock rules for #tag, +tag, and @name patterns."
     (dolist (rule
              (list
-              ;; #tag — topics/categories
+              ;; #tag -- topics/categories
               (action-lock-general #'scs--howm-grep-tag
                                    "\\(?:^\\|[ \t]\\)\\(#[a-zA-Z0-9_-]+\\)" 1 1)
-              ;; +tag — projects/groups
+              ;; +tag -- projects/groups
               (action-lock-general #'scs--howm-grep-tag
                                    "\\(?:^\\|[ \t]\\)\\(\\+[a-zA-Z0-9_-]+\\)" 1 1)
-              ;; @name or @@tag — people, files, resources
+              ;; @name or @@tag -- people, files, resources
               (action-lock-general #'scs--howm-grep-tag
                                    "\\(?:^\\|[ \t]\\)\\(@@?[a-zA-Z0-9_.-]+\\)" 1 1)))
       (add-to-list 'action-lock-rules rule t)))
 
   (add-hook 'howm-mode-hook #'scs--howm-add-tag-rules))
 
-;;;; org-node (find howm notes by ID)
+;; ----------------------------------------------------------
+;; org-node (find howm notes by ID)
+;; ----------------------------------------------------------
 
 ;; https://baty.net/posts/2025/12/finding-howm-notes-with-org-node/
 ;; org-node gives us fast ID-based linking across howm notes.
@@ -786,32 +862,42 @@ Prompts for confirmation before renaming.  Does nothing if:
                (directory-files-recursively howm-directory "\\.org\\'"))
   (org-node-cache-ensure))
 
-;;;; imenu-list
+;; ----------------------------------------------------------
+;; imenu-list
+;; ----------------------------------------------------------
 
 ;; https://github.com/bmag/imenu-list
 ;; <2024-06-20>
 (use-package imenu-list
   :ensure t
   :bind
-  ("C-c i" . 'imenu-list-smart-toggle)
+  ("C-c i" . imenu-list-smart-toggle)
   :custom
   (imenu-list-focus-after-activation t)
   (imenu-list-auto-resize nil))
 
-;;;; impatient-mode
+;; ----------------------------------------------------------
+;; impatient-mode
+;; ----------------------------------------------------------
 
 (use-package impatient-mode :ensure t)
 
-;;;; keycast
+;; ----------------------------------------------------------
+;; keycast
+;; ----------------------------------------------------------
 
 ;; (keycast-tab-bar-mode)
 (use-package keycast :ensure t)
 
-;;;; minions
+;; ----------------------------------------------------------
+;; minions
+;; ----------------------------------------------------------
 
 (use-package minions :ensure t)
 
-;;;; move-dup
+;; ----------------------------------------------------------
+;; move-dup
+;; ----------------------------------------------------------
 
 ;; https://github.com/wyuenho/move-dup
 ;; <2024-05-14>
@@ -824,7 +910,9 @@ Prompts for confirmation before renaming.  Does nothing if:
   :config
   (global-move-dup-mode))
 
-;;;; no-littering
+;; ----------------------------------------------------------
+;; no-littering
+;; ----------------------------------------------------------
 
 ;; https://github.com/emacscollective/no-littering
 (use-package "no-littering"
@@ -835,13 +923,15 @@ Prompts for confirmation before renaming.  Does nothing if:
     (setq lock-file-name-transforms `((".*" ,dir t))))
   (no-littering-theme-backups))
 
-;;;; org
+;; ----------------------------------------------------------
+;; org
+;; ----------------------------------------------------------
 
 (use-package org
   :ensure t
   :defer t)
 
-;; org-protocol needed for macOS scrim — load after server starts
+;; org-protocol needed for macOS scrim -- load after server starts
 (with-eval-after-load 'server
   (require 'org-protocol))
 
@@ -903,7 +993,7 @@ Prompts for confirmation before renaming.  Does nothing if:
       (todo "NEXT" nil))
      nil)))
 
-;; Archive subtrees withing same file
+;; Archive subtrees within same file
 (setq org-archive-location "::* Archived")
 
 ;; org-auto-expand
@@ -914,7 +1004,7 @@ Prompts for confirmation before renaming.  Does nothing if:
   :config
   (org-auto-expand-mode))
 
-;; org-babel — loads when org loads
+;; org-babel -- loads when org loads
 (use-package ob
   :after org
   :config
@@ -943,7 +1033,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 
   (defun org-babel-sh-strip-weird-long-prompt (string)
     "Remove prompt cruft from a string of shell output."
-    (while (string-match "^.+?;C;�" string)
+    (while (string-match "^.+?;C;\xef\xbf\xbd" string)
       (setq string (substring string (match-end 0))))
     string)
 
@@ -977,7 +1067,9 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;; org-capture
 ;; (hook defined in Custom functions section above)
 
-;;;; recentf
+;; ----------------------------------------------------------
+;; recentf
+;; ----------------------------------------------------------
 
 ;; jwiegley
 (use-package recentf
@@ -1010,7 +1102,9 @@ Prompts for confirmation before renaming.  Does nothing if:
                (recentf-expand-file-name no-littering-etc-directory))
   (recentf-mode 1))
 
-;;;; reveal-in-osx-finder (macOS only)
+;; ----------------------------------------------------------
+;; reveal-in-osx-finder (macOS only)
+;; ----------------------------------------------------------
 
 (use-package reveal-in-osx-finder
   :ensure t
@@ -1023,7 +1117,9 @@ Prompts for confirmation before renaming.  Does nothing if:
                                (or (buffer-file-name)
                                    default-directory))))))
 
-;;;; savehist
+;; ----------------------------------------------------------
+;; savehist
+;; ----------------------------------------------------------
 
 (use-package savehist
   :unless noninteractive
@@ -1045,14 +1141,18 @@ Prompts for confirmation before renaming.  Does nothing if:
      kill-ring))
   (savehist-mode t))
 
-;;;; saveplace
+;; ----------------------------------------------------------
+;; saveplace
+;; ----------------------------------------------------------
 
 (use-package saveplace
   :unless noninteractive
   :config
   (save-place-mode 1))
 
-;;;; slime
+;; ----------------------------------------------------------
+;; slime
+;; ----------------------------------------------------------
 
 (use-package slime
   :ensure t
@@ -1065,7 +1165,9 @@ Prompts for confirmation before renaming.  Does nothing if:
   ;;  (setq inferior-lisp-program "sbcl")
   (setq slime-contribs '(slime-fancy)))
 
-;;;; sly (:disabled)
+;; ----------------------------------------------------------
+;; sly (:disabled)
+;; ----------------------------------------------------------
 
 (use-package "sly"
   :ensure t
@@ -1081,7 +1183,9 @@ Prompts for confirmation before renaming.  Does nothing if:
   (use-package "sly-repl-ansi-color" :ensure t)
   (sly-setup '(sly-fancy)))
 
-;;;; tramp
+;; ----------------------------------------------------------
+;; tramp
+;; ----------------------------------------------------------
 
 (use-package tramp
   :defer t
@@ -1098,7 +1202,9 @@ Prompts for confirmation before renaming.  Does nothing if:
   (with-eval-after-load 'tramp-sh
     (setq tramp-use-connection-share t))
 
-  ;; --- Performance ---
+  ;; ----------------------------------------------------------
+  ;; Performance
+  ;; ----------------------------------------------------------
 
   ;; Don't create lock files on remote (avoids extra round-trips)
   (setq remote-file-name-inhibit-locks t)
@@ -1117,7 +1223,10 @@ Prompts for confirmation before renaming.  Does nothing if:
   ;; Hardcode /tmp to prevent hundreds of shell commands probing temp dir
   (put 'temporary-file-directory 'standard-value '("/tmp"))
 
-  ;; --- Remote PATH discovery ---
+  ;; ----------------------------------------------------------
+  ;; Remote PATH discovery
+  ;; ----------------------------------------------------------
+
   ;; Extend path for FreeBSD, SmartOS, and custom profile directories
   (setq tramp-remote-path
         (append '("/usr/local/bin"             ;; FreeBSD ports
@@ -1130,17 +1239,23 @@ Prompts for confirmation before renaming.  Does nothing if:
     (when pdir
       (add-to-list 'tramp-remote-path (expand-file-name "bin" pdir))))
 
-  ;; --- Shell setup ---
+  ;; ----------------------------------------------------------
+  ;; Shell setup
+  ;; ----------------------------------------------------------
+
   ;; Use /bin/sh for speed (bash/zsh startup files add latency)
   (setq tramp-encoding-shell "/bin/sh")
 
-  ;; --- Multihop / proxy support ---
+  ;; ----------------------------------------------------------
+  ;; Multihop / proxy support
+  ;; ----------------------------------------------------------
+
   ;; Example: reach internal hosts via a jump box
   ;; (add-to-list 'tramp-default-proxies-alist
   ;;              '("\\.internal\\'" nil "/ssh:jumpbox:"))
   )
 
-;; --- Connection-local variables ---
+;; Connection-local variables
 ;; Direct async processes for all SSH connections (Emacs 30)
 (connection-local-set-profile-variables
  'remote-direct-async-process
@@ -1164,15 +1279,13 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;;  '(:application tramp :machine "freebsd-host")
 ;;  'remote-bsd-process)
 
-;; --- Eshell + TRAMP integration ---
 ;; Opening eshell on a remote TRAMP path gives a remote shell automatically.
-;; cd /ssh:host:/path then M-x eshell — commands run on the remote host.
+;; cd /ssh:host:/path then M-x eshell -- commands run on the remote host.
 
-;; --- Dired on remote hosts ---
-;; C-x d /ssh:host:/path — browse remote filesystem
+;; C-x d /ssh:host:/path -- browse remote filesystem
 ;; With ControlMaster, subsequent dired buffers on the same host are instant.
 
-;; --- Useful TRAMP shortcuts ---
+;; Useful TRAMP shortcuts
 (defun my/tramp-cleanup ()
   "Clean up all TRAMP connections and buffers."
   (interactive)
@@ -1188,7 +1301,9 @@ Prompts for confirmation before renaming.  Does nothing if:
     (revert-buffer t t)
     (message "Refreshed from remote")))
 
-;;;; vc
+;; ----------------------------------------------------------
+;; vc
+;; ----------------------------------------------------------
 
 (use-package vc
   :defer t
@@ -1209,20 +1324,26 @@ Prompts for confirmation before renaming.  Does nothing if:
   (setq vc-ignore-dir-regexp
         (format "%s\\|%s" vc-ignore-dir-regexp tramp-file-name-regexp)))
 
-;;;; vc-svn
+;; ----------------------------------------------------------
+;; vc-svn
+;; ----------------------------------------------------------
 
 ;; psvn repo no longer available; use built-in vc-svn instead
 (with-eval-after-load 'vc-svn
   (setq svn-status-svn-environment-var-list
         '("LC_MESSAGES=C" "LANG=C" "LC_ALL=C")))
 
-;;;; which-function-mode :gem:
+;; ----------------------------------------------------------
+;; which-function-mode :gem:
+;; ----------------------------------------------------------
 
 ;; print the function or org-tree the cursor is in in the minibuffer
 ;; 950302 pds
 (which-function-mode t)
 
-;;;; which-key
+;; ----------------------------------------------------------
+;; which-key
+;; ----------------------------------------------------------
 
 (use-package which-key
   :ensure t
@@ -1230,7 +1351,9 @@ Prompts for confirmation before renaming.  Does nothing if:
   :config
   (which-key-mode t))
 
-;;;; whitespace
+;; ----------------------------------------------------------
+;; whitespace
+;; ----------------------------------------------------------
 
 (use-package whitespace
   :hook (prog-mode . whitespace-mode)
@@ -1239,8 +1362,9 @@ Prompts for confirmation before renaming.  Does nothing if:
         whitespace-style '(face lines-tail tabs trailing)))
 
 
-
-;;; Finalization
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Finalization
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (provide 'init)
 
