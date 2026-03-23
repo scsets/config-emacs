@@ -1,6 +1,87 @@
-# $Id: changes.org,v 1.10 2026/03/07 17:16:56 scs Exp $
+# $Id: changes.org,v 1.11 2026/03/23 08:17:30 scs Exp $
 #+title: Emacs Configuration Changelog
 #+author: scs
+
+* 2026-03-23 Comprehensive review and improvements
+
+** Portability fixes
+- Guard ~grep-command "ugrep"~ with ~(executable-find "ugrep")~ -- won't
+  break on systems without ugrep.
+- All Hyper key bindings wrapped in ~(when (eq system-type 'darwin) ...)~ --
+  dead code eliminated on FreeBSD/SmartOS/terminal.
+
+** Hyper key bindings (21 single-key shortcuts)
+- Consolidated into macOS-guarded block with column-header comments.
+- Bindings: H-x (execute), H-b (buffer), H-k (kill), H-s (save),
+  H-r (revert), H-g (grep), H-n/H-p (next/prev error), H-z (eshell),
+  H-o (other-window), H-w (delete-window), H-0..3 (window layout),
+  H-t (tramp-cleanup), H-c (org-capture), H-a (org-agenda),
+  H-l (org-store-link), H-i (imenu), H-j (avy-goto-char-timer).
+
+** Eshell
+- Prompt now shows ~hostname:path $~ -- shows local hostname or remote
+  host when on a TRAMP path, so you always know where commands execute.
+- Added ~eshell-prompt-regexp~ to match the new prompt format.
+- Added aliases: ~ll~, ~la~, ~ff~ (find-file), ~d~ (dired), ~cls~ (clear).
+
+** Completion: company -> corfu
+- Disabled company (~:disabled t~, kept for reference).
+- Enabled corfu with ~corfu-auto t~, 0.2s delay, prefix length 3, cycling.
+- corfu uses native ~completion-at-point~ infrastructure, pairs well with
+  orderless for fuzzy matching.
+
+** TRAMP
+- Added ~tramp-histfile-override t~ to prevent polluting remote shell history.
+- Added keybindings: ~C-c t c~ (tramp-cleanup), ~C-c t r~ (tramp-reopen).
+- Enabled FreeBSD gls connection-local profile for ~dasfrp~ host.
+
+** New packages
+- *avy* -- Jump to any visible character on screen (H-j, C-c j).
+- *diff-hl* -- Show VCS diff markers in margin/fringe. Uses
+  ~diff-hl-margin-mode~ in terminal for portability.
+- *eat* -- Terminal emulator for eshell. Lighter than vterm (no C
+  compilation needed -- works on FreeBSD/SmartOS). Hooks into eshell-mode.
+- *fd-dired* -- Use fd instead of find for dired (C-c f). Guarded with
+  ~executable-find~.
+- *marginalia* -- Annotate minibuffer completions with docstrings, file
+  sizes, etc. Works with fido-vertical-mode.
+- *orderless* -- Fuzzy/flex completion matching. "ob lan" matches
+  "org-babel-load-languages". Sets ~completion-styles~ to ~(orderless basic)~.
+- *wgrep* -- Edit grep results in-place and apply changes back to files.
+
+* 2026-03-23 Comment formatting per CLAUDE.md standards
+
+** early-init.el
+- Added proper elisp file header with ~;;; Commentary:~ / ~;;; Code:~ sections.
+- Converted all ~;;;~ section headings to 60-char heavy dividers.
+- Added documentation comments above ~scs--file-name-handler-alist~ and
+  ~scs--vc-handled-backends~.
+- Added ~;;; early-init.el ends here~ footer.
+
+** init.el
+- Expanded file header with ~;;; Commentary:~ section.
+- Converted all ~;;;~ major sections to 60-char heavy dividers (8 sections).
+- Converted all ~;;;;~ subsections to 60-char light dividers (~40 subsections).
+- Added docstrings to ~my-exit~, ~kill-dired-buffers~,
+  ~my/switch-to-scratch-buffer~, ~eshell-initialize~.
+- Removed ~keyboard-quit~ redefinition -- ~prot/keyboard-quit-dwim~ already
+  covers DWIM behavior via remap.
+- Removed redundant ~set-input-method~ call -- the ~after-init-hook~
+  activation is sufficient.
+- Fixed orphaned input-method config that was under the Dired section heading.
+- Fixed ~imenu-list~ ~:bind~ quoting -- removed spurious quote before symbol.
+- Fixed Unicode violation (U+FFFD literal replaced with ~\xef\xbf\xbd~ escape).
+- Normalized Tramp internal dividers to standard 60-char light dividers.
+- Fixed em-dash usage to ASCII double-dash in comments.
+- Fixed typo: "withing" -> "within" in org-archive comment.
+- Normalized blank line semantics throughout.
+
+* 2026-03-23 Fix init.el loading failure
+
+- Fixed case-sensitivity error at line 218: ~Set-input-method~ (capital S)
+  changed to ~set-input-method~. Emacs Lisp is case-sensitive; the wrong
+  case caused ~void-function~ error that halted loading of the rest of
+  init.el.
 
 * 2026-03-07 Howm: semantic filenames and directory change
 
