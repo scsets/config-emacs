@@ -1,6 +1,6 @@
 ;;; init.el --- Personal configuration  -*- lexical-binding: t; -*-
 ;;
-;; $Id: init.el,v 1.17 2026/03/23 07:54:40 scs Exp $
+;; $Id: init.el,v 1.18 2026/03/23 08:22:57 scs Exp $
 ;;
 ;;; Commentary:
 ;;  Main Emacs configuration.  Requires Emacs 29+.
@@ -1082,7 +1082,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 
   (defun org-babel-sh-strip-weird-long-prompt (string)
     "Remove prompt cruft from a string of shell output."
-    (while (string-match "^.+?;C;\xef\xbf\xbd" string)
+    (while (string-match "^.+?;C;\uFFFD" string)
       (setq string (substring string (match-end 0))))
     string)
 
