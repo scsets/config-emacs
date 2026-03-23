@@ -1,4 +1,4 @@
-# $Id: changes.org,v 1.11 2026/03/23 08:17:30 scs Exp $
+# $Id: changes.org,v 1.12 2026/03/23 08:22:57 scs Exp $
 #+title: Emacs Configuration Changelog
 #+author: scs
 
@@ -70,7 +70,10 @@
   activation is sufficient.
 - Fixed orphaned input-method config that was under the Dired section heading.
 - Fixed ~imenu-list~ ~:bind~ quoting -- removed spurious quote before symbol.
-- Fixed Unicode violation (U+FFFD literal replaced with ~\xef\xbf\xbd~ escape).
+- Fixed Unicode violation (U+FFFD literal replaced with ~\uFFFD~ escape).
+  Note: ~\xef\xbf\xbd~ would be wrong -- ~\x~ escapes produce characters
+  by code point, not UTF-8 byte sequences. ~\uFFFD~ produces the single
+  U+FFFD character.
 - Normalized Tramp internal dividers to standard 60-char light dividers.
 - Fixed em-dash usage to ASCII double-dash in comments.
 - Fixed typo: "withing" -> "within" in org-archive comment.
