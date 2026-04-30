@@ -2,6 +2,13 @@
 #+title: Emacs Configuration Changelog
 #+author: scs
 
+* 2026-04-29 Package archive safeguards
+
+- Added age-gated package archive refresh helpers for first-run installs.
+- Kept package archive dependency resolution unpinned so archive priority
+  chooses current packages after refreshing metadata.
+- Kept the technical notes consolidated in =insights.org=.
+
 * 2026-03-23 Comprehensive review and improvements
 
 ** Portability fixes

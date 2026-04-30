@@ -91,6 +91,8 @@
 (setq user-emacs-directory (file-name-directory (or load-file-name buffer-file-name)))
 
 (require 'package)
+;; Allow archive packages to upgrade bundled dependencies.
+(setq package-install-upgrade-built-in t)
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (when (string-match "NATIVE_COMP" system-configuration-features)
   (setq package-native-compile t))

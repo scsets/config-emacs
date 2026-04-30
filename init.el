@@ -111,6 +111,45 @@ The DWIM behaviour of this command is as follows:
 (require 'bind-key)
 (require 'use-package)
 
+;; Maximum age, in seconds, before package archive metadata is refreshed.
+(defvar scs/package-archive-max-age (* 12 60 60))
+
+(defun scs/package-archive-stale-p ()
+  "Return non-nil when any configured package archive cache is stale.
+
+Arguments: none.
+Return value: non-nil when an archive cache is missing or older than
+`scs/package-archive-max-age'.
+Side effects: none."
+  (let ((cutoff (- (float-time) scs/package-archive-max-age))
+        stale)
+    (dolist (archive package-archives stale)
+      (let ((file (expand-file-name
+                   (format "archives/%s/archive-contents" (car archive))
+                   package-user-dir)))
+        (when (or (not (file-exists-p file))
+                  (< (float-time
+                      (file-attribute-modification-time
+                       (file-attributes file)))
+                     cutoff))
+          (setq stale t))))))
+
+(defun scs/package-refresh-contents-if-stale (&optional packages)
+  "Refresh package archives when cached metadata is stale.
+
+Arguments: optional PACKAGES is a list of package names that need
+installation before the refresh is considered.
+Return value: nil.
+Side effects: may contact configured package archives and update files
+under `package-user-dir'."
+  (let (missing)
+    (dolist (pkg packages)
+      (unless (package-installed-p pkg)
+        (setq missing t)))
+    (when (and (or (null packages) missing)
+               (scs/package-archive-stale-p))
+      (package-refresh-contents))))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; General settings

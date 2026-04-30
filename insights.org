@@ -1,4 +1,4 @@
-# $Id: insights.org,v 1.15 2026/03/23 08:22:57 scs Exp $
+# $Id$
 #+title: Technical Insights
 #+author: scs
 
@@ -178,27 +178,69 @@ makes the closure opaque to the compiler. In modern Emacs (24+),
 (define-key global-map (kbd "<S-f9>") (lambda () (interactive) ...))
 #+end_example
 
-* package-vc :rev :newest triggers network on every startup
+* use-package :vc and package-vc
 
-When ~use-package~ specifies ~:vc (:url "..." :rev :newest)~, the
-~:rev :newest~ (or the default ~:last-release~) tells ~package-vc~ to
-check the remote repository for updates. This triggers
-~package-refresh-contents~ (contacting 3 archive servers) and, if the
-package is already installed, prompts "Overwrite previous checkout?"
-— blocking startup entirely in daemon mode.
+Emacs 30's built-in ~use-package~ supports the ~:vc~ keyword. It
+installs packages through ~package-vc~ and accepts package source
+plists such as:
 
-The fix is to guard with ~package-installed-p~:
+#+begin_example
+(use-package package-name
+  :vc (:url "https://example.invalid/package-name.git"
+       :rev :newest))
+#+end_example
+
+Supported source keys include ~:url~, ~:branch~, ~:lisp-dir~,
+~:main-file~, ~:vc-backend~, ~:rev~, ~:shell-command~, ~:make~, and
+~:ignored-files~. If ~:rev~ is omitted, use-package defaults to the
+latest release. Use ~:rev :newest~ when tracking the latest commit is
+intentional.
+
+In Emacs 30.2, ~use-package-handler/:vc~ calls
+~use-package-vc-install~, which checks ~(package-installed-p name)~
+before calling ~package-vc-install~. That means a normal ~:vc~
+declaration installs on first load and does not reinstall on every
+startup.
+
+The older startup-loop problem came from calling ~package-vc-install~
+directly at top level:
+
+#+begin_example
+;; Avoid this pattern unless it is guarded.
+(package-vc-install '(framemove :url "https://..."))
+#+end_example
+
+If a direct install call is needed, keep the explicit guard:
 
 #+begin_example
 (unless (package-installed-p 'framemove)
   (package-vc-install '(framemove :url "https://...")))
-
-(use-package framemove
-  :init ...)
 #+end_example
 
-This way ~package-vc-install~ only runs on first install, not on
-every startup.
+VC-installed packages still use package metadata and archive packages
+for dependencies. Keep ~package-install-upgrade-built-in~ enabled in
+=early-init.el= so dependencies can upgrade bundled packages when a
+newer archive version is required.
+
+When a dependency exists in multiple archives, avoid pinning it unless
+the preferred source really matters. Most pure Emacs Lisp dependencies
+can come from MELPA or an ELPA archive when ~package-refresh-contents~
+has current metadata, so this config leaves them unpinned and lets
+archive priority choose.
+
+If early-init temporarily sets ~vc-handled-backends~ to nil for startup
+speed, first-run ~:vc~ installs need it restored before the
+~use-package~ declaration expands at runtime. A targeted guard is best:
+restore VC only when one of the VC-installed packages is missing, then
+let the normal startup hook restore the value on later starts.
+
+For SmartOS/illumos, verify any external helper before relying on
+automatic downloads. Prefer a separately installed executable on PATH
+unless the package's upstream download path is known to support illumos.
+
+For interactive packages, add the public entry points under
+~:commands~. This preserves lazy loading while keeping =M-x= command
+discovery useful.
 
 * RCS lock workflow: rcs -l then ci -u
 
@@ -337,19 +379,20 @@ exists on MELPA.
 
 Fix: run ~package-refresh-contents~ (or ~M-x package-refresh-contents~)
 to rebuild the cache, then retry the install.  For init.el resilience,
-consider refreshing the cache on install failure:
+refresh only when an install is about to happen and the on-disk cache
+is older than a chosen threshold:
 
 #+begin_example
-(unless (package-installed-p 'some-package)
-  (condition-case nil
-      (package-install 'some-package)
-    (error
-     (package-refresh-contents)
-     (package-install 'some-package))))
+(defvar scs/package-archive-max-age (* 12 60 60))
+
+(when (and (not (package-installed-p 'some-package))
+           (scs/package-archive-stale-p))
+  (package-refresh-contents))
 #+end_example
 
 This pattern avoids refreshing on every startup (slow) while
-recovering gracefully from stale-cache errors.
+preventing old archive metadata from sending first-run package
+installs to vanished MELPA tarballs.
 
 * lexical-binding in init.el
 
