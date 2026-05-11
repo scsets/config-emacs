@@ -6,6 +6,19 @@
 The SLIME config references =~/lisp/lispworks/lw-console=.
 Confirm this binary exists for the current user, or update the path.
 
+* DONE Activate Helm for minibuffer completion
+CLOSED: [2026-05-11]
+Added explicit el-get recipes for ~async~, ~wfnames~, and ~helm~.
+Enabled Helm for ~M-x~, file finding, buffer switching, bookmarks, kill
+ring, occur, and imenu-oriented workflows, replacing the
+Fido/Orderless/Marginalia minibuffer stack.
+
+* DONE Restore el-get-backed package fetching
+CLOSED: [2026-05-11]
+Added el-get bootstrap, a local ~use-package :el-get~ keyword handler,
+configuration-owned el-get recipes, and converted external package
+declarations away from ~:ensure t~ and direct ~package-vc-install~.
+
 * DONE Remove el-get, migrate all packages to use-package
 CLOSED: [2026-03-05]
 Removed el-get bootstrap. Migrated impatient-mode, hl-todo, psvn

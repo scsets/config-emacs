@@ -101,6 +101,205 @@ The DWIM behaviour of this command is as follows:
 ;; Package managers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(require 'cl-lib)
+
+;; ----------------------------------------------------------
+;; el-get
+;; ----------------------------------------------------------
+
+;; Repository used to bootstrap el-get when it is not already present.
+(defvar scs/el-get-repository-url "https://github.com/dimitri/el-get.git")
+
+;; Configuration-owned el-get recipes for packages this init file needs.
+(defvar scs/el-get-local-sources nil)
+
+(setq scs/el-get-local-sources
+      '((:name cl-lib
+         :type builtin
+         :builtin "24.3")
+        (:name emacs
+         :type builtin)
+        (:name nadvice
+         :type builtin
+         :builtin "24.4")
+        (:name org
+         :type builtin
+         :builtin "9")
+        (:name seq
+         :type builtin
+         :builtin "2")
+        (:name async
+         :type github
+         :pkgname "jwiegley/emacs-async"
+         :features async)
+        (:name cape
+         :type github
+         :pkgname "minad/cape"
+         :depends (compat))
+        (:name company
+         :type github
+         :pkgname "company-mode/company-mode"
+         :features company)
+        (:name compat
+         :type github
+         :pkgname "emacs-compat/compat")
+        (:name corfu
+         :type github
+         :pkgname "minad/corfu"
+         :depends (compat))
+        (:name delight
+         :type github
+         :pkgname "emacsmirror/delight"
+         :depends (cl-lib nadvice))
+        (:name eat
+         :type github
+         :pkgname "emacsmirror/eat"
+         :depends (compat))
+        (:name el-job
+         :type github
+         :pkgname "meedstrom/el-job")
+        (:name eshell-bookmark
+         :type github
+         :pkgname "Fuco1/eshell-bookmark")
+        (:name eshell-toggle
+         :type github
+         :pkgname "4DA/eshell-toggle"
+         :depends (dash))
+        (:name eshell-up
+         :type github
+         :pkgname "peterwvj/eshell-up")
+        (:name eshell-z
+         :type github
+         :pkgname "xuchunyang/eshell-z")
+        (:name fd-dired
+         :type github
+         :pkgname "yqrashawn/fd-dired")
+        (:name framemove
+         :type github
+         :pkgname "emacsmirror/framemove")
+        (:name haproxy-mode
+         :type github
+         :pkgname "port19x/haproxy-mode")
+        (:name helm
+         :type github
+         :pkgname "emacs-helm/helm"
+         :features helm
+         :depends (async wfnames))
+        (:name hl-todo
+         :type github
+         :pkgname "tarsius/hl-todo"
+         :depends (compat))
+        (:name imenu-list
+         :type github
+         :pkgname "bmag/imenu-list")
+        (:name impatient-mode
+         :type github
+         :pkgname "skeeto/impatient-mode"
+         :depends (htmlize simple-httpd))
+        (:name keycast
+         :type github
+         :pkgname "tarsius/keycast"
+         :branch "main"
+         :depends (compat))
+        (:name llama
+         :type github
+         :pkgname "tarsius/llama"
+         :depends (compat))
+        (:name magit-section
+         :type github
+         :pkgname "magit/magit"
+         :branch "main"
+         :load-path ("lisp")
+         :features magit-section
+         :depends (compat cond-let llama seq transient))
+        (:name minions
+         :type github
+         :pkgname "tarsius/minions"
+         :depends (compat))
+        (:name move-dup
+         :type github
+         :pkgname "wyuenho/move-dup")
+        (:name no-littering
+         :type github
+         :pkgname "emacscollective/no-littering"
+         :depends (cl-lib compat))
+        (:name org-auto-expand
+         :type github
+         :pkgname "alphapapa/org-auto-expand"
+         :depends (org))
+        (:name org-contrib
+         :type git
+         :url "https://git.sr.ht/~bzg/org-contrib"
+         :load-path ("lisp")
+         :depends (org))
+        (:name org-mem
+         :type github
+         :pkgname "meedstrom/org-mem"
+         :depends (el-job llama truename-cache))
+        (:name org-node
+         :type github
+         :pkgname "meedstrom/org-node"
+         :depends (cond-let llama magit-section org org-mem))
+        (:name truename-cache
+         :type github
+         :pkgname "meedstrom/truename-cache"
+         :depends (compat))
+        (:name wfnames
+         :type github
+         :pkgname "thierryvolpiatto/wfnames"
+         :branch "main"
+         :features wfnames)))
+
+(defun scs/el-get-bootstrap ()
+  "Clone el-get into `user-emacs-directory' when no checkout is present.
+
+Arguments: none.
+Return value: nil.
+Side effects: creates the el-get checkout and updates `load-path'."
+  (unless (executable-find "git")
+    (user-error "el-get bootstrap requires git in PATH"))
+  (let* ((target (expand-file-name "el-get/el-get" user-emacs-directory))
+         (parent (file-name-directory (directory-file-name target)))
+         (output (get-buffer-create "*scs el-get bootstrap*")))
+    (when (file-exists-p target)
+      (user-error "el-get exists at %s but could not be loaded" target))
+    (make-directory parent t)
+    (with-current-buffer output
+      (let ((inhibit-read-only t))
+        (erase-buffer)))
+    (unless (zerop (let ((inhibit-read-only t))
+                     (call-process "git" nil output t
+                                   "clone" "--depth" "1"
+                                   scs/el-get-repository-url target)))
+      (user-error "Could not clone el-get into %s; see %s"
+                  target (buffer-name output)))
+    (add-to-list 'load-path target)))
+
+(add-to-list 'load-path
+             (expand-file-name "el-get/el-get" user-emacs-directory))
+
+(unless (require 'el-get nil 'noerror)
+  (scs/el-get-bootstrap))
+
+(require 'el-get)
+
+(defun scs/el-get-upsert-source (source)
+  "Add SOURCE to `el-get-sources', replacing any source with the same name.
+
+Arguments: SOURCE is an el-get recipe plist.
+Return value: SOURCE.
+Side effects: mutates `el-get-sources'."
+  (let ((name (el-get-source-name source)))
+    (setq el-get-sources
+          (cl-remove-if (lambda (candidate)
+                          (string= name (el-get-source-name candidate)))
+                        el-get-sources))
+    (add-to-list 'el-get-sources source)
+    source))
+
+(dolist (source scs/el-get-local-sources)
+  (scs/el-get-upsert-source source))
+
 ;; ----------------------------------------------------------
 ;; use-package
 ;; ----------------------------------------------------------
@@ -111,44 +310,75 @@ The DWIM behaviour of this command is as follows:
 (require 'bind-key)
 (require 'use-package)
 
-;; Maximum age, in seconds, before package archive metadata is refreshed.
-(defvar scs/package-archive-max-age (* 12 60 60))
+(defun scs/use-package-el-get-normalize-recipe (name arg)
+  "Normalize a `use-package' :el-get ARG for package NAME.
 
-(defun scs/package-archive-stale-p ()
-  "Return non-nil when any configured package archive cache is stale.
-
-Arguments: none.
-Return value: non-nil when an archive cache is missing or older than
-`scs/package-archive-max-age'.
+Arguments: NAME is the package declared by `use-package'; ARG is the
+raw value supplied to :el-get.
+Return value: nil, a package name, or an el-get recipe plist.
 Side effects: none."
-  (let ((cutoff (- (float-time) scs/package-archive-max-age))
-        stale)
-    (dolist (archive package-archives stale)
-      (let ((file (expand-file-name
-                   (format "archives/%s/archive-contents" (car archive))
-                   package-user-dir)))
-        (when (or (not (file-exists-p file))
-                  (< (float-time
-                      (file-attribute-modification-time
-                       (file-attributes file)))
-                     cutoff))
-          (setq stale t))))))
+  (cond
+   ((null arg) nil)
+   ((eq arg t) name)
+   ((or (symbolp arg) (stringp arg)) arg)
+   ((and (consp arg) (keywordp (car arg)))
+    (if (plist-member arg :name)
+        arg
+      (append (list :name name) arg)))
+   ((and (consp arg) (or (symbolp (car arg)) (stringp (car arg))))
+    (append (list :name (car arg)) (cdr arg)))
+   (t
+    (use-package-error
+     ":el-get wants t, nil, a package name, or an el-get recipe"))))
 
-(defun scs/package-refresh-contents-if-stale (&optional packages)
-  "Refresh package archives when cached metadata is stale.
+(defun use-package-normalize/:el-get (name keyword args)
+  "Normalize use-package :el-get ARGS for package NAME.
 
-Arguments: optional PACKAGES is a list of package names that need
-installation before the refresh is considered.
+Arguments: NAME is the package declared by `use-package'; KEYWORD is
+`:el-get'; ARGS is the raw argument list.
+Return value: nil, a package name, or an el-get recipe plist.
+Side effects: none."
+  (if (null args)
+      (scs/use-package-el-get-normalize-recipe name t)
+    (use-package-only-one (symbol-name keyword) args
+      (lambda (_label arg)
+        (scs/use-package-el-get-normalize-recipe name arg)))))
+
+(defun scs/use-package-el-get-install (name source)
+  "Install SOURCE through el-get for use-package declaration NAME.
+
+Arguments: NAME is the package declared by `use-package'; SOURCE is nil,
+a package name, or an el-get recipe plist.
 Return value: nil.
-Side effects: may contact configured package archives and update files
-under `package-user-dir'."
-  (let (missing)
-    (dolist (pkg packages)
-      (unless (package-installed-p pkg)
-        (setq missing t)))
-    (when (and (or (null packages) missing)
-               (scs/package-archive-stale-p))
-      (package-refresh-contents))))
+Side effects: may contact package archives or source repositories, update
+package files, and mutate `el-get-sources'."
+  (ignore name)
+  (when source
+    (require 'el-get)
+    (when (consp source)
+      (scs/el-get-upsert-source source))
+    (el-get 'sync (if (consp source)
+                      (el-get-source-name source)
+                    source))))
+
+(defun use-package-handler/:el-get (name _keyword source rest state)
+  "Generate code to install NAME through el-get using SOURCE.
+
+Arguments: NAME is the package declared by `use-package'; _KEYWORD is
+ignored; SOURCE is the normalized :el-get value; REST and STATE are the
+remaining use-package keyword data.
+Return value: a list of forms for the expanded `use-package' declaration.
+Side effects: may install packages while byte-compiling."
+  (let ((body (use-package-process-keywords name rest state)))
+    (when source
+      (if (bound-and-true-p byte-compile-current-file)
+          (scs/use-package-el-get-install name source)
+        (push `(scs/use-package-el-get-install ',name ',source) body)))
+    body))
+
+(unless (memq :el-get use-package-keywords)
+  (setq use-package-keywords
+        (use-package-list-insert :el-get use-package-keywords :vc)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -242,11 +472,12 @@ under `package-user-dir'."
 (setq-default history-length 10000)
 
 ;; ----------------------------------------------------------
-;; Fido-vertical-mode
+;; Minibuffer completion
 ;; ----------------------------------------------------------
 
-;; <2024-04-13>
-(fido-vertical-mode t)
+;; Helm owns minibuffer completion; keep built-in Fido inactive.
+(when (fboundp 'fido-vertical-mode)
+  (fido-vertical-mode -1))
 
 ;; ----------------------------------------------------------
 ;; Dired settings
@@ -380,8 +611,8 @@ under `package-user-dir'."
 
 (when (eq system-type 'darwin)
   ;;              key          command                   ;; mnemonic
-  (global-set-key (kbd "H-x") 'execute-extended-command) ;; eXecute
-  (global-set-key (kbd "H-b") 'switch-to-buffer)         ;; Buffer
+  (global-set-key (kbd "H-x") 'helm-M-x)                 ;; eXecute
+  (global-set-key (kbd "H-b") 'helm-mini)                ;; Buffer
   (global-set-key (kbd "H-k") 'kill-current-buffer)      ;; Kill
   (global-set-key (kbd "H-s") 'save-buffer)              ;; Save
   (global-set-key (kbd "H-r") 'revert-buffer-quick)      ;; Revert
@@ -399,7 +630,7 @@ under `package-user-dir'."
   (global-set-key (kbd "H-c") 'org-capture)              ;; Capture
   (global-set-key (kbd "H-a") 'org-agenda)               ;; Agenda
   (global-set-key (kbd "H-l") 'org-store-link)           ;; Link
-  (global-set-key (kbd "H-i") 'imenu)                    ;; Imenu
+  (global-set-key (kbd "H-i") 'helm-imenu)               ;; Imenu
   (global-set-key (kbd "H-j") 'avy-goto-char-timer))     ;; Jump (avy)
 
 ;; ----------------------------------------------------------
@@ -517,7 +748,7 @@ under `package-user-dir'."
 ;; ----------------------------------------------------------
 
 (use-package cape
-  :ensure t
+  :el-get t
   :defer 2
   :bind (:prefix-map
          my-cape-map
@@ -548,7 +779,7 @@ under `package-user-dir'."
 ;; ----------------------------------------------------------
 
 (use-package company
-  :ensure t
+  :el-get t
   :disabled t
   :defer 2
   :config
@@ -581,7 +812,7 @@ under `package-user-dir'."
 ;; ----------------------------------------------------------
 
 (use-package corfu
-  :ensure t
+  :el-get t
   :custom
   (corfu-auto t)
   (corfu-auto-delay 0.2)
@@ -594,7 +825,7 @@ under `package-user-dir'."
 ;; delight
 ;; ----------------------------------------------------------
 
-(use-package delight :ensure t)
+(use-package delight :el-get t)
 
 (use-package emacs
   :delight
@@ -610,7 +841,7 @@ under `package-user-dir'."
 ;; ----------------------------------------------------------
 
 (use-package exec-path-from-shell
-  :ensure t
+  :el-get t
   :if (eq system-type 'darwin)
   :init
   (exec-path-from-shell-initialize)
@@ -700,6 +931,7 @@ under `package-user-dir'."
   :init
   (add-hook 'eshell-first-time-mode-hook #'eshell-initialize)
   :config
+  (require 'em-alias)
   (eshell/alias "ll"  "ls -lh $*")
   (eshell/alias "la"  "ls -lAh $*")
   (eshell/alias "ff"  "find-file $1")
@@ -707,18 +939,19 @@ under `package-user-dir'."
   (eshell/alias "cls" "clear-scrollback"))
 
 (use-package eshell-toggle
-  :ensure t
+  :el-get t
   :bind ("C-x C-z" . eshell-toggle))
 
 (use-package eshell-bookmark
+  :el-get t
   :hook (eshell-mode . eshell-bookmark-setup))
 
 (use-package eshell-up
-  :ensure t
+  :el-get t
   :commands eshell-up)
 
 (use-package eshell-z
-  :ensure t
+  :el-get t
   :after eshell)
 
 ;; ----------------------------------------------------------
@@ -726,7 +959,7 @@ under `package-user-dir'."
 ;; ----------------------------------------------------------
 
 (use-package flycheck
-  :ensure t
+  :el-get t
   :defer 3
   :config (global-flycheck-mode))
 
@@ -749,11 +982,8 @@ under `package-user-dir'."
 ;; https://github.com/emacsmirror/emacswiki.org/blob/master/framemove.el
 ;; not on melpa
 ;; https://trey-jackson.blogspot.com/2010/02/emacs-tip-35-framemove.html
-;; Install via package-vc if missing (avoids re-install prompt on every startup)
-(unless (package-installed-p 'framemove)
-  (package-vc-install '(framemove :url "https://github.com/emacsmirror/framemove")))
-
 (use-package framemove
+  :el-get t
   :init
   (windmove-default-keybindings)
   (setq framemove-hook-into-windmove t))
@@ -763,14 +993,51 @@ under `package-user-dir'."
 ;; ----------------------------------------------------------
 
 ;; https://github.com/port19x/haproxy-mode
-(use-package haproxy-mode :ensure t)
+(use-package haproxy-mode :el-get t)
+
+;; ----------------------------------------------------------
+;; helm
+;; ----------------------------------------------------------
+
+;; https://emacs-helm.github.io/helm/
+(use-package helm
+  :el-get t
+  :demand t
+  :init
+  (setq helm-M-x-fuzzy-match t)
+  (setq helm-buffers-fuzzy-matching t)
+  (setq helm-recentf-fuzzy-match t)
+  (setq helm-move-to-line-cycle-in-source t)
+  (setq helm-split-window-inside-p t)
+  (setq helm-autoresize-max-height 40)
+  (setq helm-autoresize-min-height 10)
+  :bind
+  (("M-x"       . helm-M-x)
+   ("C-x C-f"   . helm-find-files)
+   ("C-x b"     . helm-mini)
+   ("C-x C-b"   . helm-buffers-list)
+   ("C-x r b"   . helm-filtered-bookmarks)
+   ("M-y"       . helm-show-kill-ring)
+   ("M-s o"     . helm-occur)
+   ("C-c h"     . helm-command-prefix))
+  :config
+  (require 'helm-mode)
+  (require 'helm-command)
+  (require 'helm-files)
+  (require 'helm-buffers)
+  (require 'helm-bookmark)
+  (require 'helm-ring)
+  (require 'helm-imenu)
+  (require 'helm-occur)
+  (helm-mode 1)
+  (helm-autoresize-mode 1))
 
 ;; ----------------------------------------------------------
 ;; hl-todo
 ;; ----------------------------------------------------------
 
 (use-package hl-todo
-  :ensure t
+  :el-get t
   :config
   (global-hl-todo-mode)
   (setq hl-todo-keyword-faces
@@ -786,7 +1053,7 @@ under `package-user-dir'."
 
 ;; See also remember
 (use-package howm
-  :ensure t
+  :el-get t
   :after org
   :init
   ;; Org-compatible filenames and syntax.
@@ -949,15 +1216,27 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;; https://baty.net/posts/2025/12/finding-howm-notes-with-org-node/
 ;; org-node gives us fast ID-based linking across howm notes.
 (use-package org-node
-  :ensure t
+  :el-get t
   :after howm
   :hook
   ;; New howm notes automatically get an org-id via org-node.
   (howm-create . org-node-nodeify-entry)
   :config
+  (require 'org-id)
   ;; Include the howm directory in org-id's search scope.
-  (add-to-list 'org-id-extra-files
-               (directory-files-recursively howm-directory "\\.org\\'"))
+  (when (file-directory-p howm-directory)
+    (let ((extra-files (cond
+                        ((symbolp org-id-extra-files)
+                         (and (boundp org-id-extra-files)
+                              (symbol-value org-id-extra-files)))
+                        ((listp org-id-extra-files)
+                         org-id-extra-files))))
+      (setq org-id-extra-files
+            (delete-dups
+             (append (directory-files-recursively howm-directory "\\.org\\'")
+                     extra-files)))))
+  (org-node-cache-mode 1)
+  (org-mem-updater-mode 1)
   (org-node-cache-ensure))
 
 ;; ----------------------------------------------------------
@@ -967,7 +1246,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;; https://github.com/bmag/imenu-list
 ;; <2024-06-20>
 (use-package imenu-list
-  :ensure t
+  :el-get t
   :bind
   ("C-c i" . imenu-list-smart-toggle)
   :custom
@@ -978,20 +1257,20 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;; impatient-mode
 ;; ----------------------------------------------------------
 
-(use-package impatient-mode :ensure t)
+(use-package impatient-mode :el-get t)
 
 ;; ----------------------------------------------------------
 ;; keycast
 ;; ----------------------------------------------------------
 
 ;; (keycast-tab-bar-mode)
-(use-package keycast :ensure t)
+(use-package keycast :el-get t)
 
 ;; ----------------------------------------------------------
 ;; minions
 ;; ----------------------------------------------------------
 
-(use-package minions :ensure t)
+(use-package minions :el-get t)
 
 ;; ----------------------------------------------------------
 ;; move-dup
@@ -1000,7 +1279,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;; https://github.com/wyuenho/move-dup
 ;; <2024-05-14>
 (use-package move-dup
-  :ensure t
+  :el-get t
   :bind (("M-<up>"     . move-dup-move-lines-up)
          ("C-M-<up>"   . move-dup-duplicate-up)
          ("M-<down>"   . move-dup-move-lines-down)
@@ -1014,7 +1293,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 
 ;; https://github.com/emacscollective/no-littering
 (use-package "no-littering"
-  :ensure t
+  :el-get t
   :init
   (let ((dir (no-littering-expand-var-file-name "lock-files/")))
     (make-directory dir t)
@@ -1026,7 +1305,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;; ----------------------------------------------------------
 
 (use-package org
-  :ensure t
+  :el-get t
   :defer t)
 
 ;; org-protocol needed for macOS scrim -- load after server starts
@@ -1059,7 +1338,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 
 ;; org-contrib
 (use-package org-contrib
-  :ensure t
+  :el-get t
   :config
   (require 'org-expiry)
   (org-expiry-insinuate)
@@ -1097,7 +1376,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;; org-auto-expand
 ;; https://github.com/alphapapa/org-auto-expand
 (use-package org-auto-expand
-  :ensure t
+  :el-get t
   :after org
   :config
   (org-auto-expand-mode))
@@ -1205,7 +1484,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;; ----------------------------------------------------------
 
 (use-package reveal-in-osx-finder
-  :ensure t
+  :el-get t
   :if (eq system-type 'darwin)
   :no-require t
   :bind ("C-c M-v" .
@@ -1253,7 +1532,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;; ----------------------------------------------------------
 
 (use-package slime
-  :ensure t
+  :el-get t
   :commands slime
   :custom
   (slime-kill-without-query-p t)
@@ -1268,7 +1547,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;; ----------------------------------------------------------
 
 (use-package "sly"
-  :ensure t
+  :el-get t
   :disabled t
   :init
   (setq inferior-lisp-program (expand-file-name "~/lisp/lispworks/lw-console"))
@@ -1276,9 +1555,9 @@ Prompts for confirmation before renaming.  Does nothing if:
   (setq sly-protocol-version 'ignore)
   (setq sly-net-coding-system 'utf-8-unix)
   :config
-  (use-package "sly-asdf" :ensure t)
-  (use-package "sly-macrostep" :ensure t)
-  (use-package "sly-repl-ansi-color" :ensure t)
+  (use-package "sly-asdf" :el-get t)
+  (use-package "sly-macrostep" :el-get t)
+  (use-package "sly-repl-ansi-color" :el-get t)
   (sly-setup '(sly-fancy)))
 
 ;; ----------------------------------------------------------
@@ -1450,7 +1729,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;; ----------------------------------------------------------
 
 (use-package which-key
-  :ensure t
+  :el-get t
   :defer 1
   :config
   (which-key-mode t))
@@ -1472,7 +1751,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 
 ;; Jump to any visible character on screen
 (use-package avy
-  :ensure t
+  :el-get t
   :bind (("C-c j" . avy-goto-char-timer)))
 
 ;; ----------------------------------------------------------
@@ -1481,7 +1760,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 
 ;; Show VCS diff markers in the margin/fringe
 (use-package diff-hl
-  :ensure t
+  :el-get t
   :config
   (global-diff-hl-mode)
   (unless (display-graphic-p)
@@ -1493,7 +1772,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 
 ;; Terminal emulator for eshell (lighter than vterm, no C compilation)
 (use-package eat
-  :ensure t
+  :el-get t
   :hook (eshell-mode . eat-eshell-mode)
   :custom
   (eat-term-name "xterm-256color"))
@@ -1504,35 +1783,16 @@ Prompts for confirmation before renaming.  Does nothing if:
 
 ;; Use fd instead of find for dired
 (use-package fd-dired
-  :ensure t
+  :el-get t
   :if (executable-find "fd")
   :bind ("C-c f" . fd-dired))
-
-;; ----------------------------------------------------------
-;; marginalia
-;; ----------------------------------------------------------
-
-;; Annotate minibuffer completions with docstrings, file sizes, etc.
-(use-package marginalia
-  :ensure t
-  :init (marginalia-mode))
-
-;; ----------------------------------------------------------
-;; orderless
-;; ----------------------------------------------------------
-
-;; Fuzzy/flex completion matching for fido-vertical-mode
-(use-package orderless
-  :ensure t
-  :custom
-  (completion-styles '(orderless basic)))
 
 ;; ----------------------------------------------------------
 ;; wgrep
 ;; ----------------------------------------------------------
 
 ;; Edit grep results in-place and apply changes back to files
-(use-package wgrep :ensure t)
+(use-package wgrep :el-get t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

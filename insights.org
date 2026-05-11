@@ -454,25 +454,29 @@ but use different architectures:
 - *corfu* uses Emacs's native ~completion-at-point-functions~ (capf)
   infrastructure directly. The same capf functions that power
   ~completion-at-point~ (M-TAB) also drive corfu's popup. This means
-  corfu works with any mode that provides capf support, and pairs
-  naturally with ~orderless~ for fuzzy matching.
+  corfu works with any mode that provides capf support, and stays
+  independent from the minibuffer completion UI.
 
 Cape (~completion-at-point-functions extensions~) adds additional capf
 backends (dabbrev, file, history, etc.) that work with both company
 and corfu. The ~cape~ configuration in init.el is preserved and works
 with corfu unchanged.
 
-* orderless completion style
+* Helm for minibuffer completion
 
-The ~orderless~ completion style treats each space-separated word in
-the input as an independent filter. "ob lan" matches
-"org-babel-load-languages" because "ob" matches somewhere and "lan"
-matches somewhere else, in any order. This is dramatically more
-flexible than the default ~basic~ and ~partial-completion~ styles.
+Helm owns minibuffer completion in this configuration. It replaces the
+previous Fido/Orderless/Marginalia stack for commands that read from
+the minibuffer, while corfu and cape continue to handle in-buffer
+completion through capf.
 
-Setting ~(completion-styles '(orderless basic))~ means orderless is
-tried first, with ~basic~ as fallback for completion frameworks that
-don't support orderless (e.g. some TRAMP path completion).
+Helm is installed from source through el-get with explicit recipes for
+its pure-Elisp dependencies, ~async~ and ~wfnames~. The configuration
+loads the Helm modules behind each bound command instead of relying on
+generated autoloads, which keeps fresh el-get checkouts predictable.
+
+Keep only one minibuffer completion UI active at a time. Helm's own
+documentation warns against stacking many completion UIs, and doing so
+can make completing-read behavior difficult to debug.
 
 * eshell prompt and eshell-prompt-regexp
 

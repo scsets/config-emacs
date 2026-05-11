@@ -2,6 +2,43 @@
 #+title: Emacs Configuration Changelog
 #+author: scs
 
+* 2026-05-11 Activate Helm as the minibuffer system
+
+- Added configuration-owned el-get recipes for ~async~, ~wfnames~, and
+  ~helm~, so Helm does not depend on generated ELPA recipes.
+- Enabled Helm with explicit module loads for the commands bound by this
+  configuration: ~helm-M-x~, ~helm-find-files~, ~helm-mini~,
+  ~helm-buffers-list~, ~helm-filtered-bookmarks~, ~helm-show-kill-ring~,
+  ~helm-occur~, and ~helm-imenu~.
+- Bound Helm over the old minibuffer entry points: ~M-x~, ~C-x C-f~,
+  ~C-x b~, ~C-x C-b~, ~C-x r b~, ~M-y~, ~M-s o~, and the macOS Hyper
+  shortcuts for command, buffer, and imenu lookup.
+- Disabled built-in Fido and removed the active ~marginalia~ and
+  ~orderless~ declarations so Helm is the only active minibuffer
+  completion UI. Corfu and Cape remain active for in-buffer completion.
+- Made the org-node cache setup non-interactive and made
+  ~org-id-extra-files~ handling tolerate Org's default symbolic value,
+  which keeps batch startup and byte compilation from prompting.
+
+* 2026-05-11 Restore el-get-backed package fetching
+
+- Added el-get bootstrap before package declarations. It loads an existing
+  checkout from =el-get/el-get= or clones el-get from GitHub when el-get is
+  missing.
+- Added a local ~use-package~ ~:el-get~ keyword handler. It supports
+  ~:el-get t~, alternate package names, and inline el-get recipe plists,
+  without using ~el-get-bundle~.
+- Replaced all package-fetching ~:ensure t~ declarations with ~:el-get t~.
+- Added configuration-owned el-get recipes and overrides for packages missing
+  useful upstream recipes, packages whose upstream recipes were ELPA-only, and
+  packages whose primary Git host was not responsive during first-run testing.
+- Added explicit recipe dependencies for source installs, including ~dash~ for
+  ~eshell-toggle~ and the ~org-node~ dependency chain.
+- Moved ~framemove~ off direct ~package-vc-install~ and made
+  ~eshell-bookmark~ an explicitly fetched package.
+- Removed the unused package archive stale-refresh helpers; el-get now owns
+  first-run package installation.
+
 * 2026-04-29 Package archive safeguards
 
 - Added age-gated package archive refresh helpers for first-run installs.

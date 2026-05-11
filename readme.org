@@ -6,9 +6,11 @@
 
 Personal Emacs configuration for Emacs 30.x.
 
-Uses ~use-package~ (built-in) for package management, with ~package-vc~
-for packages not on MELPA. The ~no-littering~ package keeps data and
-cache files organized under =var/= and =etc/=.
+Uses built-in ~use-package~ for package declarations and el-get for
+package fetching through the local ~:el-get~ keyword. Local el-get
+recipes cover packages that do not have suitable upstream recipes. The
+~no-littering~ package keeps data and cache files organized under =var/=
+and =etc/=.
 
 * Structure
 
@@ -39,7 +41,7 @@ Common commands:
 
 * Key Packages
 
-- *Completion:* fido-vertical-mode (built-in), company, cape
+- *Completion:* helm for minibuffer commands, corfu and cape for in-buffer completion
 - *Shell:* eshell, eshell-toggle, eshell-z, eshell-up
 - *Org:* org-mode, org-contrib (org-expiry)
 - *Notes:* howm (=~/notes=, semantic filenames), org-node (ID linking)
@@ -47,7 +49,7 @@ Common commands:
 - *UI:* hl-todo, delight, which-key, minions
 - *Files:* no-littering, recentf
 - *Remote:* tramp
-- *VCS:* vc (SVN, RCS, Git), framemove (via package-vc)
+- *VCS:* vc (SVN, RCS, Git), framemove (via el-get local recipe)
 
 * Target Platforms
 
