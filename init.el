@@ -780,7 +780,6 @@ Side effects: may install packages while byte-compiling."
 
 (use-package company
   :el-get t
-  :disabled t
   :defer 2
   :config
   (setq company-selection-default nil)
@@ -806,20 +805,6 @@ Side effects: may install packages while byte-compiling."
   (define-key company-active-map (kbd "RET") #'my-company-return)
 
   (global-company-mode))
-
-;; ----------------------------------------------------------
-;; corfu
-;; ----------------------------------------------------------
-
-(use-package corfu
-  :el-get t
-  :custom
-  (corfu-auto t)
-  (corfu-auto-delay 0.2)
-  (corfu-auto-prefix 3)
-  (corfu-cycle t)
-  :init
-  (global-corfu-mode))
 
 ;; ----------------------------------------------------------
 ;; delight
