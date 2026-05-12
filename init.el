@@ -143,10 +143,6 @@ The DWIM behaviour of this command is as follows:
         (:name compat
          :type github
          :pkgname "emacs-compat/compat")
-        (:name corfu
-         :type github
-         :pkgname "minad/corfu"
-         :depends (compat))
         (:name delight
          :type github
          :pkgname "emacsmirror/delight"
@@ -728,6 +724,21 @@ Side effects: may install packages while byte-compiling."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; ----------------------------------------------------------
+;; no-littering
+;; ----------------------------------------------------------
+;; https://github.com/emacscollective/no-littering
+;; This MUST COME FIRST
+
+(use-package "no-littering"
+  :el-get t
+  :init
+  (let ((dir (no-littering-expand-var-file-name "lock-files/")))
+    (make-directory dir t)
+    (setq lock-file-name-transforms `((".*" ,dir t))))
+  (no-littering-theme-backups))
+  
+
+;; ----------------------------------------------------------
 ;; abbrev
 ;; ----------------------------------------------------------
 
@@ -1272,18 +1283,6 @@ Prompts for confirmation before renaming.  Does nothing if:
   :config
   (global-move-dup-mode))
 
-;; ----------------------------------------------------------
-;; no-littering
-;; ----------------------------------------------------------
-
-;; https://github.com/emacscollective/no-littering
-(use-package "no-littering"
-  :el-get t
-  :init
-  (let ((dir (no-littering-expand-var-file-name "lock-files/")))
-    (make-directory dir t)
-    (setq lock-file-name-transforms `((".*" ,dir t))))
-  (no-littering-theme-backups))
 
 ;; ----------------------------------------------------------
 ;; org
