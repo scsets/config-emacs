@@ -41,7 +41,7 @@ Common commands:
 
 * Key Packages
 
-- *Completion:* helm for minibuffer commands, corfu and cape for in-buffer completion
+- *Completion:* helm for minibuffer commands, company and cape for in-buffer completion
 - *Shell:* eshell, eshell-toggle, eshell-z, eshell-up
 - *Org:* org-mode, org-contrib (org-expiry)
 - *Notes:* howm (=~/notes=, semantic filenames), org-node (ID linking)

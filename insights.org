@@ -443,6 +443,9 @@ repeated positional calls.
 
 * corfu vs company
 
+*Decision (2026-06-06):* company is the active in-buffer completion UI.
+Corfu was tried and not adopted. Cape remains for manual capf via ~C-c .~.
+
 Company and corfu solve the same problem (in-buffer completion popup)
 but use different architectures:
 
@@ -466,8 +469,8 @@ with corfu unchanged.
 
 Helm owns minibuffer completion in this configuration. It replaces the
 previous Fido/Orderless/Marginalia stack for commands that read from
-the minibuffer, while corfu and cape continue to handle in-buffer
-completion through capf.
+the minibuffer, while company handles in-buffer popup completion and
+cape supplies extra capf backends via ~C-c .~.
 
 Helm is installed from source through el-get with explicit recipes for
 its pure-Elisp dependencies, ~async~ and ~wfnames~. The configuration

@@ -5,32 +5,32 @@
 
 * Health
 
-| Component          | Status   | Notes                                  |
-|--------------------+----------+----------------------------------------|
-| Startup            | OK       | Clean startup after el-get bootstrap   |
-| el-get             | OK       | Package fetching via use-package :el-get |
-| helm               | OK       | Active minibuffer completion UI        |
-| fido/orderless     | GONE     | Replaced by helm                       |
-| marginalia         | GONE     | Replaced by helm annotations/actions   |
-| custom.el          | GONE     | All settings in init.el;               |
-|                    |          | custom-file redirected to /tmp/        |
-| org-contrib        | OK       | Via el-get/use-package; provides org-expiry |
-| ob-ly              | GONE     | Removed from org-contrib 0.8           |
-| eshell             | OK       | eshell-toggle, eshell-z, eshell-up,    |
-|                    |          | eshell-bookmark                        |
-| psvn               | GONE     | GitHub repo deleted; using vc-svn      |
-| company            | DISABLED | Kept for reference; corfu is active    |
-| corfu              | OK       | Active in-buffer completion UI         |
-| framemove          | OK       | Via el-get local recipe                |
-| SLIME/SLY paths    | CHECK    | Verify ~/lisp/lispworks/ exists        |
-| howm               | OK       | Org notes in ~/notes; semantic rename  |
-| org-node           | NEW      | ID-based linking for howm notes        |
-| server (socket)    | OK       | Default server via Unix domain socket  |
-| server (TCP/scrim) | OK       | Second server for Scrim macOS app      |
-| no-littering       | OK       | Managing var/etc directories           |
-| tramp              | OK       | Settings consolidated in use-package   |
-| lexical-binding    | OK       | Enabled in init.el and early-init.el   |
-| RCS                | OK       | Id keywords in all tracked files       |
+| Component          | Status | Notes                                       |
+|--------------------+--------+---------------------------------------------|
+| Startup            | OK     | Clean startup after el-get bootstrap        |
+| el-get             | OK     | Package fetching via use-package :el-get    |
+| helm               | OK     | Active minibuffer completion UI             |
+| fido/orderless     | GONE   | Replaced by helm                            |
+| marginalia         | GONE   | Replaced by helm annotations/actions        |
+| custom.el          | GONE   | All settings in init.el;                    |
+|                    |        | custom-file redirected to /tmp/             |
+| org-contrib        | OK     | Via el-get/use-package; provides org-expiry |
+| ob-ly              | GONE   | Removed from org-contrib 0.8                |
+| eshell             | OK     | eshell-toggle, eshell-z, eshell-up,         |
+|                    |        | eshell-bookmark                             |
+| psvn               | GONE   | GitHub repo deleted; using vc-svn           |
+| company            | OK     | Active in-buffer completion UI              |
+| corfu              | GONE   | Chose company over corfu (2026-06-06)       |
+| framemove          | OK     | Via el-get local recipe                     |
+| SLIME/SLY paths    | CHECK  | Verify ~/lisp/lispworks/ exists             |
+| howm               | OK     | Org notes in ~/notes; semantic rename       |
+| org-node           | NEW    | ID-based linking for howm notes             |
+| server (socket)    | OK     | Default server via Unix domain socket       |
+| server (TCP/scrim) | OK     | Second server for Scrim macOS app           |
+| no-littering       | OK     | Managing var/etc directories                |
+| tramp              | OK     | Settings consolidated in use-package        |
+| lexical-binding    | OK     | Enabled in init.el and early-init.el        |
+| RCS                | OK     | Id keywords in all tracked files            |
 
 * Emacs Version
 
@@ -47,10 +47,4 @@ Tested on Emacs 30.2.
 
 * Last Verified
 
-[2026-05-11] - Package fetching moved from ~use-package :ensure t~ and
-~package-vc~ to el-get through the local ~:el-get~ keyword. First-run
-bootstrap and package installation completed in a temporary profile, followed
-by a clean post-install startup. Helm is now installed through el-get and
-active for minibuffer completion, replacing the Fido/Orderless/Marginalia
-stack. A warmed-profile smoke test and byte-compile pass also completed; the
-byte-compile pass only reported existing undefined-function warnings.
+[2026-05-11] - Package fetching moved from ~use-package :ensure t~ and ~package-vc~ to el-get through the local ~:el-get~ keyword. First-run bootstrap and package installation completed in a temporary profile, followed by a clean post-install startup. Helm is now installed through el-get and active for minibuffer completion, replacing the Fido/Orderless/Marginalia stack. A warmed-profile smoke test and byte-compile pass also completed; the byte-compile pass only reported existing undefined-function warnings.
