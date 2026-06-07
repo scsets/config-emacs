@@ -390,9 +390,9 @@ Side effects: may install packages while byte-compiling."
 
 ;; Second server instance via TCP for Scrim
 (when (eq system-type 'darwin)
-  (let ((server-name "scrim")
+  (let ((server-name "server")
         (server-use-tcp t))
-    (unless (server-running-p "scrim") (server-start))))
+    (unless (server-running-p "server") (server-start))))
 
 ;; ----------------------------------------------------------
 ;; Column numbers
@@ -556,6 +556,18 @@ Side effects: may install packages while byte-compiling."
 
 (blink-cursor-mode -1)
 (desktop-save-mode t)
+(with-eval-after-load 'desktop
+  (defun scs/desktop-sanitize-before-save ()
+    "Repair buffer state that breaks `desktop-buffer-info' during desktop save.
+
+EWW buffers with a nil `eww-history-position' make desktop save signal
+`wrong-type-argument' (integerp nil) when quitting Emacs."
+    (dolist (buf (buffer-list))
+      (when (eq (buffer-local-value 'major-mode buf) 'eww-mode)
+        (with-current-buffer buf
+          (unless (natnump eww-history-position)
+            (setq eww-history-position 0))))))
+  (add-hook 'desktop-save-hook #'scs/desktop-sanitize-before-save))
 (size-indication-mode t)
 (load-theme 'tango-dark t)
 
@@ -736,7 +748,7 @@ Side effects: may install packages while byte-compiling."
     (make-directory dir t)
     (setq lock-file-name-transforms `((".*" ,dir t))))
   (no-littering-theme-backups))
-  
+
 
 ;; ----------------------------------------------------------
 ;; abbrev
@@ -786,7 +798,7 @@ Side effects: may install packages while byte-compiling."
   (add-to-list 'completion-at-point-functions #'cape-abbrev))
 
 ;; ----------------------------------------------------------
-;; company
+;; company (active in-buffer completion UI; helm owns the minibuffer)
 ;; ----------------------------------------------------------
 
 (use-package company
@@ -1670,6 +1682,13 @@ Prompts for confirmation before renaming.  Does nothing if:
 
 (global-set-key (kbd "C-c t c") 'my/tramp-cleanup)
 (global-set-key (kbd "C-c t r") 'my/tramp-reopen)
+
+;; ----------------------------------------------------------
+;; unfill
+;; ----------------------------------------------------------
+
+;; https://github.com/purcell/unfill
+(use-package unfill :el-get t)
 
 ;; ----------------------------------------------------------
 ;; vc
