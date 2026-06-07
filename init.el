@@ -972,7 +972,12 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
 (use-package flycheck
   :el-get t
   :defer 3
-  :config (global-flycheck-mode))
+  :config
+  ;; Flycheck 36's org-lint checker mishandles Org's propertized line
+  ;; numbers on Emacs 30 (number-or-marker-p error).  Re-enable and
+  ;; test org-lint when Emacs 31 is available.
+  (setq flycheck-disabled-checkers '(org-lint))
+  (global-flycheck-mode))
 
 ;; ----------------------------------------------------------
 ;; flyspell
