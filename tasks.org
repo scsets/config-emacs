@@ -1,4 +1,3 @@
-# $Id: tasks.org,v 1.8 2026/03/07 17:16:56 scs Exp $
 #+title: Emacs Configuration Tasks
 #+author: scs
 
@@ -7,85 +6,85 @@ The SLIME config references =~/lisp/lispworks/lw-console=.
 Confirm this binary exists for the current user, or update the path.
 
 * DONE Activate Helm for minibuffer completion
-CLOSED: [2026-05-11]
+CLOSED: [2026-05-11 Mon]
 Added explicit el-get recipes for ~async~, ~wfnames~, and ~helm~.
 Enabled Helm for ~M-x~, file finding, buffer switching, bookmarks, kill
 ring, occur, and imenu-oriented workflows, replacing the
 Fido/Orderless/Marginalia minibuffer stack.
 
 * DONE Restore el-get-backed package fetching
-CLOSED: [2026-05-11]
+CLOSED: [2026-05-11 Mon]
 Added el-get bootstrap, a local ~use-package :el-get~ keyword handler,
 configuration-owned el-get recipes, and converted external package
 declarations away from ~:ensure t~ and direct ~package-vc-install~.
 
 * DONE Remove el-get, migrate all packages to use-package
-CLOSED: [2026-03-05]
+CLOSED: [2026-03-05 Thu]
 Removed el-get bootstrap. Migrated impatient-mode, hl-todo, psvn
 to use-package.
 
 * DONE Fix Emacs 30 plist-put startup crash
-CLOSED: [2026-03-05]
+CLOSED: [2026-03-05 Thu]
 Patched =el-get-bundle.el= and deleted stale bytecode.
 
 * DONE Fix Unicode smart quote in init.el
-CLOSED: [2026-03-05]
+CLOSED: [2026-03-05 Thu]
 Replaced U+2018 with ASCII apostrophe on line 741.
 
 * DONE Replace undefined ~user-data~ function
-CLOSED: [2026-03-05]
+CLOSED: [2026-03-05 Thu]
 Using ~no-littering-expand-var-file-name~ instead.
 
 * DONE Make user paths OS-independent
-CLOSED: [2026-03-05]
+CLOSED: [2026-03-05 Thu]
 Replaced hardcoded =/Users/priyadarshan/= with =~/= and ~expand-file-name~.
 
 * DONE Consolidate org-contrib into use-package
-CLOSED: [2026-03-05]
+CLOSED: [2026-03-05 Thu]
 Single ~use-package org-contrib~ block. ~ob-ly~ later removed (gone from
 org-contrib 0.8).
 
 * DONE Add RCS Id keywords and lexical-binding
-CLOSED: [2026-03-05]
+CLOSED: [2026-03-05 Thu]
 All tracked files now carry the RCS Id keyword.
 
 * DONE Fix file-name-handler-alist / vc-handled-backends restore in early-init.el
-CLOSED: [2026-03-05]
+CLOSED: [2026-03-05 Thu]
 Restore was commented out — TRAMP and VC were permanently broken.
 
 * DONE Improve early-init.el
-CLOSED: [2026-03-05]
+CLOSED: [2026-03-05 Thu]
 Moved compilation, package, and UI settings from init.el.
 
 * DONE Clean, optimise init.el
-CLOSED: [2026-03-07]
+CLOSED: [2026-03-07 Sat]
 - Removed dead code: test keymaps, corfu, commented blocks, toggle-read-only alias
 - Fixed bugs: quoted lambda, babel spacing, savehist double-activate
 - Fixed vc-handled-backends early-init timing conflict
 - Removed duplicate org-confirm-babel-evaluate
 
 * DONE Eliminate custom.el
-CLOSED: [2026-03-07]
+CLOSED: [2026-03-07 Sat]
 All settings moved to init.el. ~custom-file~ redirected to =/tmp/=.
 Removed orphaned denote/xeft settings.
 
 * DONE Add eshell section
-CLOSED: [2026-03-07]
+CLOSED: [2026-03-07 Sat]
 Added eshell, eshell-toggle (C-x C-z), eshell-bookmark, eshell-up, eshell-z.
 Cross-platform for macOS, FreeBSD, SmartOS.
 
 * DONE Howm semantic filenames (title_tags_date.org)
-CLOSED: [2026-03-07]
+CLOSED: [2026-03-07 Sat]
 Added ~scs--howm-maybe-rename~ hook on save. Prompts before renaming.
 Changed howm directory from ~/note to ~/notes.
 
 * DONE Add howm/org-node integration
-CLOSED: [2026-03-07]
+CLOSED: [2026-03-07 Sat]
 Enhanced howm with org-node hooks, better template, no-littering paths.
 Switched Emacs server from TCP to Unix sockets; added separate TCP server for Scrim.
 
 * DONE Optimise startup time (4s -> 0.6s)
-CLOSED: [2026-03-07]
+CLOSED: [2026-03-07 Sat]
 - Removed use-package bootstrap (built-in since Emacs 29)
 - Fixed package-vc re-install loop for framemove (guard with package-installed-p)
 - Removed psvn (repo gone from GitHub); use built-in vc-svn

@@ -1,4 +1,3 @@
-# $Id: status.org,v 1.11 2026/03/07 17:16:56 scs Exp $
 #+title: Emacs Configuration Status
 #+author: scs
 #+date: 2026-05-11
@@ -47,4 +46,4 @@ Tested on Emacs 30.2.
 
 * Last Verified
 
-[2026-05-11] - Package fetching moved from ~use-package :ensure t~ and ~package-vc~ to el-get through the local ~:el-get~ keyword. First-run bootstrap and package installation completed in a temporary profile, followed by a clean post-install startup. Helm is now installed through el-get and active for minibuffer completion, replacing the Fido/Orderless/Marginalia stack. A warmed-profile smoke test and byte-compile pass also completed; the byte-compile pass only reported existing undefined-function warnings.
+[2026-05-11 Mon] - Package fetching moved from ~use-package :ensure t~ and ~package-vc~ to el-get through the local ~:el-get~ keyword. First-run bootstrap and package installation completed in a temporary profile, followed by a clean post-install startup. Helm is now installed through el-get and active for minibuffer completion, replacing the Fido/Orderless/Marginalia stack. A warmed-profile smoke test and byte-compile pass also completed; the byte-compile pass only reported existing undefined-function warnings.
