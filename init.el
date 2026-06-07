@@ -793,6 +793,9 @@ Side effects: may install packages while byte-compiling."
   :el-get t
   :defer 2
   :config
+  ;; SLIME capf signals "Not connected." when company-capf runs without a
+  ;; live LispWorks session; cape and M-TAB still work in slime-mode.
+  (add-to-list 'company-capf-disabled-functions 'slime--completion-at-point)
   (setq company-selection-default nil)
   (setq company-minimum-prefix-length 3)
   (setq company-selection-wrap-around t)
