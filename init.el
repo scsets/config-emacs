@@ -582,8 +582,12 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
         (Syntax . COMMON-LISP)))
 (setq windmove-wrap-around nil)
 
-;; Font (GUI only)
+;; ----------------------------------------------------------
+;; Frame / UI (GUI only)
+;; ----------------------------------------------------------
+
 (when (display-graphic-p)
+  (tool-bar-mode -1)
   (set-face-attribute 'default nil
                       :family "Menlo"
                       :height 180
