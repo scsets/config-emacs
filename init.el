@@ -184,7 +184,7 @@ The DWIM behaviour of this command is as follows:
         (:name hl-todo
          :type github
          :pkgname "tarsius/hl-todo"
-         :depends (compat))
+         :depends (compat cond-let))
         (:name imenu-list
          :type github
          :pkgname "bmag/imenu-list")
@@ -811,6 +811,7 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
   :config
   ;; SLIME capf signals "Not connected." when company-capf runs without a
   ;; live LispWorks session; cape and M-TAB still work in slime-mode.
+  (require 'company-capf)
   (add-to-list 'company-capf-disabled-functions 'slime--completion-at-point)
   (setq company-selection-default nil)
   (setq company-minimum-prefix-length 3)
@@ -1050,7 +1051,15 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
   (require 'helm-imenu)
   (require 'helm-occur)
   (helm-mode 1)
-  (helm-autoresize-mode 1))
+  (helm-autoresize-mode 1)
+  ;; BUG(helm): helm-ff--in-backup-directory calls file-equal-p on nil cdrs in
+  ;; backup-directory-alist (valid Emacs usage; see no-littering-theme-backups).
+  ;; Remove this override once upstream helm-files.el skips nil directories.
+  (defun helm-ff--in-backup-directory ()
+    (when backup-directory-alist
+      (cl-loop for (_p . f) in backup-directory-alist
+               when f
+               thereis (file-equal-p f helm-ff-default-directory)))))
 
 ;; ----------------------------------------------------------
 ;; hl-todo

@@ -120,14 +120,121 @@ Three predicates serve different cross-platform purposes:
   Use for frame-parameter settings specific to a display system, e.g.
   ~undecorated-round~ is NS-only.
 
-- ~(display-graphic-p)~ — returns non-nil when the current frame is a GUI
+- ~(display-graphic-p)~ — returns non-nil when the /current frame/ is a GUI
   frame (any backend), ~nil~ in terminal (~emacs -nw~) and ~--batch~ modes.
   Use for features that require a graphical display (toolbar, pixel
   scrolling, frame naming).
 
+- ~initial-window-system~ — the window system Emacs was /started with/
+  (~'ns~, ~'x~, ~'pc~, or ~nil~). Available during ~early-init.el~, before
+  the display connection exists.
+
 Rule of thumb: start with ~display-graphic-p~ (broadest GUI check), narrow
 to ~window-system~ for display-backend specifics, use ~system-type~ for
 OS-level concerns independent of display.
+
+** Exception: ~early-init.el~ runs before the GUI exists**
+
+~early-init.el~ is loaded *before* ~window-system-initialization~ and
+*before* the initial frame is created. At that point there is no graphic
+frame yet, so ~(display-graphic-p)~ is ~nil~ even when you launched GUI
+Emacs from the Dock or terminal.
+
+Do /not/ wrap ~early-init~ hook registration in ~(when (display-graphic-p)
+...)~ — the hooks will never be added and startup-only logic silently
+does nothing (while the same functions still work when called manually
+later via ~M-:~).
+
+Use ~(when (and initial-window-system (not noninteractive)) ...)~ instead.
+The same applies to NS-only ~default-frame-alist~ entries such as
+~undecorated-round~: test ~initial-window-system~, not ~window-system~
+(which is also ~nil~ during ~early-init~).
+
+* Half-screen frame geometry at startup (macOS GUI)
+
+Goal: every graphic frame at top-left of the monitor workarea, half
+width, full usable height (minus a small inset).
+
+Implemented in ~early-init.el~ (~scs/frame-apply-half-screen-geometry-*~).
+
+** Monitor metrics**
+
+Use ~frame-monitor-attributes~ and prefer the ~workarea~ field (usable
+area below the menu bar, above the dock). Do not fall back to
+~display-pixel-height~ when workarea is unavailable — that value is the
+full display and is both too tall and wrong for positioning. Retry
+until workarea is reported (macOS often returns ~nil~ on the first hook
+invocation).
+
+** Startup hook order**
+
+Emacs applies user frame settings late in startup:
+
+1. ~emacs-startup-hook~
+2. ~frame-notice-user-settings~ (reapplies ~initial-frame-alist~ /
+   ~default-frame-alist~ to the initial frame)
+3. ~window-setup-hook~
+
+Geometry must run on ~window-setup-hook~ (and after ~desktop-read~ via
+~desktop-after-read-hook~ if desktop restore is enabled), not only on
+~emacs-startup-hook~. Scheduled retries (~run-at-time~ at 0–3 s) cover
+late monitor data on NS.
+
+** Resize API (~frame-resize-pixelwise t~)**
+
+With pixelwise resizing enabled:
+
+#+begin_example
+(set-frame-position nil x y)           ; 3 args only — not 4
+(set-frame-size nil width height t)    ; 4th arg t means pixels
+#+end_example
+
+There is no ~set-frame-pixel-size~ in Emacs 30. Passing a fourth
+argument to ~set-frame-position~ signals ~wrong-number-of-arguments~.
+
+** Height inset**
+
+~scs/frame-height-inset~ (default 24 px) is subtracted from workarea
+height so the frame does not extend slightly past the visible area
+(menu bar / ~undecorated-round~ rounding).
+
+* auto-save-list-file-prefix void at startup
+
+Symptom when launching from the CLI:
+
+#+begin_example
+normal-top-level: Symbol's value as variable is void: auto-save-list-file-prefix
+#+end_example
+
+~auto-save-list-file-prefix~ is a ~defcustom~ with
+~custom-initialize-delay~: it stays /unbound/ until Emacs evaluates its
+standard value during the delayed-init batch in ~command-line~. Near the
+end of ~normal-top-level~, an ~unwind-protect~ body references the
+variable to build ~auto-save-list-file-name~.
+
+** Root cause observed**
+
+Launching Emacs with the shell's current working directory set to a path
+that *no longer exists* (directory deleted after ~cd~ into it). Broken
+~default-directory~ at startup can prevent delayed custom variables and
+path-dependent initialization from completing, leaving
+~auto-save-list-file-prefix~ void when ~normal-top-level~ unwinds.
+
+Fix at the shell: ~cd ~ RET~ (home) or ~cd~ into any existing directory
+before ~emacs~. Launching from the Dock or Spotlight avoids the issue
+because no stale cwd is inherited.
+
+** Defensive init (~early-init.el~)**
+
+After ~user-emacs-directory~ is set, force initialization:
+
+#+begin_example
+(when (fboundp 'custom-reevaluate-setting)
+  (custom-reevaluate-setting 'auto-save-list-file-prefix))
+#+end_example
+
+~no-littering~ in ~init.el~ relocates the prefix again under ~var/~; that
+runs later and is independent of this safeguard.
 
 * executable-find for optional external tools
 
@@ -480,6 +587,18 @@ generated autoloads, which keeps fresh el-get checkouts predictable.
 Keep only one minibuffer completion UI active at a time. Helm's own
 documentation warns against stacking many completion UIs, and doing so
 can make completing-read behavior difficult to debug.
+
+* BUG(helm): file-equal-p with nil backup-directory-alist cdrs
+
+~no-littering-theme-backups~ sets valid ~backup-directory-alist~ entries
+whose cdr is ~nil~ (meaning “keep backup beside the file”). During
+~helm-find-files~, ~helm-ff--in-backup-directory~ calls
+~(file-equal-p f helm-ff-default-directory)~ for every alist entry without
+checking ~f~, which signals ~wrong-type-argument stringp nil~ (once per
+nil entry).
+
+Workaround in ~init.el~ (search ~BUG(helm)~): skip entries where ~f~ is
+nil. Remove when upstream ~helm-files.el~ is fixed.
 
 * eshell prompt and eshell-prompt-regexp
 

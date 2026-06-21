@@ -2,6 +2,32 @@
 #+title: Emacs Configuration Changelog
 #+author: scs
 
+* 2026-06-21 el-get refresh, package cleanup, Helm workaround
+
+** el-get and packages
+- Updated el-get checkout to 5.2 (~447b7ef~) via git pull and
+  ~el-get-self-update~.
+- Ran ~el-get-update-all~ for all installed packages.
+- Fixed ~.status.el~: ~el-get~ was ~required~ without a recipe, which
+  broke ~el-get-self-update~ (~el-get-package-method nil~ / recipe errors).
+- Removed orphaned el-get installs not declared in ~init.el~: ~corfu~,
+  ~marginalia~, ~orderless~ (~marginalia~ / ~orderless~ blocked
+  ~el-get-update-all~ because they had no el-get recipe).
+
+** Init fixes after update
+- ~company~: ~require 'company-capf~ before touching
+  ~company-capf-disabled-functions~ (void-variable on startup).
+- ~hl-todo~: added ~cond-let~ to the el-get recipe ~:depends~ (hl-todo
+  requires it but did not declare it).
+- ~helm~: ~BUG(helm)~ workaround for ~helm-ff--in-backup-directory~
+  calling ~file-equal-p~ on nil cdrs in ~backup-directory-alist~
+  (triggered by ~no-littering-theme-backups~ during ~helm-find-files~).
+  Remove when upstream ~helm-files.el~ skips nil directories.
+
+** org-mode / org-contrib
+- Both already managed by el-get: ~org~ as ~:type builtin~, ~org-contrib~
+  as git from sr.ht. No recipe changes needed.
+
 * 2026-05-11 Activate Helm as the minibuffer system
 
 - Added configuration-owned el-get recipes for ~async~, ~wfnames~, and

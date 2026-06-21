@@ -43,7 +43,7 @@ Common commands:
 
 - *Completion:* helm for minibuffer commands, company and cape for in-buffer completion
 - *Shell:* eshell, eshell-toggle, eshell-z, eshell-up
-- *Org:* org-mode, org-contrib (org-expiry)
+- *Org:* org-mode (el-get builtin), org-contrib (el-get git; org-expiry)
 - *Notes:* howm (=~/notes=, semantic filenames), org-node (ID linking)
 - *Lisp:* slime (LispWorks)
 - *UI:* hl-todo, delight, which-key, minions
