@@ -1051,15 +1051,7 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
   (require 'helm-imenu)
   (require 'helm-occur)
   (helm-mode 1)
-  (helm-autoresize-mode 1)
-  ;; BUG(helm): helm-ff--in-backup-directory calls file-equal-p on nil cdrs in
-  ;; backup-directory-alist (valid Emacs usage; see no-littering-theme-backups).
-  ;; Remove this override once upstream helm-files.el skips nil directories.
-  (defun helm-ff--in-backup-directory ()
-    (when backup-directory-alist
-      (cl-loop for (_p . f) in backup-directory-alist
-               when f
-               thereis (file-equal-p f helm-ff-default-directory)))))
+  (helm-autoresize-mode 1))
 
 ;; ----------------------------------------------------------
 ;; hl-todo

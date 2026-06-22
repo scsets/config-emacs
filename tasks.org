@@ -1,9 +1,10 @@
 #+title: Emacs Configuration Tasks
 #+author: scs
 
-* TODO Remove BUG(helm) workaround when upstream fixes helm-files.el
-~init.el~ redefines ~helm-ff--in-backup-directory~ to skip nil cdrs in
-~backup-directory-alist~. Search for ~BUG(helm)~. Upstream issue pending.
+* DONE Remove BUG(helm) workaround when upstream fixes helm-files.el
+CLOSED: [2026-06-21 Sat]
+Upstream #2756 / ~0aa89912~ adds ~(and f (file-equal-p f ...))~; local
+override removed from ~init.el~.
 
 * TODO Verify ~/lisp/lispworks/lw-console path exists
 The SLIME config references =~/lisp/lispworks/lw-console=.
@@ -13,7 +14,7 @@ Confirm this binary exists for the current user, or update the path.
 CLOSED: [2026-06-21 Sat]
 Updated el-get to 5.2, ran ~el-get-update-all~, fixed ~.status.el~,
 removed orphaned ~corfu~ / ~marginalia~ / ~orderless~, fixed company and
-hl-todo startup errors, added ~BUG(helm)~ workaround.
+hl-todo startup errors; helm #2756 tracked separately.
 
 * DONE Activate Helm for minibuffer completion
 CLOSED: [2026-05-11 Mon]

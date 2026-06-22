@@ -22,7 +22,7 @@
 - ~helm~: ~BUG(helm)~ workaround for ~helm-ff--in-backup-directory~
   calling ~file-equal-p~ on nil cdrs in ~backup-directory-alist~
   (triggered by ~no-littering-theme-backups~ during ~helm-find-files~).
-  Remove when upstream ~helm-files.el~ skips nil directories.
+  Fixed upstream in helm ~0aa89912~ (#2756); local override removed.
 
 ** org-mode / org-contrib
 - Both already managed by el-get: ~org~ as ~:type builtin~, ~org-contrib~

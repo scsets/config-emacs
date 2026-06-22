@@ -588,17 +588,16 @@ Keep only one minibuffer completion UI active at a time. Helm's own
 documentation warns against stacking many completion UIs, and doing so
 can make completing-read behavior difficult to debug.
 
-* BUG(helm): file-equal-p with nil backup-directory-alist cdrs
+* BUG(helm): file-equal-p with nil backup-directory-alist cdrs [fixed upstream]
 
 ~no-littering-theme-backups~ sets valid ~backup-directory-alist~ entries
-whose cdr is ~nil~ (meaning “keep backup beside the file”). During
-~helm-find-files~, ~helm-ff--in-backup-directory~ calls
-~(file-equal-p f helm-ff-default-directory)~ for every alist entry without
-checking ~f~, which signals ~wrong-type-argument stringp nil~ (once per
-nil entry).
+whose cdr is ~nil~. ~helm-ff--in-backup-directory~ used to call
+~file-equal-p~ on every entry without checking ~f~, causing
+~wrong-type-argument stringp nil~ during ~helm-find-files~.
 
-Workaround in ~init.el~ (search ~BUG(helm)~): skip entries where ~f~ is
-nil. Remove when upstream ~helm-files.el~ is fixed.
+Fixed in helm ~0aa89912~ (#2756):
+~thereis (and f (file-equal-p f helm-ff-default-directory))~.
+No local override in ~init.el~.
 
 * eshell prompt and eshell-prompt-regexp
 

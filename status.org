@@ -8,7 +8,7 @@
 |--------------------+--------+---------------------------------------------|
 | Startup            | OK     | Clean startup after el-get refresh          |
 | el-get             | OK     | 5.2 (447b7ef); all packages updated         |
-| helm               | OK     | Minibuffer UI; BUG(helm) workaround in init   |
+| helm               | OK     | Minibuffer UI; #2756 nil backup-dir fix     |
 | fido/orderless     | GONE   | Replaced by helm; orderless removed         |
 | marginalia         | GONE   | Replaced by helm; marginalia removed        |
 | custom.el          | GONE   | All settings in init.el;                    |
@@ -49,7 +49,7 @@ Tested on Emacs 30.2.
 
 [2026-06-21 Sat] - el-get updated to 5.2; full ~el-get-update-all~ via emacsclient.
 Removed orphaned ~corfu~, ~marginalia~, and ~orderless~. Fixed ~.status.el~ el-get
-entry, ~company-capf~ require, and ~hl-todo~ ~cond-let~ dependency. Added
-~BUG(helm)~ workaround for ~file-equal-p~ nil with ~no-littering-theme-backups~.
-Org and org-contrib confirmed installed via el-get (builtin + git).
+entry, ~company-capf~ require, and ~hl-todo~ ~cond-let~ dependency. Helm
+updated; ~file-equal-p~ nil with ~no-littering-theme-backups~ fixed upstream
+(#2756, ~0aa89912~).
 [2026-05-11 Mon] - Package fetching moved from ~use-package :ensure t~ and ~package-vc~ to el-get through the local ~:el-get~ keyword. First-run bootstrap and package installation completed in a temporary profile, followed by a clean post-install startup. Helm is now installed through el-get and active for minibuffer completion, replacing the Fido/Orderless/Marginalia stack. A warmed-profile smoke test and byte-compile pass also completed; the byte-compile pass only reported existing undefined-function warnings.
