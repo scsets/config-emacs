@@ -114,9 +114,15 @@ The DWIM behaviour of this command is as follows:
 (defvar scs/el-get-local-sources nil)
 
 (setq scs/el-get-local-sources
-      '((:name cl-lib
+      '(        (:name cl-lib
          :type builtin
          :builtin "24.3")
+        (:name el-get
+         :type github
+         :pkgname "dimitri/el-get"
+         :branch "master"
+         :features el-get
+         :compile ("el-get.*\\.el$" "methods/"))
         (:name emacs
          :type builtin)
         (:name nadvice
@@ -295,6 +301,30 @@ Side effects: mutates `el-get-sources'."
 
 (dolist (source scs/el-get-local-sources)
   (scs/el-get-upsert-source source))
+
+(defun scs/el-get-sync-status-recipes ()
+  "Reconcile `.status.el' with bootstrap and declared recipes.
+
+`el-get-self-update' compares cached status recipes against current
+definitions.  When el-get itself is absent from `.status.el', the
+cached recipe is nil and `el-get-package-method' treats nil as a
+symbol, calls `el-get-package-def', and fails with \"recipe for
+package \\\"nil\\\"\"."
+  (let ((sync
+         (lambda (package)
+           (let* ((declared (el-get-package-def package))
+                  (cached (el-get-read-package-status-recipe package))
+                  (cached-type (and cached (el-get-package-method cached)))
+                  (declared-type (and declared (el-get-package-method declared))))
+             (when (or (not cached)
+                       (not (eq cached-type declared-type)))
+               (el-get-save-package-status package "installed" declared))))))
+    (when (file-directory-p (expand-file-name "el-get" el-get-dir))
+      (funcall sync "el-get"))
+    (when (el-get-read-package-status-recipe "cl-lib")
+      (funcall sync "cl-lib"))))
+
+(scs/el-get-sync-status-recipes)
 
 ;; ----------------------------------------------------------
 ;; use-package
@@ -745,7 +775,7 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
 ;; https://github.com/emacscollective/no-littering
 ;; This MUST COME FIRST
 
-(use-package "no-littering"
+(use-package no-littering
   :el-get t
   :init
   (let ((dir (no-littering-expand-var-file-name "lock-files/")))
@@ -978,10 +1008,8 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
   :el-get t
   :defer 3
   :config
-  ;; Flycheck 36's org-lint checker mishandles Org's propertized line
-  ;; numbers on Emacs 30 (number-or-marker-p error).  Re-enable and
-  ;; test org-lint when Emacs 31 is available.
-  (setq flycheck-disabled-checkers '(org-lint))
+  (require 'flycheck-org-lint-workaround)
+  (scs/flycheck-setup-org-lint-workaround)
   (global-flycheck-mode))
 
 ;; ----------------------------------------------------------
@@ -1555,7 +1583,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;; sly (:disabled)
 ;; ----------------------------------------------------------
 
-(use-package "sly"
+(use-package sly
   :el-get t
   :disabled t
   :init
@@ -1564,9 +1592,9 @@ Prompts for confirmation before renaming.  Does nothing if:
   (setq sly-protocol-version 'ignore)
   (setq sly-net-coding-system 'utf-8-unix)
   :config
-  (use-package "sly-asdf" :el-get t)
-  (use-package "sly-macrostep" :el-get t)
-  (use-package "sly-repl-ansi-color" :el-get t)
+  (use-package sly-asdf :el-get t)
+  (use-package sly-macrostep :el-get t)
+  (use-package sly-repl-ansi-color :el-get t)
   (sly-setup '(sly-fancy)))
 
 ;; ----------------------------------------------------------
