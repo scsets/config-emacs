@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: link
+# key: lk
+# group: inline
+# --
+[[${1:url}][${2:description}]]$0

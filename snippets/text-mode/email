@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# name: email
+# key: mail
+# group: common
+# --
+To: ${1:recipient}
+Subject: ${2:subject}
+
+$0

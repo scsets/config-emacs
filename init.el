@@ -258,7 +258,11 @@ The DWIM behaviour of this command is as follows:
          :type github
          :pkgname "thierryvolpiatto/wfnames"
          :branch "main"
-         :features wfnames)))
+         :features wfnames)
+        (:name yasnippet
+         :type github
+         :pkgname "joaotavora/yasnippet"
+         :features yasnippet)))
 
 (defun scs/el-get-bootstrap ()
   "Clone el-get into `user-emacs-directory' when no checkout is present.
@@ -649,7 +653,11 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
 
   ;; We define CAPS LOCK as Fn with Karabiner, then we can use it here
   ;; it works well!
-  (setq ns-function-modifier 'hyper))  ; make Fn key do Hyper
+  (setq ns-function-modifier 'hyper) ; make Fn key do Hyper
+
+  ;; Karabiner rewrites Fn+C in Emacs to C-M-s-c (see karabiner.json) so
+  ;; macOS does not open Control Center.  Lowercase s is Super, not Shift.
+  (define-key key-translation-map (kbd "C-M-s-c") (kbd "H-c")))
 
 ;; Another possibility would be to define each one separately
 ;; (define-key key-translation-map (kbd "C-M-S-s") (kbd "H"))
@@ -680,6 +688,9 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
   (define-prefix-command 'scs/hyper-c-prefix-map)
   (global-set-key (kbd "H-c") 'scs/hyper-c-prefix-map)
   (define-key scs/hyper-c-prefix-map (kbd "c") 'org-capture) ;; Capture
+  (autoload 'scs/org-insert-creation-date "scs-org-tools" nil t)
+  (define-key scs/hyper-c-prefix-map (kbd "d") #'scs/org-insert-creation-date)
+  (define-key scs/hyper-c-prefix-map (kbd "H-d") #'scs/org-insert-creation-date)
   (global-set-key (kbd "H-a") 'org-agenda)               ;; Agenda
   (global-set-key (kbd "H-l") 'org-store-link)           ;; Link
   (global-set-key (kbd "H-i") 'helm-imenu)               ;; Imenu
@@ -842,6 +853,20 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
   (add-to-list 'completion-at-point-functions #'cape-abbrev))
 
 ;; ----------------------------------------------------------
+;; yasnippet
+;; ----------------------------------------------------------
+
+;; https://github.com/joaotavora/yasnippet
+(use-package yasnippet
+  :el-get t
+  :defer 2
+  :config
+  (let ((dir (expand-file-name "snippets" user-emacs-directory)))
+    (make-directory dir t)
+    (add-to-list 'yas-snippet-dirs dir))
+  (yas-global-mode 1))
+
+;; ----------------------------------------------------------
 ;; company (active in-buffer completion UI; helm owns the minibuffer)
 ;; ----------------------------------------------------------
 
@@ -852,7 +877,9 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
   ;; SLIME capf signals "Not connected." when company-capf runs without a
   ;; live LispWorks session; cape and M-TAB still work in slime-mode.
   (require 'company-capf)
+  (require 'company-yasnippet)
   (add-to-list 'company-capf-disabled-functions 'slime--completion-at-point)
+  (add-to-list 'company-backends 'company-yasnippet)
   (setq company-selection-default nil)
   (setq company-minimum-prefix-length 3)
   (setq company-selection-wrap-around t)
@@ -1356,10 +1383,7 @@ Prompts for confirmation before renaming.  Does nothing if:
   :defer t)
 
 (with-eval-after-load 'org
-  (require 'scs-org-tools)
-  (when (eq system-type 'darwin)
-    (define-key scs/hyper-c-prefix-map (kbd "H-d")
-                #'scs/org-insert-creation-date)))
+  (require 'scs-org-tools))
 
 ;; org-protocol needed for macOS scrim -- load after server starts
 (with-eval-after-load 'server

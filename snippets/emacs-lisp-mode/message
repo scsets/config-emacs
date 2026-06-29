@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: message
+# key: msg
+# group: definitions
+# --
+(message "${1:format}" ${2:arg})

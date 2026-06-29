@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: defparameter
+# key: dv
+# group: definitions
+# --
+(defparameter ${1:*name*} ${2:value}
+  "${3:docstring}")

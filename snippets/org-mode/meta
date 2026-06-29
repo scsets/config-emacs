@@ -1,0 +1,10 @@
+# -*- mode: snippet -*-
+# name: Org file metadata
+# key: meta
+# group: structure
+# --
+#+title: ${1:Title}
+#+author: ${2:scs}
+#+date: ${3:`(format-time-string "%Y-%m-%d")`}
+
+$0

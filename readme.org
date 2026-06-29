@@ -39,11 +39,12 @@ pollute the config.
 
 | Library                          | Loaded from   | Purpose                          |
 |----------------------------------+---------------+----------------------------------|
-| =scs-org-tools.el=               | ~org~ hook    | Org helpers; ~scs/org-insert-creation-date~ sets lowercase ~:creation-date:~ (ISO date) on the current headline |
+| =scs-org-tools.el=               | ~org~ hook; Hyper prefix autoload | Org helpers; ~scs/org-insert-creation-date~ sets lowercase ~:creation-date:~ (ISO date) on the current headline |
 | =flycheck-org-lint-workaround.el= | ~flycheck~ block | Advice around broken Flycheck/org-lint line-cell handling; auto-enabled by ~scs/flycheck-setup-org-lint-workaround~ |
 
-See =insights.org= for property-drawer behaviour, Hyper-key prefix
-notes, and macOS Fn+C / Control Center conflicts.
+See =insights.org= for property-drawer behaviour, the ~H-c~ Hyper prefix,
+and the Karabiner + ~key-translation-map~ workaround for macOS Fn+C /
+Control Center.
 
 * Revision Control
 
@@ -62,7 +63,8 @@ Common commands:
 
 * Key Packages
 
-- *Completion:* helm for minibuffer commands, company and cape for in-buffer completion
+- *Completion:* helm for minibuffer commands, company (with yasnippet) and cape for in-buffer completion
+- *Snippets:* yasnippet with personal templates in =snippets/= (Org, Emacs Lisp, Common Lisp, shared text-mode). Org triggers include ~meta~ (file ~#+title:~ / author / date), ~src~, ~props~, ~hd~; see =insights.org=.
 - *Shell:* eshell, eshell-toggle, eshell-z, eshell-up
 - *Org:* org-mode (el-get builtin), org-contrib (el-get git; org-expiry)
 - *Notes:* howm (=~/notes=, semantic filenames), org-node (ID linking)
@@ -79,13 +81,20 @@ On macOS, Caps Lock is remapped to Fn (Karabiner) and Fn is Emacs
 Hyper (~ns-function-modifier~). Most Hyper bindings are single-key
 shortcuts (see =init.el=). ~H-c~ is a /prefix/ keymap:
 
-| Chord   | Command                        |
-|---------+--------------------------------|
-| ~H-c c~ | ~org-capture~                  |
+| Chord     | Command                        |
+|-----------+--------------------------------|
+| ~H-c c~   | ~org-capture~                  |
+| ~H-c d~   | ~scs/org-insert-creation-date~ |
 | ~H-c H-d~ | ~scs/org-insert-creation-date~ |
 
-Other Hyper bindings (~H-x~, ~H-b~, ~H-a~, etc.) are unchanged. See
-=insights.org= if Fn+C opens Control Center instead of reaching Emacs.
+~H-c d~ (plain ~d~ after the prefix) is the usual creation-date chord;
+~H-c H-d~ also works. Both require Org mode; the command errors
+elsewhere.
+
+macOS steals raw Fn+C (Control Center). Karabiner rewrites Fn+C inside
+Emacs to a proxy chord; ~init.el~ translates that back to ~H-c~. See
+=insights.org= (*Hyper ~H-c~ prefix and macOS Fn+C*) for the rule,
+~key-translation-map~ entry, and the ~C-M-s~ vs ~C-M-S~ pitfall.
 
 * Target Platforms
 

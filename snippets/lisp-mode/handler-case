@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# name: handler-case
+# key: hc
+# group: control
+# --
+(handler-case
+    ${1:form}
+  (${2:condition-type} (${3:var})
+   $0))

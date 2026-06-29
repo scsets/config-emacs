@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: require
+# key: req
+# group: definitions
+# --
+(require '${1:feature})

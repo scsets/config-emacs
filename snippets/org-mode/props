@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# name: property drawer
+# key: props
+# group: structure
+# --
+:PROPERTIES:
+:creation-date: ${1:`(format-time-string "%Y-%m-%d")`}
+:END:
+$0

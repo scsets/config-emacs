@@ -18,8 +18,23 @@
 ** Keybindings (macOS Hyper)
 - Changed ~H-c~ from a direct ~org-capture~ binding to prefix keymap
   ~scs/hyper-c-prefix-map~.
-- ~H-c c~ → ~org-capture~; ~H-c H-d~ → ~scs/org-insert-creation-date~
-  (bound after ~org~ loads).
+- ~H-c c~ → ~org-capture~; ~H-c d~ and ~H-c H-d~ →
+  ~scs/org-insert-creation-date~ (autoloaded at init; command requires
+  Org mode).
+- macOS Fn+C opens Control Center and steals ~H-c~. Karabiner rule in
+  =~/.config/karabiner/karabiner.json~ (Emacs only): Fn+C →
+  Cmd+Ctrl+Opt+C. ~init.el~ ~key-translation-map~: ~C-M-s-c~ → ~H-c~
+  (lowercase ~s~ is Super, not Shift).
+
+** yasnippet
+- Added ~yasnippet~ via el-get; ~yas-global-mode~; ~company-yasnippet~
+  backend (Helm unchanged — snippets are in-buffer, not minibuffer).
+- Personal collection in =snippets/= with ~text-mode~ (shared), ~org-mode~,
+  ~emacs-lisp-mode~, and ~lisp-mode~ (Common Lisp / SLIME). Each Lisp
+  and Org table inherits ~text-mode~ via ~.yas-parents~.
+- Org ~meta~ snippet inserts file ~#+title:~ / ~#+author:~ / ~#+date:~
+  (ISO date via backquote Elisp). See =insights.org= for the ~${n:$(...)}~
+  vs ~${n:\`(form)\`}~ pitfall on dynamic defaults.
 
 ** Documentation
 - Updated =readme.org=, =status.org=, and =insights.org= for =lisp/=,
@@ -107,7 +122,9 @@
 ** Hyper key bindings (prefix on H-c plus single-key shortcuts)
 - Consolidated into macOS-guarded block with column-header comments.
 - ~H-c~ is a prefix keymap (~scs/hyper-c-prefix-map~): ~H-c c~
-  (org-capture), ~H-c H-d~ (creation-date; after ~org~ loads).
+  (org-capture), ~H-c d~ / ~H-c H-d~ (creation-date; autoload at init).
+- Karabiner + ~key-translation-map~ route Fn+C to ~H-c~ in Emacs without
+  triggering macOS Control Center (see =insights.org=).
 - Other bindings: H-x (execute), H-b (buffer), H-k (kill), H-s (save),
   H-r (revert), H-g (grep), H-n/H-p (next/prev error), H-z (eshell),
   H-o (other-window), H-w (delete-window), H-0..3 (window layout),

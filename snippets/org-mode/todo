@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: TODO headline
+# key: td
+# group: structure
+# --
+* TODO ${1:task}
+$0

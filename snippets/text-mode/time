@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: time
+# key: time
+# group: common
+# --
+${1:`(format-time-string "%H:%M")`}

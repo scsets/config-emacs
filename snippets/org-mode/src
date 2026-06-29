@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: begin_src (emacs-lisp)
+# key: src
+# group: blocks
+# --
+#+begin_src emacs-lisp
+$0
+#+end_src

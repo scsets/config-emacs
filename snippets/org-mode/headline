@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: headline
+# key: hd
+# group: structure
+# --
+* ${1:title}
+$0

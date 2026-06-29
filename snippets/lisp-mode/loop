@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: loop
+# key: loop
+# group: control
+# --
+(loop for ${1:var} in ${2:list}
+      ${3:collect $1$0})

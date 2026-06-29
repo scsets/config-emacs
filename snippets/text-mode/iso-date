@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: iso-date
+# key: isod
+# group: common
+# --
+${1:`(format-time-string "%Y-%m-%d")`}

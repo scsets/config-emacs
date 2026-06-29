@@ -542,7 +542,9 @@ On macOS, mapping Caps Lock to Fn via Karabiner Elements, then setting
 ~ns-function-modifier~ to ~'hyper~, gives a comfortable Hyper key on
 the home row. The bindings must be guarded with
 ~(when (eq system-type 'darwin) ...)~ since Hyper is not available on
-other platforms without similar remapping.
+other platforms without similar remapping. Fn+C is stolen by macOS
+Control Center; see *Hyper ~H-c~ prefix and macOS Fn+C* below for the
+Karabiner and ~key-translation-map~ fix used in this config.
 
 A column-header comment above grouped ~global-set-key~ calls documents
 the mnemonic for each binding at a glance, per the CLAUDE.md style for
@@ -587,6 +589,42 @@ generated autoloads, which keeps fresh el-get checkouts predictable.
 Keep only one minibuffer completion UI active at a time. Helm's own
 documentation warns against stacking many completion UIs, and doing so
 can make completing-read behavior difficult to debug.
+
+* yasnippet and company-yasnippet
+
+Yasnippet expands templates in-buffer (usually Tab on a trigger key).
+Helm does /not/ integrate with yasnippet — there is no ~helm-yasnippet~
+in this config. Snippet names appear in the company popup via
+~company-yasnippet~; expansion still goes through yasnippet.
+
+Personal snippets live in =~/.config/emacs/snippets/~, one subdirectory
+per major mode (~org-mode~, ~emacs-lisp-mode~, ~lisp-mode~,
+~text-mode~). A ~.yas-parents~ file lists modes whose snippets are
+inherited; Org and both Lisp tables inherit ~text-mode~ (~isod~,
+~time~, ~mail~).
+
+Use ~add-to-list 'yas-snippet-dirs~ for the personal directory — do not
+~setq~ over the whole list. Modern yasnippet ships without bundled
+snippets; the personal tree is the collection.
+
+~M-x yas-new-snippet~ writes into the first ~yas-snippet-dirs~ entry.
+~M-x yas-describe-binds~ lists triggers for the current mode.
+
+** Dynamic dates in snippet templates
+
+Use backquotes for Elisp evaluated at expansion time, including inside
+placeholder fields:
+
+#+begin_example
+#+date: ${3:`(format-time-string "%Y-%m-%d")`}
+#+end_example
+
+Do /not/ use ~${n:$(format-time-string ...)}~ — in yasnippet, ~${n:$(...)}~
+starts with ~$(~ is parsed as a /mirror transformation/ on field ~n~
+(using ~yas-text~), not as an initial value. That leaves the date empty
+or wrong. The Org ~meta~ snippet (~meta~ → ~#+title:~ / ~#+author:~ /
+~#+date:~) and shared ~isod~ / ~props~ / ~time~ snippets follow the
+backquote form.
 
 * BUG(helm): file-equal-p with nil backup-directory-alist cdrs [fixed upstream]
 
@@ -709,7 +747,7 @@ Current libraries:
 
 | File | Loaded from ~init.el~ | Role |
 |------+----------------------+------|
-| ~scs-org-tools.el~ | ~with-eval-after-load 'org~ | Org helpers (~scs/org-insert-creation-date~) |
+| ~scs-org-tools.el~ | ~with-eval-after-load 'org~; Hyper prefix ~autoload~ at init | Org helpers (~scs/org-insert-creation-date~) |
 | ~flycheck-org-lint-workaround.el~ | ~flycheck~ ~:config~ | Flycheck/org-lint line-cell advice |
 
 Defer loading until dependencies exist. Org helpers use:
@@ -719,7 +757,12 @@ Defer loading until dependencies exist. Org helpers use:
   (require 'scs-org-tools))
 #+end_example
 
-because ~org~ is ~:defer t~ in this config. Flycheck helpers load
+because ~org~ is ~:defer t~ in this config. The creation-date command
+is also ~autoload~ed and bound on ~scs/hyper-c-prefix-map~ at init so
+~H-c d~ works before ~org~ is loaded; the first keypress loads
+~scs-org-tools~ (and ~org~ via ~require~).
+
+Flycheck helpers load
 inside the flycheck ~use-package~ ~:config~ block:
 
 #+begin_example
@@ -755,29 +798,94 @@ Org heading line.
 
 With ~ns-function-modifier~ set to ~hyper~ (Caps Lock remapped to Fn
 via Karabiner), ~H-c~ means Fn+C. On recent macOS releases, Fn+C is a
-system shortcut that opens Control Center from the menu bar. Unlike
-some other Fn shortcuts, it often /cannot/ be turned off in System
-Settings → Keyboard → Keyboard Shortcuts.
+system shortcut that opens Control Center from the menu bar (Full
+Keyboard Access → *Open Control Center*). Clearing that shortcut in
+System Settings → Accessibility → Keyboard may help on some versions,
+but it often persists or reappears; the reliable fix here is Karabiner
+plus a one-line Emacs translation.
 
-If Emacs never sees ~H-c~, or Control Center steals the chord, add a
-Karabiner-Elements rule that intercepts Fn+C in Emacs and rewrites it
-to the Hyper chord Emacs expects, without letting the raw Fn+C reach
-macOS. Scope the rule to ~org.gnu.Emacs~ so other apps keep normal Fn
-behaviour where possible.
+** Prefix keymap
 
 A single-key global binding on ~H-c~ (for example ~org-capture~)
-/fire immediately/ and prevent a two-key sequence such as ~H-c H-d~.
+/fire immediately/ and prevent a two-key sequence such as ~H-c d~.
 The fix is to make ~H-c~ a prefix keymap (~define-prefix-command~),
 then bind follow-up keys on that map:
 
 - ~H-c c~ → ~org-capture~
-- ~H-c H-d~ → ~scs/org-insert-creation-date~ (Org buffers only; the
-  command errors elsewhere)
+- ~H-c d~ → ~scs/org-insert-creation-date~ (Org buffers only; plain ~d~
+  after the prefix — no second Caps/Fn press)
+- ~H-c H-d~ → same command (Hyper ~d~ after the prefix also works)
+
+The command signals ~user-error~ outside Org mode.
 
 #+begin_example
 (define-prefix-command 'scs/hyper-c-prefix-map)
 (global-set-key (kbd "H-c") 'scs/hyper-c-prefix-map)
 (define-key scs/hyper-c-prefix-map (kbd "c") 'org-capture)
-;; after org loads:
+(autoload 'scs/org-insert-creation-date "scs-org-tools" nil t)
+(define-key scs/hyper-c-prefix-map (kbd "d") #'scs/org-insert-creation-date)
 (define-key scs/hyper-c-prefix-map (kbd "H-d") #'scs/org-insert-creation-date)
 #+end_example
+
+** Karabiner: stop macOS from seeing raw Fn+C in Emacs
+
+If Emacs never sees ~H-c~, or Control Center steals the chord, add a
+Karabiner-Elements rule scoped to ~org.gnu.Emacs~ so other apps keep
+normal Fn behaviour. The rule /consumes/ Fn+C and re-emits a proxy
+chord macOS does not treat as Control Center:
+
+- *From:* Fn+C (Caps+C with the usual Caps→Fn remap)
+- *To:* C with physical Cmd+Ctrl+Opt held (no Shift)
+
+Rule description in =~/.config/karabiner/karabiner.json~:
+~Emacs: Fn+C as C-M-s-c (avoid macOS Control Center on Fn+C)~.
+
+#+begin_example
+{
+  "description": "Emacs: Fn+C as C-M-s-c (avoid macOS Control Center on Fn+C)",
+  "manipulators": [{
+    "type": "basic",
+    "conditions": [{
+      "type": "frontmost_application_if",
+      "bundle_identifiers": ["^org\\.gnu\\.Emacs$"]
+    }],
+    "from": {
+      "key_code": "c",
+      "modifiers": { "mandatory": ["fn"], "optional": ["any"] }
+    },
+    "to": [{
+      "key_code": "c",
+      "modifiers": ["left_command", "left_control", "left_option"]
+    }]
+  }]
+}
+#+end_example
+
+Only Fn+C needs this rewrite; other Hyper keys (Fn+X, Fn+B, …) still
+use ~ns-function-modifier~ unchanged.
+
+** Emacs: translate the proxy chord back to Hyper
+
+This config remaps physical modifiers before ~kbd~ sees them:
+
+| Physical key | Emacs modifier |
+|--------------+----------------|
+| Command      | Control (~C~)  |
+| Option       | Meta (~M~)     |
+| Control      | Super (~s~)    |
+
+So Karabiner’s Cmd+Ctrl+Opt+C arrives as ~C-M-s-c~ (lowercase ~s~ =
+Super). Translate it back to ~H-c~ in the ~darwin~ block:
+
+#+begin_example
+(define-key key-translation-map (kbd "C-M-s-c") (kbd "H-c"))
+#+end_example
+
+** Pitfall: ~C-M-S-c~ is not ~C-M-s-c~
+
+In ~(kbd "...")~, uppercase ~S~ is /Shift/, lowercase ~s~ is /Super/.
+An early attempt used ~C-M-S-c~ in ~key-translation-map~; Emacs then
+reported ~C-M-s-c is undefined~ because the translation never matched.
+Do not add a parallel Karabiner rewrite for Fn+D unless macOS steals
+that too — ~H-c d~ uses plain ~d~ on the prefix map and needs no
+Karabiner proxy.

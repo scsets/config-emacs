@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: when
+# key: wh
+# group: control
+# --
+(when ${1:condition}
+  $0)

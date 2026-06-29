@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: add-hook
+# key: hook
+# group: definitions
+# --
+(add-hook '${1:hook-name} #'${2:function})
