@@ -8,3 +8,4 @@
 /el-get/
 /.emacs.desktop
 /server/
+*.elc
