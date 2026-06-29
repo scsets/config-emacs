@@ -2,6 +2,30 @@
 #+title: Emacs Configuration Changelog
 #+author: scs
 
+* 2026-06-29 Local =lisp/= libraries, Org creation-date, Hyper prefix
+
+** Local Elisp (=lisp/=)
+- Added =lisp/= on ~load-path~ for reusable configuration libraries.
+- Moved ~flycheck-org-lint-workaround.el~ from the config root into
+  =lisp/=; still loaded from the ~flycheck~ ~use-package~ ~:config~ block
+  via ~(require 'flycheck-org-lint-workaround)~.
+- Added ~scs-org-tools.el~ with ~scs/org-insert-creation-date~: sets
+  lowercase ~:creation-date:~ (ISO ~YYYY-MM-DD~) on the current Org
+  headline and normalizes the whole property drawer to lowercase.
+- Added ~*.elc~ to =~/.gitignore~ so byte-compiled Elisp is never
+  committed.
+
+** Keybindings (macOS Hyper)
+- Changed ~H-c~ from a direct ~org-capture~ binding to prefix keymap
+  ~scs/hyper-c-prefix-map~.
+- ~H-c c~ → ~org-capture~; ~H-c H-d~ → ~scs/org-insert-creation-date~
+  (bound after ~org~ loads).
+
+** Documentation
+- Updated =readme.org=, =status.org=, and =insights.org= for =lisp/=,
+  Flycheck workaround loading, creation-date command, Hyper prefix, and
+  ~.elc~ gitignore policy.
+
 * 2026-06-21 el-get refresh, package cleanup, Helm workaround
 
 ** el-get and packages
@@ -80,12 +104,14 @@
 - All Hyper key bindings wrapped in ~(when (eq system-type 'darwin) ...)~ --
   dead code eliminated on FreeBSD/SmartOS/terminal.
 
-** Hyper key bindings (21 single-key shortcuts)
+** Hyper key bindings (prefix on H-c plus single-key shortcuts)
 - Consolidated into macOS-guarded block with column-header comments.
-- Bindings: H-x (execute), H-b (buffer), H-k (kill), H-s (save),
+- ~H-c~ is a prefix keymap (~scs/hyper-c-prefix-map~): ~H-c c~
+  (org-capture), ~H-c H-d~ (creation-date; after ~org~ loads).
+- Other bindings: H-x (execute), H-b (buffer), H-k (kill), H-s (save),
   H-r (revert), H-g (grep), H-n/H-p (next/prev error), H-z (eshell),
   H-o (other-window), H-w (delete-window), H-0..3 (window layout),
-  H-t (tramp-cleanup), H-c (org-capture), H-a (org-agenda),
+  H-t (tramp-cleanup), H-a (org-agenda),
   H-l (org-store-link), H-i (imenu), H-j (avy-goto-char-timer).
 
 ** Eshell

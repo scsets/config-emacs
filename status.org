@@ -1,6 +1,6 @@
 #+title: Emacs Configuration Status
 #+author: scs
-#+date: 2026-06-21
+#+date: 2026-06-29
 
 * Health
 
@@ -15,13 +15,16 @@
 |                    |        | custom-file redirected to /tmp/             |
 | org                | OK     | el-get builtin recipe                       |
 | org-contrib        | OK     | el-get git (sr.ht); org-expiry              |
+| scs-org-tools      | OK     | lisp/scs-org-tools.el; H-c H-d creation-date |
 | ob-ly              | GONE   | Removed from org-contrib 0.8                |
 | eshell             | OK     | eshell-toggle, eshell-z, eshell-up,         |
 |                    |        | eshell-bookmark                             |
 | psvn               | GONE   | GitHub repo deleted; using vc-svn           |
 | company            | OK     | Active in-buffer completion UI              |
 | corfu              | GONE   | Removed; company is the active backend        |
+| flycheck           | OK     | Deferred 3s; org-lint via lisp/ workaround  |
 | framemove          | OK     | Via el-get local recipe                     |
+| lisp/ libraries    | OK     | load-path; flycheck + org helpers           |
 | SLIME/SLY paths    | CHECK  | Verify ~/lisp/lispworks/ exists             |
 | howm               | OK     | Org notes in ~/notes; semantic rename       |
 | org-node           | OK     | ID-based linking for howm notes             |
@@ -31,10 +34,11 @@
 | tramp              | OK     | Settings consolidated in use-package        |
 | lexical-binding    | OK     | Enabled in init.el and early-init.el        |
 | RCS                | OK     | Id keywords in all tracked files            |
+| gitignore (.elc)   | OK     | *.elc ignored; do not commit bytecode       |
 
 * Emacs Version
 
-Tested on Emacs 30.2.
+Tested on Emacs 30.2 / 31.x.
 
 * Target Platforms
 
@@ -46,6 +50,11 @@ Tested on Emacs 30.2.
 | SmartOS  | CLI     | TARGET | No macOS-specific vars; exec guards      |
 
 * Last Verified
+
+[2026-06-29 Sun] - Added =lisp/= local libraries (~scs-org-tools~,
+~flycheck-org-lint-workaround~). ~H-c~ Hyper prefix (~H-c c~ capture,
+~H-c H-d~ creation-date). Documented in =readme.org=, =changes.org=,
+=insights.org=. Git ignores ~*.elc~.
 
 [2026-06-21 Sat] - el-get updated to 5.2; full ~el-get-update-all~ via emacsclient.
 Removed orphaned ~corfu~, ~marginalia~, and ~orderless~. Fixed ~.status.el~ el-get

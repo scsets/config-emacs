@@ -12,12 +12,16 @@ recipes cover packages that do not have suitable upstream recipes. The
 ~no-littering~ package keeps data and cache files organized under =var/=
 and =etc/=.
 
+Reusable Emacs Lisp helpers live under =lisp/= (see *Local libraries*
+below). Byte-compiled =~.elc~= files are gitignored.
+
 * Structure
 
-| File              | Purpose                                    |
+| File / directory  | Purpose                                    |
 |-------------------+--------------------------------------------|
 | =init.el=         | Main configuration (all settings)          |
 | =early-init.el=   | Early initialization (GC, UI, packages)    |
+| =lisp/=           | Reusable local Elisp libraries             |
 | =changes.org=     | Changelog of manual fixes and changes      |
 | =tasks.org=       | Outstanding and completed tasks            |
 | =status.org=      | Current configuration health status        |
@@ -27,11 +31,28 @@ No =custom.el= — all settings live in =init.el=. The ~custom-file~
 variable is redirected to =/tmp/= so Emacs customize writes never
 pollute the config.
 
+* Local libraries (=lisp/=)
+
+=init.el= adds =lisp/= to ~load-path~ once at startup. Each library
+~NAME.el~ must end with ~(provide 'NAME)~ and is loaded with
+~(require 'NAME)~.
+
+| Library                          | Loaded from   | Purpose                          |
+|----------------------------------+---------------+----------------------------------|
+| =scs-org-tools.el=               | ~org~ hook    | Org helpers; ~scs/org-insert-creation-date~ sets lowercase ~:creation-date:~ (ISO date) on the current headline |
+| =flycheck-org-lint-workaround.el= | ~flycheck~ block | Advice around broken Flycheck/org-lint line-cell handling; auto-enabled by ~scs/flycheck-setup-org-lint-workaround~ |
+
+See =insights.org= for property-drawer behaviour, Hyper-key prefix
+notes, and macOS Fn+C / Control Center conflicts.
+
 * Revision Control
 
 Files are tracked with RCS. Revision history is stored in the =RCS/=
 subdirectory. All tracked files carry the RCS Id keyword, which RCS
 expands to show filename, revision, date, and author.
+
+Git mirrors the config on Codeberg (~scs/emacs~). =~.elc~= files are
+listed in =~/.gitignore~= and must not be committed.
 
 Common commands:
 - ~ci -u <file>~ — check in (unlock working file)
@@ -45,11 +66,26 @@ Common commands:
 - *Shell:* eshell, eshell-toggle, eshell-z, eshell-up
 - *Org:* org-mode (el-get builtin), org-contrib (el-get git; org-expiry)
 - *Notes:* howm (=~/notes=, semantic filenames), org-node (ID linking)
+- *Lint:* flycheck (with local org-lint workaround in =lisp/=)
 - *Lisp:* slime (LispWorks)
 - *UI:* hl-todo, delight, which-key, minions
 - *Files:* no-littering, recentf
 - *Remote:* tramp
 - *VCS:* vc (SVN, RCS, Git), framemove (via el-get local recipe)
+
+* macOS Hyper keys
+
+On macOS, Caps Lock is remapped to Fn (Karabiner) and Fn is Emacs
+Hyper (~ns-function-modifier~). Most Hyper bindings are single-key
+shortcuts (see =init.el=). ~H-c~ is a /prefix/ keymap:
+
+| Chord   | Command                        |
+|---------+--------------------------------|
+| ~H-c c~ | ~org-capture~                  |
+| ~H-c H-d~ | ~scs/org-insert-creation-date~ |
+
+Other Hyper bindings (~H-x~, ~H-b~, ~H-a~, etc.) are unchanged. See
+=insights.org= if Fn+C opens Control Center instead of reaching Emacs.
 
 * Target Platforms
 

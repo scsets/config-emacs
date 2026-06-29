@@ -705,6 +705,13 @@ Each library file ~NAME.el~ must end with ~(provide 'NAME)~. Load it
 with ~(require 'NAME)~. The feature name and basename must match:
 ~lisp/scs-org-tools.el~ → ~(require 'scs-org-tools)~.
 
+Current libraries:
+
+| File | Loaded from ~init.el~ | Role |
+|------+----------------------+------|
+| ~scs-org-tools.el~ | ~with-eval-after-load 'org~ | Org helpers (~scs/org-insert-creation-date~) |
+| ~flycheck-org-lint-workaround.el~ | ~flycheck~ ~:config~ | Flycheck/org-lint line-cell advice |
+
 Defer loading until dependencies exist. Org helpers use:
 
 #+begin_example
@@ -713,10 +720,22 @@ Defer loading until dependencies exist. Org helpers use:
 #+end_example
 
 because ~org~ is ~:defer t~ in this config. Flycheck helpers load
-inside the flycheck ~use-package~ ~:config~ block the same way.
+inside the flycheck ~use-package~ ~:config~ block:
+
+#+begin_example
+(use-package flycheck
+  ...
+  :config
+  (require 'flycheck-org-lint-workaround)
+  (scs/flycheck-setup-org-lint-workaround)
+  (global-flycheck-mode))
+#+end_example
 
 Mark interactive commands with ~;;;###autoload~ so ~M-x~ and future
 byte-compiled autoloads can see them before the file is loaded.
+
+Byte-compiled =~.elc~= files may appear after local byte-compilation but
+must not be committed; =~/.gitignore~= lists ~*.elc~.
 
 * Org property drawers and =scs/org-insert-creation-date=
 

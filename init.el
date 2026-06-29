@@ -4,6 +4,7 @@
 ;;
 ;;; Commentary:
 ;;  Main Emacs configuration.  Requires Emacs 29+.
+;;  Reusable Elisp libraries live in lisp/ (see readme.org).
 ;;
 ;;; Code:
 
