@@ -690,3 +690,75 @@ use ~\uNNNN~:
 ;; RIGHT -- matches the single U+FFFD character
 (string-match "\uFFFD" str)
 #+end_example
+
+* Local Elisp libraries in =lisp/=
+
+Reusable Emacs Lisp lives under =~/.config/emacs/lisp/=. Emacs only puts
+the config directory itself on ~load-path~ automatically, not
+subdirectories, so ~init.el~ registers the folder once:
+
+#+begin_example
+(add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+#+end_example
+
+Each library file ~NAME.el~ must end with ~(provide 'NAME)~. Load it
+with ~(require 'NAME)~. The feature name and basename must match:
+~lisp/scs-org-tools.el~ → ~(require 'scs-org-tools)~.
+
+Defer loading until dependencies exist. Org helpers use:
+
+#+begin_example
+(with-eval-after-load 'org
+  (require 'scs-org-tools))
+#+end_example
+
+because ~org~ is ~:defer t~ in this config. Flycheck helpers load
+inside the flycheck ~use-package~ ~:config~ block the same way.
+
+Mark interactive commands with ~;;;###autoload~ so ~M-x~ and future
+byte-compiled autoloads can see them before the file is loaded.
+
+* Org property drawers and =scs/org-insert-creation-date=
+
+~org-entry-put~ creates the drawer and sets the value; a follow-up pass
+lowercases ~:properties:~, ~:end:~, and property keys so mixed-case
+drawers in howm notes stay consistent. Drawer bounds are found by
+searching the whole entry (not only at ~org-element~ ~:contents-begin~),
+so a drawer is still found when body text precedes it; ~org-entry-put~
+itself still inserts at the canonical position after the headline.
+
+When locating drawers with regexps, use ~[ \t]*~ for indentation, not
+~\s-*~. In Emacs regexps ~\s-*~ is a /syntax class/ (here the =~=
+class), not “spaces”, so it can match the asterisk at the start of an
+Org heading line.
+
+* Hyper =H-c= prefix and macOS Fn+C (Control Center)
+
+With ~ns-function-modifier~ set to ~hyper~ (Caps Lock remapped to Fn
+via Karabiner), ~H-c~ means Fn+C. On recent macOS releases, Fn+C is a
+system shortcut that opens Control Center from the menu bar. Unlike
+some other Fn shortcuts, it often /cannot/ be turned off in System
+Settings → Keyboard → Keyboard Shortcuts.
+
+If Emacs never sees ~H-c~, or Control Center steals the chord, add a
+Karabiner-Elements rule that intercepts Fn+C in Emacs and rewrites it
+to the Hyper chord Emacs expects, without letting the raw Fn+C reach
+macOS. Scope the rule to ~org.gnu.Emacs~ so other apps keep normal Fn
+behaviour where possible.
+
+A single-key global binding on ~H-c~ (for example ~org-capture~)
+/fire immediately/ and prevent a two-key sequence such as ~H-c H-d~.
+The fix is to make ~H-c~ a prefix keymap (~define-prefix-command~),
+then bind follow-up keys on that map:
+
+- ~H-c c~ → ~org-capture~
+- ~H-c H-d~ → ~scs/org-insert-creation-date~ (Org buffers only; the
+  command errors elsewhere)
+
+#+begin_example
+(define-prefix-command 'scs/hyper-c-prefix-map)
+(global-set-key (kbd "H-c") 'scs/hyper-c-prefix-map)
+(define-key scs/hyper-c-prefix-map (kbd "c") 'org-capture)
+;; after org loads:
+(define-key scs/hyper-c-prefix-map (kbd "H-d") #'scs/org-insert-creation-date)
+#+end_example

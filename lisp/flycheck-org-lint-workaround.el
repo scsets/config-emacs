@@ -51,9 +51,9 @@
                     #'scs/flycheck-error-new-at--org-lint-advice)
       (add-to-list 'flycheck-disabled-checkers 'org-lint)))
    ((and (fboundp 'org-lint) (require 'org nil t))
-    (message "Flycheck org-lint integration is fixed upstream; flycheck-org-lint-workaround.el can be safely deleted along with its require in init.el (%s)"
+    (message "Flycheck org-lint integration is fixed upstream; lisp/flycheck-org-lint-workaround.el can be safely deleted along with its require in init.el (%s)"
              (or (locate-library "flycheck-org-lint-workaround")
-                 "flycheck-org-lint-workaround.el")))
+                 "lisp/flycheck-org-lint-workaround.el")))
    (t nil)))
 
 (defun scs/flycheck-org-lint-workaround-on-package-update (package)

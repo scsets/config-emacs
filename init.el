@@ -98,6 +98,13 @@ The DWIM behaviour of this command is as follows:
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Local libraries (lisp/)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Package managers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -669,7 +676,9 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
   (global-set-key (kbd "H-2") 'split-window-below)       ;; 2 horiz
   (global-set-key (kbd "H-3") 'split-window-right)       ;; 3 vert
   (global-set-key (kbd "H-t") 'my/tramp-cleanup)         ;; Tramp
-  (global-set-key (kbd "H-c") 'org-capture)              ;; Capture
+  (define-prefix-command 'scs/hyper-c-prefix-map)
+  (global-set-key (kbd "H-c") 'scs/hyper-c-prefix-map)
+  (define-key scs/hyper-c-prefix-map (kbd "c") 'org-capture) ;; Capture
   (global-set-key (kbd "H-a") 'org-agenda)               ;; Agenda
   (global-set-key (kbd "H-l") 'org-store-link)           ;; Link
   (global-set-key (kbd "H-i") 'helm-imenu)               ;; Imenu
@@ -1344,6 +1353,12 @@ Prompts for confirmation before renaming.  Does nothing if:
 (use-package org
   :el-get t
   :defer t)
+
+(with-eval-after-load 'org
+  (require 'scs-org-tools)
+  (when (eq system-type 'darwin)
+    (define-key scs/hyper-c-prefix-map (kbd "H-d")
+                #'scs/org-insert-creation-date)))
 
 ;; org-protocol needed for macOS scrim -- load after server starts
 (with-eval-after-load 'server
