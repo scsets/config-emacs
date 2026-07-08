@@ -79,7 +79,12 @@
 
 (when (eq system-type 'darwin)
   (add-to-list 'default-frame-alist '(undecorated-round . t))
-  (add-to-list 'default-frame-alist '(font . "Menlo-18")))
+  (add-to-list 'default-frame-alist '(font . "Menlo-18"))
+  ;; Must be set before window-system init (daemon/emacsclient too).
+  (setq mac-command-modifier 'control) ; Command sends Control
+  (setq mac-option-modifier 'meta)     ; Option sends Meta
+  (setq mac-control-modifier 'super)   ; Control sends Super
+  (setq ns-function-modifier 'hyper))  ; Fn (via Karabiner) sends Hyper
 
 (when (display-graphic-p)
   (add-hook 'after-init-hook (lambda () (set-frame-name "home"))))

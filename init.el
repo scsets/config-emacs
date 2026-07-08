@@ -675,18 +675,10 @@ was nil during daemon startup, so font must be applied per frame."
 ;; macOS modifier keys
 ;; ----------------------------------------------------------
 
-;; set keys for emacs in osx (macOS-only variables)
+;; mac-command-modifier etc. are set in early-init.el (before window-system
+;; init).  Karabiner rewrites Fn+C in Emacs to C-M-s-c (see karabiner.json)
+;; so macOS does not open Control Center.  Lowercase s is Super, not Shift.
 (when (eq system-type 'darwin)
-  (setq mac-command-modifier 'control) ; make cmd key do Meta
-  (setq mac-option-modifier 'meta) ; make opt key do Super
-  (setq mac-control-modifier 'super) ; make Control key do Control
-
-  ;; We define CAPS LOCK as Fn with Karabiner, then we can use it here
-  ;; it works well!
-  (setq ns-function-modifier 'hyper) ; make Fn key do Hyper
-
-  ;; Karabiner rewrites Fn+C in Emacs to C-M-s-c (see karabiner.json) so
-  ;; macOS does not open Control Center.  Lowercase s is Super, not Shift.
   (define-key key-translation-map (kbd "C-M-s-c") (kbd "H-c")))
 
 ;; Another possibility would be to define each one separately
