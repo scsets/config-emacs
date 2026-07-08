@@ -2,6 +2,11 @@
 #+title: Emacs Configuration Changelog
 #+author: scs
 
+* 2026-07-08 Rename GitHub repository to config-emacs
+
+- Renamed ~scsets/emacs~ → ~scsets/config-emacs~ on GitHub.
+- Updated ~readme.org~ and parent =~/.config/readme.org= references.
+
 * 2026-06-29 Local =lisp/= libraries, Org creation-date, Hyper prefix
 
 ** Local Elisp (=lisp/=)

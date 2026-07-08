@@ -52,7 +52,7 @@ Files are tracked with RCS. Revision history is stored in the =RCS/=
 subdirectory. All tracked files carry the RCS Id keyword, which RCS
 expands to show filename, revision, date, and author.
 
-Git mirrors the config on GitHub (~scsets/emacs~). =~.elc~= files are
+Git mirrors the config on GitHub (~scsets/config-emacs~). =~.elc~= files are
 listed in =~/.gitignore~= and must not be committed.
 
 Common commands:
