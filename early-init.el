@@ -77,8 +77,9 @@
 ;(scroll-bar-mode -1)
 (when (display-graphic-p) (tool-bar-mode -1))
 
-(when (eq window-system 'ns)
-  (add-to-list 'default-frame-alist '(undecorated-round . t)))
+(when (eq system-type 'darwin)
+  (add-to-list 'default-frame-alist '(undecorated-round . t))
+  (add-to-list 'default-frame-alist '(font . "Menlo-18")))
 
 (when (display-graphic-p)
   (add-hook 'after-init-hook (lambda () (set-frame-name "home"))))

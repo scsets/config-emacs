@@ -1,0 +1,4 @@
+#!/bin/sh
+# Launch Emacs in the current terminal via the server; start the daemon on first use.
+# For SmartOS, FreeBSD, and other CLI sessions (SSH, tmux, etc.).
+exec emacsclient -a "" -t ${1+"$@"}

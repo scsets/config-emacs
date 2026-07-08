@@ -103,6 +103,10 @@ The DWIM behaviour of this command is as follows:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+(autoload 'my/tramp-cleanup "scs-tramp" "Clean up TRAMP connections." t)
+(autoload 'my/tramp-reopen "scs-tramp" "Revert remote buffer from host." t)
+(autoload 'scs/tramp-find-file "scs-tramp" "Find file on a known TRAMP host." t)
+(autoload 'scs/tramp-dired "scs-tramp" "Dired on a known TRAMP host." t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -242,6 +246,10 @@ The DWIM behaviour of this command is as follows:
          :url "https://git.sr.ht/~bzg/org-contrib"
          :load-path ("lisp")
          :depends (org))
+        (:name ob-mermaid
+         :type github
+         :pkgname "arnm/ob-mermaid"
+         :depends (org))
         (:name org-mem
          :type github
          :pkgname "meedstrom/org-mem"
@@ -338,6 +346,12 @@ package \\\"nil\\\"\"."
 
 (scs/el-get-sync-status-recipes)
 
+;; Register load-paths and autoloads for installed packages once,
+;; without requiring their features.  Per-package :el-get sync below
+;; only runs for packages that are not yet installed.
+(let ((el-get-is-lazy t))
+  (el-get 'sync))
+
 ;; ----------------------------------------------------------
 ;; use-package
 ;; ----------------------------------------------------------
@@ -395,9 +409,11 @@ package files, and mutate `el-get-sources'."
     (require 'el-get)
     (when (consp source)
       (scs/el-get-upsert-source source))
-    (el-get 'sync (if (consp source)
-                      (el-get-source-name source)
-                    source))))
+    (let ((pkg (if (consp source)
+                   (el-get-source-name source)
+                 source)))
+      (unless (el-get-package-is-installed pkg)
+        (el-get 'sync pkg)))))
 
 (defun use-package-handler/:el-get (name _keyword source rest state)
   "Generate code to install NAME through el-get using SOURCE.
@@ -628,13 +644,27 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
 ;; Frame / UI (GUI only)
 ;; ----------------------------------------------------------
 
+(defun scs/apply-default-font (&optional frame)
+  "Apply the standard GUI font to FRAME, or globally when FRAME is nil.
+
+emacsclient frames are created after init, often when `display-graphic-p'
+was nil during daemon startup, so font must be applied per frame."
+  (let ((ws (if frame (frame-parameter frame 'window-system) window-system)))
+    (when (memq ws '(ns mac win32 pgtkf))
+      (set-face-attribute 'default (or frame 'default)
+                          :family "Menlo"
+                          :height 180
+                          :weight 'normal
+                          :width 'normal))))
+
+(add-hook 'after-make-frame-functions
+          (lambda (frame) (scs/apply-default-font frame)))
+
 (when (display-graphic-p)
-  (tool-bar-mode -1)
-  (set-face-attribute 'default nil
-                      :family "Menlo"
-                      :height 180
-                      :weight 'normal
-                      :width 'normal))
+  (tool-bar-mode -1))
+
+(when (eq system-type 'darwin)
+  (scs/apply-default-font nil))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1088,7 +1118,10 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
 ;; https://emacs-helm.github.io/helm/
 (use-package helm
   :el-get t
-  :demand t
+  :commands
+  (helm-M-x helm-find-files helm-mini helm-buffers-list
+            helm-filtered-bookmarks helm-show-kill-ring helm-occur
+            helm-command-prefix helm-imenu)
   :init
   (setq helm-M-x-fuzzy-match t)
   (setq helm-buffers-fuzzy-matching t)
@@ -1141,6 +1174,7 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
 (use-package howm
   :el-get t
   :after org
+  :defer t
   :init
   ;; Org-compatible filenames and syntax.
   (setq howm-file-name-format "%Y-%m-%d-%H%M%S.org")
@@ -1304,6 +1338,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 (use-package org-node
   :el-get t
   :after howm
+  :defer t
   :hook
   ;; New howm notes automatically get an org-id via org-node.
   (howm-create . org-node-nodeify-entry)
@@ -1323,7 +1358,7 @@ Prompts for confirmation before renaming.  Does nothing if:
                      extra-files)))))
   (org-node-cache-mode 1)
   (org-mem-updater-mode 1)
-  (org-node-cache-ensure))
+  (run-with-idle-timer 1 nil #'org-node-cache-ensure))
 
 ;; ----------------------------------------------------------
 ;; imenu-list
@@ -1383,11 +1418,12 @@ Prompts for confirmation before renaming.  Does nothing if:
   :defer t)
 
 (with-eval-after-load 'org
-  (require 'scs-org-tools))
+  (require 'scs-org-tools)
+  (require 'org-tools))
 
 ;; org-protocol needed for macOS scrim -- load after server starts
 (with-eval-after-load 'server
-  (require 'org-protocol))
+  (run-with-idle-timer 1 nil (lambda () (require 'org-protocol))))
 
 ;; :vip:
 (setq org-fold-catch-invisible-edits 'show-and-error)
@@ -1416,6 +1452,8 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;; org-contrib
 (use-package org-contrib
   :el-get t
+  :after org
+  :defer t
   :config
   (require 'org-expiry)
   (org-expiry-insinuate)
@@ -1455,6 +1493,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 (use-package org-auto-expand
   :el-get t
   :after org
+  :defer t
   :config
   (org-auto-expand-mode))
 
@@ -1462,6 +1501,16 @@ Prompts for confirmation before renaming.  Does nothing if:
 (use-package ob
   :after org
   :config
+  ;; Babel language backends must load *before* org-babel-do-load-languages.
+  (use-package ob-plantuml)
+  (use-package ob-ditaa)
+  (use-package ob-mermaid
+    :el-get ob-mermaid
+    :custom
+    (ob-mermaid-cli-path "mmdc")
+    (ob-mermaid-default-config-file
+     (expand-file-name "~/.config/mermaid/config.json")))
+
   ;; load more languages for org-babel
   ;; https://orgmode.org/worg/org-contrib/babel/languages/index.html
   (org-babel-do-load-languages
@@ -1480,6 +1529,7 @@ Prompts for confirmation before renaming.  Does nothing if:
      (makefile   . t)
      (org        . t)
      (lisp       . t)
+     (mermaid    . t)
      ;; (jupyter    . t)
      ))                  ; must be last
 
@@ -1503,8 +1553,9 @@ Prompts for confirmation before renaming.  Does nothing if:
         ;;   (:kernel . "sagemath"))
         )
 
-  (use-package ob-plantuml)
-  (use-package ob-ditaa)
+  (setq org-babel-default-header-args:mermaid
+        '((:results . "file")
+          (:exports . "results")))
 
   (setq org-confirm-babel-evaluate nil)
   (let ((pdir (getenv "PROFILE_DIR")))
@@ -1516,7 +1567,8 @@ Prompts for confirmation before renaming.  Does nothing if:
         (when (file-exists-p ditaa)
           (setq org-ditaa-jar-path ditaa)))))
 
-  (add-to-list 'org-src-lang-modes (quote ("plantuml" . plantuml))))
+  (add-to-list 'org-src-lang-modes (quote ("plantuml" . plantuml)))
+  (add-to-list 'org-src-lang-modes '(("mermaid" . mermaid))))
 
 ;; org-capture
 ;; (hook defined in Custom functions section above)
@@ -1649,8 +1701,6 @@ Prompts for confirmation before renaming.  Does nothing if:
   (setq tramp-verbose 1)                       ;; minimal logging (raise to 6 for debugging)
   (setq tramp-connection-timeout 10)           ;; fail fast on unreachable hosts
   (setq tramp-persistency-file-name (no-littering-expand-var-file-name "tramp"))
-  (setq tramp-auto-save-directory
-        (expand-file-name "tramp-autosave" temporary-file-directory))
 
   ;; Prevent TRAMP from polluting remote shell history
   (setq tramp-histfile-override t)
@@ -1710,56 +1760,16 @@ Prompts for confirmation before renaming.  Does nothing if:
   ;; Example: reach internal hosts via a jump box
   ;; (add-to-list 'tramp-default-proxies-alist
   ;;              '("\\.internal\\'" nil "/ssh:jumpbox:"))
-  )
 
-;; Connection-local variables
-;; Direct async processes for all SSH connections (Emacs 30)
-(connection-local-set-profile-variables
- 'remote-direct-async-process
- '((tramp-direct-async-process . t)))
-
-(connection-local-set-profiles
- '(:application tramp :protocol "ssh")
- 'remote-direct-async-process)
-
-(connection-local-set-profiles
- '(:application tramp :protocol "scp")
- 'remote-direct-async-process)
-
-;; FreeBSD-specific: use GNU ls if available (for dired --dired flag)
-(connection-local-set-profile-variables
- 'remote-bsd-process
- '((insert-directory-program . "gls")))
-
-;; Apply to known FreeBSD hosts (add patterns as needed)
-(connection-local-set-profiles
- '(:application tramp :machine "dasfrp")
- 'remote-bsd-process)
+  (require 'scs-tramp)
+  (scs/tramp-setup))
 
 ;; Opening eshell on a remote TRAMP path gives a remote shell automatically.
 ;; cd /ssh:host:/path then M-x eshell -- commands run on the remote host.
 
 ;; C-x d /ssh:host:/path -- browse remote filesystem
+;; C-c t f/d -- find file / dired on a known host (see lisp/scs-tramp.el)
 ;; With ControlMaster, subsequent dired buffers on the same host are instant.
-
-;; Useful TRAMP shortcuts
-(defun my/tramp-cleanup ()
-  "Clean up all TRAMP connections and buffers."
-  (interactive)
-  (require 'tramp)
-  (tramp-cleanup-all-connections)
-  (tramp-cleanup-all-buffers)
-  (message "TRAMP: all connections and buffers cleaned up"))
-
-(defun my/tramp-reopen ()
-  "Revert current remote buffer, refreshing from remote host."
-  (interactive)
-  (when (file-remote-p default-directory)
-    (revert-buffer t t)
-    (message "Refreshed from remote")))
-
-(global-set-key (kbd "C-c t c") 'my/tramp-cleanup)
-(global-set-key (kbd "C-c t r") 'my/tramp-reopen)
 
 ;; ----------------------------------------------------------
 ;; unfill
@@ -1845,6 +1855,7 @@ Prompts for confirmation before renaming.  Does nothing if:
 ;; Show VCS diff markers in the margin/fringe
 (use-package diff-hl
   :el-get t
+  :defer t
   :config
   (global-diff-hl-mode)
   (unless (display-graphic-p)

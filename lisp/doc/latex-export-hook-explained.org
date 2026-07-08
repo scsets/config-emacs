@@ -1,0 +1,479 @@
+#+TITLE: LaTeX export hooks explained
+#+AUTHOR: SCS
+#+DATE: 2026-07-05
+#+OPTIONS: toc:2 num:nil
+#+STARTUP: overview
+
+* Overview
+
+This document explains how Org → LaTeX/PDF export is extended for SCS
+checklists and similar documents.  The pieces work together:
+
+| Component          | File                    | Role                                                 |
+|--------------------+-------------------------+------------------------------------------------------|
+| Line-prefix syntax | =org-tools.el=          | =!= / => shorthands → center / quote blocks          |
+| Faded letterhead   | =org-tools.el=          | Reads Org keywords, builds faded PDF, patches =.tex= |
+| PDF/X-1a output    | =pdf2pdfx1a.sh=         | Post-processes exported PDF for print prepress       |
+| Canon fonts        | =scs-fontspec.tex=      | Simoncini body, Adobe Garamond small caps & headers  |
+| Org document       | e.g. =packing-list.org= | Keywords, =#+LATEX_HEADER=, body text                |
+
+Enable once in your init file:
+
+#+begin_src emacs-lisp
+  (with-eval-after-load 'org
+    (require 'org-tools))
+#+end_src
+
+* The export pipeline (big picture)
+
+When you run =C-c C-e l l= (LaTeX export) or =C-c C-e l p= (PDF), Org does
+not simply “save the buffer as =.tex=”.  Several hooks run in a fixed order.
+
+#+begin_src mermaid :file export-pipeline.png :exports results
+sequenceDiagram
+  participant You
+  participant Org
+  participant org_tools as org-tools
+  participant gs as Ghostscript
+  participant magick as ImageMagick
+  participant Disk
+  participant LuaLaTeX
+
+  You->>Org: C-c C-e l l / l p
+  Org->>Org: Copy buffer for export
+  Org->>org_tools: prepare-stationery (before parsing)
+  org_tools->>Disk: read #+SCS_STATIONERY_FADE:
+  alt faded PDF missing or stale
+    org_tools->>gs: PDF → 300 dpi PNG
+    gs->>Disk: page-001.png
+    org_tools->>magick: white colorize
+    magick->>Disk: scs-stationary-faded-Npct.pdf
+  else cache hit
+    org_tools->>Disk: reuse faded PDF
+  end
+  Org->>org_tools: expand-line-prefixes (before parsing)
+  org_tools->>Org: ! / > lines → Org blocks
+  Org->>Org: Parse & build LaTeX string
+  Org->>org_tools: filter-stationery-output (final output)
+  org_tools->>Org: SCS_STATIONERY_FADED_PDF → real path
+  Org->>Disk: write packing-list.tex
+  You->>LuaLaTeX: compile (manual or C-c C-e l p)
+  LuaLaTeX->>Disk: packing-list.pdf
+  opt #+SCS_PDFX: yes
+    org_tools->>gs: pdf2pdfx1a --in-place
+    gs->>Disk: packing-list.pdf (PDF/X-1a)
+  end
+#+end_src
+
+**Hook registration** (in =org-tools.el=):
+
+| Hook                                       | Function                             | When                           |
+|--------------------------------------------+--------------------------------------+--------------------------------|
+| =org-export-before-parsing-functions=      | =org-tools-prepare-stationery=       | Before Org parses export copy  |
+| =org-export-before-parsing-functions=      | =org-tools-expand-line-prefixes=     | Same phase, after stationery   |
+| =org-export-filter-final-output-functions= | =org-tools-filter-stationery-output= | After full =.tex= string built |
+| =advice= on =org-latex-export-to-pdf=      | =org-tools--around-latex-export-to-pdf= | After PDF compile (=C-c C-e l p= only) |
+
+Stationery runs first (prepends to the hook list after line-prefixes is
+registered, so it executes before prefix expansion).
+
+* Line-prefix syntax (! and >)
+
+Implemented in =/Users/scs/.config/emacs/lisp/org-tools.el=.
+
+**When it runs:** =org-export-before-parsing-functions= →
+=org-tools-expand-line-prefixes=, *before* Org parses the export buffer.
+
+**Toggle:** =M-x org-tools-line-prefixes-mode= / =M-x org-tools-line-prefixes-status=
+
+** Centered lines (=!=)
+
+Consecutive lines starting with =!= at column 0 become a center block.
+Optional style tokens after =!= apply to that line only.
+
+#+begin_example
+!sc large Packing checklist
+! (summer — warm season)
+#+end_example
+
+LaTeX export (conceptually):
+
+#+begin_example
+#+begin_center
+@@latex:{\large\textsc{Packing checklist}}@@
+
+(summer — warm season)
+#+end_center
+#+end_example
+
+**Quote lines (=>=)**
+
+#+begin_example
+> Nothing is compulsory.
+> Some items are optional.
+#+end_example
+
+becomes:
+
+#+begin_example
+#+begin_quote
+Nothing is compulsory.
+
+Some items are optional.
+#+end_quote
+#+end_example
+
+**Style modifiers** (center lines only, space-separated, case-sensitive):
+
+| Token                   | LaTeX effect                     |
+|-------------------------+----------------------------------|
+| =sc=, =smallcaps=       | #ERROR                           |
+| =tiny= … =huge=, =HUGE= | =\tiny= … =\huge=                |
+| =10pt=, =12.5pt=, etc.  | =\fontsize{...}{...}\selectfont= |
+#+TBLFM: $2=\textsc{...}= (via =scs-fontspec.tex=)
+
+Examples:
+
+#+begin_example
+!sc large Main title
+!sc footnotesize typeset at tapoban -- 4 july 63 sc
+!14pt Subtitle
+! Plain centred line
+#+end_example
+
+**Rules**
+
+- Prefixes start at column 0.
+- A blank line ends the current run.
+- =!= and => runs do not mix.
+- Lines inside =#+begin_src=, =#+begin_export=, =#+begin_example=,
+  =#+begin_verse= are left untouched.
+
+**Footer layout helpers**
+
+Push a credit line to the bottom of the page:
+
+#+begin_example
+#+begin_export latex
+\vfill
+#+end_export
+
+!sc footnotesize typeset at tapoban on 4 july 63 sc -- sri chinmoy society press
+!sc footnotesize [letterhead colours dimmed on purpose]
+#+end_example
+
+Use =\vspace{-0.5em}= after =\vfill= if you want the line closer to the
+bottom margin.
+
+* Canon fonts (scs-canon)
+
+**File:** =/Users/scs/fonts/scs-canon/scs-fontspec.tex=
+
+All faces live in one directory so fontspec auxiliary fonts (=SmallCapsFont=,
+=BoldFont=, etc.) can share a single =Path=.  Org files pull it in with:
+
+#+begin_example
+#+LATEX_HEADER: \usepackage{microtype}
+#+LATEX_HEADER: \input{/Users/scs/fonts/scs-canon/scs-fontspec.tex}
+#+end_example
+
+Load =microtype= *before* =scs-fontspec.tex= so =\textsc= is reinstalled
+correctly after =microtype= loads.
+
+**Faces configured**
+
+| Macro / role          | Font file                                    | Notes                        |
+|-----------------------+----------------------------------------------+------------------------------|
+| Body (=\setmainfont=) | =SimonciniGaramondStd=                       | Regular, bold, italic        |
+| =\textsc=             | =AGaramondPro-Regular= + =Letters=SmallCaps= | Simoncini has no smcp glyphs |
+| =\runheaderfont=      | =AGaramondPro= family                        | Running headers              |
+| =\runheadertext{...}= | wraps =\scs@smallcaps=                       | Safe inside =\fancyhead=     |
+
+**Why not =SmallCapsFont={AGaramond...}= alone?**
+
+=SmallCapsFont= selects the *file* for the NFSS =sc= shape but does not
+enable OpenType =smcp=.  The working approach uses an explicit =\fontspec=
+call with =Letters=SmallCaps=:
+
+#+begin_example
+\fontspec[Path=..., Letters=SmallCaps, Ligatures=TeX]{AGaramondPro-Regular}{#1}
+#+end_example
+
+Important details (learned the hard way):
+
+| Issue                               | Cause                              | Fix                                                     |
+|-------------------------------------+------------------------------------+---------------------------------------------------------|
+| No visible small caps               | =smcp= not enabled                 | =Letters=SmallCaps= on =\fontspec=                      |
+| Text starting with =[= vanishes     | =[...]= parsed as fontspec options | Wrap text in ={#1}= after font name                     |
+| =--= stays as two hyphens           | HarfBuzz path skips TeX ligatures  | =Ligatures=TeX= on small-caps =\fontspec=               |
+| Header =[packing checklist]= broken | =#1= in hook macro body            | Use =##1= in =\scs@installtextsc=; use =\runheadertext= |
+| =\textsc= broken after =microtype=  | Hook passes args into =#1=         | =\AddToHook{package/microtype/after}{...}= with =##1=   |
+
+Swap faces by editing the =\scs@...= variables at the top of
+=scs-fontspec.tex=.
+
+* Faded letterhead (stationery)
+
+Vector letterhead (=scs-stationary.pdf=) is PDF/X CMYK.  LaTeX
+=\includegraphics[opacity=0.5]= had no visible effect.  The working approach
+pre-fades via Ghostscript + ImageMagick and includes the rasterised PDF as
+background (=eso-pic=).
+
+**Org file keywords**
+
+#+begin_example
+#+SCS_STATIONERY: /Users/scs/Documents/scs-stationary.pdf
+#+SCS_STATIONERY_FADE: 27
+
+#+LATEX_HEADER: \AddToShipoutPictureBG{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{SCS_STATIONERY_FADED_PDF}}}
+#+end_example
+
+| Keyword                    | Meaning                                                           |
+|----------------------------+-------------------------------------------------------------------|
+| =#+SCS_STATIONERY:=        | Source letterhead PDF (default: =~/Documents/scs-stationary.pdf=) |
+| =#+SCS_STATIONERY_FADE:=   | Percentage of *original colour kept* (27 = quite faint)           |
+| =SCS_STATIONERY_FADED_PDF= | Placeholder in =#+LATEX_HEADER=; replaced in final =.tex=         |
+
+Do *not* use =@@SCS_STATIONERY@@= — Org treats =@@...@@= as export snippets.
+
+**Cached output path**
+
+#+begin_example
+{source-dir}/{basename}-faded-{N}pct.pdf
+#+end_example
+
+Example: =/Users/scs/Documents/scs-stationary-faded-27pct.pdf=
+
+Changing =FADE= from 27 to 20 creates a separate cached file;
+old percentages remain on disk.
+
+**Fade math**
+
+#+begin_example
+ImageMagick colorize% = 100 − FADE%
+
+FADE 27  →  colorize 73% white  (27% colour remains)
+FADE 50  →  colorize 50% white
+#+end_example
+
+* Step 2 behind the scenes (raster fade)
+
+When =org-tools-prepare-stationery= runs:
+
+1. *Read keywords* from the export buffer (first 32 KiB), via regex on
+   =#+SCS_STATIONERY:= and =#+SCS_STATIONERY_FADE:=.
+2. *Compute paths* — source PDF and faded output =...-faded-Npct.pdf=.
+3. *Skip or rebuild* — rebuild only if faded file missing or older than source.
+4. *Run three external commands* in a temp directory (=call-process=, not a
+   shell script on disk):
+
+| Step | Program  | Arguments (conceptually)         | Result                           |
+|------+----------+----------------------------------+----------------------------------|
+| A    | =gs=     | =png16m=, =-r300=, source PDF    | =page-001.png=                   |
+| B    | =magick= | white background, =-colorize N%= | =faded.png=                      |
+| C    | =magick= | 300 dpi, zip compress            | =scs-stationary-faded-27pct.pdf= |
+
+5. *Delete temp directory* (=unwind-protect=).
+6. *Store path* in =org-tools--stationery-faded-path= for this export.
+
+Elisp entry points:
+
+| Function                                 | Purpose                                    |
+|------------------------------------------+--------------------------------------------|
+| =org-tools-prepare-stationery=           | Hook: ensure faded PDF exists              |
+| =org-tools-ensure-stationery-faded=      | Read keywords, cache logic, maybe rebuild  |
+| =org-tools--regenerate-stationery-faded= | Run gs + magick pipeline                   |
+| =org-tools-filter-stationery-output=     | Replace placeholder in final =.tex= string |
+| =org-tools-regenerate-stationery=        | =M-x= — rebuild without exporting          |
+
+**Regeneration decision**
+
+#+begin_src mermaid :file stationery-regenerate.png :exports results
+flowchart TD
+  A[Export starts] --> B{SCS_STATIONERY_FADE set?}
+  B -->|no| Z[Skip stationery hook]
+  B -->|yes| C[Resolve source PDF path]
+  C --> D{Source exists?}
+  D -->|no| E[user-error]
+  D -->|yes| F[Compute faded-Npct.pdf path]
+  F --> G{Faded missing or older than source?}
+  G -->|yes| H[gs → magick → magick]
+  G -->|no| I[Reuse cache]
+  H --> J[Store path in variable]
+  I --> J
+  J --> K[Org continues export]
+  K --> L[filter-stationery-output patches .tex]
+#+end_src
+
+**Manual equivalent** (what the Elisp shim runs):
+
+#+begin_src sh
+SRC=/Users/scs/Documents/scs-stationary.pdf
+OUT=/Users/scs/Documents/scs-stationary-faded-27pct.pdf
+FADE=27
+COLORIZE=$((100 - FADE))   # 73
+
+gs -q -dNOPAUSE -dBATCH -dNOSAFER \
+   -sDEVICE=png16m -r300 \
+   -sOutputFile=/tmp/page-%03d.png "$SRC"
+
+magick /tmp/page-001.png -background white -alpha remove \
+   -fill white -colorize ${COLORIZE}% /tmp/faded.png
+
+magick /tmp/faded.png -units PixelsPerInch -density 300 \
+   -compress zip "$OUT"
+#+end_src
+
+**Placeholder substitution** happens on the *final LaTeX string*, not in the
+export buffer (Org assembles =#+LATEX_HEADER= separately).  Substitution uses
+=replace-match= with =fixedcase= so paths like =/Users/scs/...= are not
+corrupted (plain =replace-regexp-in-string= uppercased paths because of
+=\U= escape rules in replacement templates).
+
+* PDF/X-1a post-processing
+
+For print prepress, convert the finished export PDF to PDF/X-1a:2001 (CMYK,
+SWOP ICC profile, embedded fonts).  This runs only on =C-c C-e l p= — not on
+LaTeX-only export.
+
+**Org file keyword**
+
+#+begin_example
+#+SCS_PDFX: yes
+#+end_example
+
+Any value other than =no=, =false=, =0=, or =off= enables conversion.
+If the keyword is absent, the exported PDF is left unchanged.
+
+**What happens**
+
+1. Org and LuaLaTeX produce =document.pdf= as usual.
+2. =org-tools--around-latex-export-to-pdf= calls =pdf2pdfx1a.sh --in-place=.
+3. Ghostscript rewrites the file as PDF/X-1a with =-dEmbedAllFonts=true=.
+
+**Script location**
+
+| Path | Role |
+|------+------|
+| =/Users/scs/scs/lab/code/pdf2pdfx1a/pdf2pdfx1a.sh= | Main converter |
+| =/Users/scs/scs/lab/code/pdf2pdfx1a/pdfx-1a-swop.ps= | PDF/X output intent |
+| =~/bin/pdf2pdfx1a= | Symlink for shell use |
+
+Configure =org-tools-pdfx-script= if the script moves.
+
+**Manual use**
+
+#+begin_src sh
+pdf2pdfx1a manuscript.pdf                  # → manuscript-pdfx1a-swop.pdf
+pdf2pdfx1a --in-place manuscript.pdf       # replace in place
+pdf2pdfx1a --man                           # full manual
+#+end_src
+
+* Example packing-list.org skeleton
+
+#+begin_example
+#+TITLE: Packing checklist
+#+SCS_STATIONERY: /Users/scs/Documents/scs-stationary.pdf
+#+SCS_STATIONERY_FADE: 27
+#+LATEX_COMPILER: lualatex
+
+#+LATEX_HEADER: \usepackage{eso-pic}
+#+LATEX_HEADER: \usepackage{geometry}
+#+LATEX_HEADER: \geometry{...}
+#+LATEX_HEADER: \AddToShipoutPictureBG{...{SCS_STATIONERY_FADED_PDF}}}
+#+LATEX_HEADER: \usepackage{microtype}
+#+LATEX_HEADER: \input{/Users/scs/fonts/scs-canon/scs-fontspec.tex}
+#+LATEX_HEADER: \fancyhead[C]{\runheadertext{[packing checklist]}}
+
+... body ...
+
+#+begin_export latex
+\vfill \vspace{-0.5em}
+#+end_export
+
+!sc footnotesize typeset at tapoban on 4 july 63 sc -- sri chinmoy society press
+!sc footnotesize [letterhead colours dimmed on purpose]
+#+end_example
+
+* Requirements and troubleshooting
+
+**Requirements**
+
+- Emacs ≥ 29.1, Org ≥ 9.0
+- LuaLaTeX (=#+LATEX_COMPILER: lualatex=)
+- =fontspec=, =eso-pic=, =fancyhdr=, =microtype= (via TeX Live)
+- =gs= (Ghostscript) and =magick= (ImageMagick) on =PATH= for stationery fade
+- Adobe =USWebCoatedSWOP.icc= for PDF/X conversion (default macOS install path)
+- =pdf2pdfx1a= on =PATH= or =org-tools-pdfx-script= set correctly
+- Fonts in =/Users/scs/fonts/scs-canon/=
+
+**Common issues**
+
+| Symptom                      | Likely cause                      | What to do                                                |
+|------------------------------+-----------------------------------+-----------------------------------------------------------|
+| =!= lines not expanded       | =org-tools= not loaded            | =(require 'org-tools)= in init                            |
+| No small caps                | Old =scs-fontspec.tex=            | Reload; check =Letters=SmallCaps=                         |
+| Line with =[= missing        | fontspec ate =[= as options       | Ensure ={#1}= wrapper in =scs-fontspec.tex=               |
+| =--= not an en-dash in =!sc= | Missing =Ligatures=TeX=           | Update =scs-fontspec.tex=                                 |
+| Header brackets missing      | Fragile =\textsc= in =\fancyhead= | Use =\runheadertext{...}=                                 |
+| Wrong stationery in PDF      | Stale cache                       | Touch source PDF or =M-x org-tools-regenerate-stationery= |
+| Export error “gs not found”  | Ghostscript missing               | Install Ghostscript                                       |
+| PDF/X step skipped           | No =#+SCS_PDFX:= or value =off=   | Add =#+SCS_PDFX: yes= for print PDFs                      |
+| PDF/X fails on ICC profile   | Adobe SWOP profile missing        | Install Creative Cloud / check =SWOP_ICC_PROFILE=          |
+| Path all UPPERCASE in =.tex= | Old substitution bug              | Update =org-tools.el= (use =replace-match=)               |
+
+**Useful commands**
+
+| Command                               | Action                                        |
+|---------------------------------------+-----------------------------------------------|
+| =C-c C-e l l=                         | Export to LaTeX file                          |
+| =C-c C-e l p=                         | Export to PDF (export + compile)              |
+| =M-x org-tools-line-prefixes-status=  | Check =!= / => hook                           |
+| =M-x org-tools-regenerate-stationery= | Rebuild faded letterhead from buffer keywords |
+
+* File index
+
+| Path                                                       | Description                      |
+|------------------------------------------------------------+----------------------------------|
+| =~/.config/emacs/lisp/org-tools.el=                        | Line prefixes + stationery hooks |
+| =~/.config/emacs/lisp/doc/latex-export-hook-explained.org= | This document                    |
+| =/Users/scs/fonts/scs-canon/scs-fontspec.tex=              | Canon font setup                 |
+| =/Users/scs/fonts/scs-canon/*.otf=                         | Simoncini + Adobe Garamond files |
+| =~/Documents/scs-stationary.pdf=                           | Full-strength letterhead source  |
+| =~/Documents/scs-stationary-faded-Npct.pdf=                | Cached faded letterhead          |
+| =/Users/scs/scs/lab/code/pdf2pdfx1a/pdf2pdfx1a.sh=        | PDF/X-1a converter               |
+| =~/bin/pdf2pdfx1a=                                         | Symlink to converter             |
+
+* Viewing Mermaid diagrams in Org
+
+This file uses =#+begin_src mermaid= blocks.  They render when you evaluate
+them (=C-c C-c= on the block) or export the document.
+
+**Setup** (already in =init.el=):
+
+- =ob-mermaid= (el-get) + =mermaid= in =org-babel-load-languages=
+- =mmdc= from =npm install -g @mermaid-js/mermaid-cli=
+- Config: =~/.config/mermaid/config.json= (=htmlLabels: false= for Emacs SVG)
+
+**Commands**
+
+| Action           | Keys                                                  |
+|------------------+-------------------------------------------------------|
+| Render one block | =C-c C-c= on the block                                |
+| Export whole doc | =C-c C-e h o= (HTML) or =C-c C-e l p= (PDF via LaTeX) |
+
+Diagram PNGs are written beside this file (=export-pipeline.png=,
+=stationery-regenerate.png=).
+
+* History / design notes
+
+- *scrartcl* was avoided for title placement — Org batch export did not register
+  the class without extra Elisp; =titling= + custom =\maketitle= on =article=
+  was used instead.
+- *TikZ opacity* on vector stationery worked but was dropped in favour of
+  pre-faded assets for predictable print output.
+- *SmallCapsFont=* in a single =\setmainfont= block works when all faces share
+  one directory (=scs-canon=); cross-directory nested =SmallCapsFont=[Path=...]=
+  failed on TeX Live 2026 fontspec.
+- Stationery placeholder moved from =@@...@@= to =SCS_STATIONERY_FADED_PDF=
+  because Org interprets double-@ as export snippets.
