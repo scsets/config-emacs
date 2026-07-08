@@ -46,7 +46,44 @@
 ;; Warnings and compilation
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(setq native-comp-async-report-warnings-errors 'silent)
+(defun scs/native-comp-library-paths ()
+  "Library dirs Homebrew GCC/libgccjit need for native compilation."
+  (let ((brew "/opt/homebrew/bin/brew")
+        paths)
+    (when (file-exists-p brew)
+      (dolist (pkg '("gcc" "libgccjit"))
+        (let* ((prefix (string-trim (shell-command-to-string
+                                      (format "%s --prefix %s" brew pkg))))
+               (lib-current (expand-file-name "lib/gcc/current" prefix)))
+          (when (file-directory-p lib-current)
+            (push lib-current paths))))
+      (let* ((gcc-prefix (string-trim (shell-command-to-string
+                                         (format "%s --prefix gcc" brew))))
+             (gcc-current (expand-file-name "lib/gcc/current" gcc-prefix))
+             (arch-dirs (file-expand-wildcards
+                          (expand-file-name "gcc/*-apple-darwin*/*"
+                                            gcc-current))))
+        (when arch-dirs
+          (push (expand-file-name (car (sort arch-dirs #'string>)) gcc-current)
+                paths))))
+    (delete-dups (nreverse paths))))
+
+(defun scs/setup-macos-native-comp ()
+  "Set env vars Emacs needs before libgccjit runs (macOS GUI)."
+  (when (eq system-type 'darwin)
+    (let ((paths (scs/native-comp-library-paths)))
+      (when paths
+        (setenv "LIBRARY_PATH" (mapconcat #'identity paths ":")))
+      (let ((gcc (expand-file-name
+                  "bin/gcc-16"
+                  (string-trim (shell-command-to-string
+                                 "/opt/homebrew/bin/brew --prefix gcc")))))
+        (when (file-exists-p gcc)
+          (setenv "CC" gcc))))))
+
+;; Must run before package-native-compile / libgccjit is invoked.
+(scs/setup-macos-native-comp)
+
 (setq warning-minimum-level :emergency)
 (setq byte-compile-warnings '(not free-vars obsolete cl-functions lexical))
 
