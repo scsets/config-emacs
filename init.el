@@ -651,7 +651,7 @@ emacsclient frames are created after init, often when `display-graphic-p'
 was nil during daemon startup, so font must be applied per frame."
   (let ((ws (if frame (frame-parameter frame 'window-system) window-system)))
     (when (memq ws '(ns mac win32 pgtkf))
-      (set-face-attribute 'default (or frame 'default)
+      (set-face-attribute 'default (or frame t)
                           :family "Menlo"
                           :height 180
                           :weight 'normal
