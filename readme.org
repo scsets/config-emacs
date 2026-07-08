@@ -48,18 +48,11 @@ Control Center.
 
 * Revision Control
 
-Files are tracked with RCS. Revision history is stored in the =RCS/=
-subdirectory. All tracked files carry the RCS Id keyword, which RCS
-expands to show filename, revision, date, and author.
+Git repository: ~scsets/config-emacs~ on GitHub (branch ~trunk~). =~.elc~=
+files are gitignored and must not be committed.
 
-Git mirrors the config on GitHub (~scsets/config-emacs~). =~.elc~= files are
-listed in =~/.gitignore~= and must not be committed.
-
-Common commands:
-- ~ci -u <file>~ — check in (unlock working file)
-- ~rcs -l <file>~ — lock without overwriting working file
-- ~rlog <file>~ — view revision history
-- ~rcsdiff <file>~ — diff working file against last revision
+Emacs ~vc~ is configured for Git and SVN elsewhere in the tree; see
+=init.el= and =changes.org=.
 
 * Key Packages
 
@@ -73,7 +66,7 @@ Common commands:
 - *UI:* hl-todo, delight, which-key, minions
 - *Files:* no-littering, recentf
 - *Remote:* tramp
-- *VCS:* vc (SVN, RCS, Git), framemove (via el-get local recipe)
+- *VCS:* vc (Git, SVN), framemove (via el-get local recipe)
 
 * macOS Hyper keys
 
