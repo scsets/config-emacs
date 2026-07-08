@@ -1,14 +1,42 @@
 #+title: Emacs Configuration Tasks
 #+author: scs
 
+* TODO From plan.org (2026-07-08)
+See =plan.org= for rationale and proposed keybindings.
+
+** High priority
+- [ ] Verify ~/lisp/lispworks/lw-console path exists (SLIME)
+- [ ] Dynamic Homebrew GCC driver in ~early-init.el~ (not hard-coded ~gcc-16~)
+- [ ] ~wgrep~ workflow — hook or key after grep / occur
+- [ ] ~diff-hl~ navigation keys (~C-c v~ prefix or similar)
+
+** Medium priority
+- [ ] CLI parity for macOS Hyper keys (~C-c~ mirrors)
+- [ ] Consolidate ~avy~ (~H-j~ vs ~C-c j~)
+- [ ] Bind ~howm-rename-to-slug~ when slug rename is trusted
+- [ ] Configure ~minions~ or remove if unused
+- [ ] Decide on full Magit vs ~vc~ + ~diff-hl~ (~magit-section~ via org-node)
+- [ ] Platform smoke test on FreeBSD and SmartOS CLI
+
+** Lower priority
+- [ ] ~keycast~ behind ~C-c h k~ or M-x only
+- [ ] ~impatient-mode~ — bind or remove from el-get
+- [ ] ~flyspell~ — enable with aspell guard or delete dead config
+- [ ] ~clipboard-kill-region~ on ~C-c k~ — enable or drop comment
+- [ ] Helm project search (~helm-rgrep~ / similar)
+
+* DONE Fix init load, quit chord, native-comp, and repo rename
+CLOSED: [2026-07-08 Wed]
+- ~scs/apply-default-font~: ~set-face-attribute~ frame arg (~or frame t~)
+- ~C-x C-c~ quit hint + transient map (~scs/quit-prefix~)
+- Homebrew ~gcc~ + ~scs/setup-macos-native-comp~ in ~early-init.el~
+- GitHub repo renamed to ~scsets/config-emacs~; ~readme.org~ Git/SVN docs
+- macOS modifier keys moved to ~early-init.el~
+
 * DONE Remove BUG(helm) workaround when upstream fixes helm-files.el
 CLOSED: [2026-06-21 Sat]
 Upstream #2756 / ~0aa89912~ adds ~(and f (file-equal-p f ...))~; local
 override removed from ~init.el~.
-
-* TODO Verify ~/lisp/lispworks/lw-console path exists
-The SLIME config references =~/lisp/lispworks/lw-console=.
-Confirm this binary exists for the current user, or update the path.
 
 * DONE el-get refresh and package cleanup
 CLOSED: [2026-06-21 Sat]

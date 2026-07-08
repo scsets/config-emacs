@@ -1,0 +1,191 @@
+#+title: Emacs Configuration Plan
+#+author: scs
+#+date: 2026-07-08
+
+* Overview
+
+Improvement ideas and candidate keybindings for ~scsets/config-emacs~.
+Grounded in the current setup: Helm minibuffer, Company in-buffer,
+Hyper namespace on macOS (Karabiner Fn), ~C-c~ / ~C-c t~ / ~C-c .~
+prefix maps, Org/howm/org-node notes, TRAMP via ~lisp/scs-tramp.el~.
+
+Priorities: keep Hyper for macOS-only ergonomics; add ~C-c~ chords for
+behaviour that must work on FreeBSD and SmartOS CLI too.
+
+* Configuration improvements
+
+** High priority
+
+- [ ] *Verify SLIME / LispWorks path* — ~tasks.org~ still flags
+  =~/lisp/lispworks/lw-console=; confirm or fix before relying on SLIME.
+- [X] *Refresh ~status.org~* — done 2026-07-08; Git/SVN, ~config-emacs~,
+  native-comp, quit chord, ~plan.org~ tracked.
+- [ ] *Dynamic Homebrew GCC in ~early-init.el~* — ~bin/gcc-16~ breaks
+  on the next major GCC bump; resolve via ~brew --prefix gcc~ +
+  ~file-expand-wildcards~ for ~bin/gcc-*~ (same pattern as
+  ~scs/native-comp-library-paths~).
+- [ ] *~wgrep~ workflow* — package is loaded but has no hook or key;
+  enable editable grep buffers after ~H-g~ / ~M-s o~ / ~C-c f~ searches.
+- [ ] *~diff-hl~ navigation* — ~global-diff-hl-mode~ is on; add
+  next/previous-hunk keys (see *Keybindings* below).
+
+** Medium priority
+
+- [ ] *CLI parity for Hyper* — document or bind ~C-c~ mirrors for the
+  handful of Hyper keys used daily on macOS (buffer, save, grep, eshell,
+  org-capture). Optional: small ~lisp/scs-keys.el~ that defines both
+  maps from one alist.
+- [ ] *Consolidate ~avy~* — ~H-j~ and ~C-c j~ both call
+  ~avy-goto-char-timer~; keep one global binding and use the other for
+  ~avy-goto-word-or-subword-1~ or ~avy-goto-line~.
+- [ ] *~howm-rename-to-slug~* — interactive command exists but no
+  binding; add ~H-c n~ or ~C-c n h~ once slug rename is trusted.
+- [ ] *~minions~* — installed, unused; toggle hidden minor modes from
+  the mode line (reduces clutter from ~delight~ + many hooks).
+- [ ] *~keycast~* — useful when tuning bindings; bind
+  ~keycast-mode~ behind ~C-c h k~ or enable via ~M-x~ only (no default
+  on startup).
+- [ ] *Magit vs ~magit-section~* — org-node pulls ~magit-section~ only;
+  decide whether full Magit (~magit-status~, ~magit-log~) is worth
+  adding or stay with ~vc~ + ~diff-hl~.
+- [ ] *Platform smoke tests* — ~status.org~ lists FreeBSD/SmartOS as
+  TARGET; run one ~emacs -Q -l init.el~ (or ~--batch~ load) per platform
+  after substantive init changes.
+
+** Lower priority / polish
+
+- [ ] *RCS ~$Id:~ headers* — historical; strip gradually or leave as
+  archive metadata (no functional impact).
+- [ ] *~impatient-mode~* — HTML live reload; bind only in web-mode if
+  used, otherwise remove from el-get to save startup work.
+- [ ] *~flyspell~* — hook block is commented; enable with
+  ~(executable-find "aspell")~ guard or delete dead config.
+- [ ] *~clipboard-kill-region~* — ~C-c k~ is commented in ~init.el~;
+  enable if macOS kill-ring ↔ system clipboard integration is still wanted.
+- [ ] *Eln cache hygiene* — document ~rm -rf eln-cache/*~ after Emacs or
+  GCC upgrades (~insights.org~ pointer).
+- [ ] *Helm project search* — consider ~helm-rgrep~ / ~helm-projectile~
+  (or ~ripgrep~ wrapper) for repo-scoped search alongside ~grep~ on ~H-g~.
+
+* Keybinding proposals
+
+Existing prefix maps (do not collide without checking):
+
+| Prefix   | Scope              | Already used for                          |
+|----------+--------------------+-------------------------------------------|
+| ~H-*~    | macOS global       | buffers, files, windows, org, grep, avy   |
+| ~H-c~    | macOS org prefix   | ~c~ capture, ~d~ / ~H-d~ creation-date   |
+| ~C-c t~  | TRAMP              | ~f~ find, ~d~ dired, ~c~ cleanup, ~r~ revert |
+| ~C-c .~  | Cape completion    | ~p t d h f k s a l w …~                   |
+| ~C-c h~  | Helm               | (prefix only — room for subkeys)          |
+
+** macOS Hyper — new single keys
+
+Bindings below are *macOS only* (~when (eq system-type 'darwin)~), same
+guard as current Hyper block.
+
+| Chord | Command                     | Mnemonic / rationale                          |
+|-------+-----------------------------+-----------------------------------------------|
+| ~H-m~ | ~imenu-list-smart-toggle~   | *m*ap — sidebar outline (~H-i~ is Helm imenu) |
+| ~H-f~ | ~fd-dired~                  | *f*ind files (fd); needs ~fd~ on PATH         |
+| ~H-u~ | ~undo~                      | *u*ndo                                        |
+| ~H-y~ | ~yank-pop~                  | *y*ank cycle (pairs with kill keys)           |
+| ~H-/~ | ~howm-search~               | search ~/notes                                |
+| ~H-e~ | ~howm-list-recent~          | r*e*cent notes (or ~howm-list-all~ if preferred) |
+| ~H-D~ | ~dired~                     | *D*ired at default directory (capital = dir)  |
+| ~H-T~ | ~scs/tramp-cleanup~         | move ~H-t~ cleanup here; free ~H-t~ for below   |
+| ~H-t~ | ~scs/tramp-find-file~       | *t*ransfer / remote file (pairs with ~C-c t~*)  |
+
+*Note:* ~H-t~ is currently ~my/tramp-cleanup~; if ~H-T~ feels awkward,
+keep cleanup on ~C-c t c~ only and use ~H-t~ for find-file.
+
+** macOS Hyper ~H-c~ prefix — extend
+
+| Chord     | Command                      | Rationale                                |
+|-----------+------------------------------+------------------------------------------|
+| ~H-c t~   | ~org-todo~                   | set TODO on current headline             |
+| ~H-c r~   | ~org-refile~                 | refile entry                             |
+| ~H-c l~   | ~org-store-link~             | link at point (duplicate of ~H-l~ — pick one) |
+| ~H-c n~   | ~howm-rename-to-slug~        | *n*ame / slugify note file               |
+| ~H-c o~   | ~org-open-at-point~          | follow link at point                     |
+
+** Cross-platform ~C-c~ — new bindings
+
+These should work on macOS CLI, FreeBSD, and SmartOS without Hyper.
+
+| Chord       | Command                         | Rationale                               |
+|-------------+---------------------------------+-----------------------------------------|
+| ~C-c v n~   | ~diff-hl-next-hunk~             | *v*cs — next change                     |
+| ~C-c v p~   | ~diff-hl-previous-hunk~         | previous change                         |
+| ~C-c v s~   | ~diff-hl-show-hunk~             | show current hunk                       |
+| ~C-c v r~   | ~diff-hl-revert-hunk~           | revert hunk (use with care)             |
+| ~C-c g w~   | ~wgrep-enable~                  | *g*rep *w*rite mode in grep buffer      |
+| ~C-c b~    | ~ibuffer~                       | buffer list (~list-buffers~ remapped)   |
+| ~C-c j l~   | ~avy-goto-line~                 | *j*ump line (if ~C-c j~ stays char)     |
+| ~C-c j w~   | ~avy-goto-word-or-subword-1~    | jump word                               |
+| ~C-c n h~   | ~howm-create~                   | *n*ote *h*owm (mirror ~C-f9~)            |
+| ~C-c n l~   | ~howm-list-all~                 | list notes (mirror ~F9~)                |
+| ~C-c SPC~   | ~counsel-mark-ring~ / ~helm-ring~ | mark jumps — *if* ring navigation wanted |
+
+Define ~C-c v~ as a small prefix map (~define-prefix-command~), same
+style as ~scs/quit-map~, not Hydra.
+
+** ~C-c h~ — extend Helm prefix
+
+| Chord       | Command            | Rationale                    |
+|-------------+--------------------+------------------------------|
+| ~C-c h r~   | ~helm-resume~      | resume last Helm session     |
+| ~C-c h m~   | ~helm-man-woman~   | man pages (when ~man~ exists) |
+| ~C-c h a~   | ~helm-ag~          | ripgrep/ag search *if* added |
+
+** Org mode (local, or global if preferred)
+
+| Chord         | Command                    | Rationale                          |
+|---------------+----------------------------+------------------------------------|
+| ~C-c C-r~     | ~org-refile~               | common Org chord                   |
+| ~C-c C-t~     | ~org-todo~                 | TODO cycle                         |
+| ~C-c C-e~     | ~org-export-dispatch~      | export dispatcher                  |
+| ~M-RET~       | ~org-insert-heading~       | already default — document only    |
+| ~C-c '~        | ~org-edit-special~         | edit block (Agenda/Src)            |
+
+** Window / frame (optional tweaks)
+
+| Chord           | Command              | Notes                                      |
+|-----------------+----------------------+--------------------------------------------|
+| ~C-x 4 o~       | ~other-frame~        | mirrors ~M-o~ — only if ~M-o~ is unused habit |
+| ~C-x p~         | ~other-window~       | *p*ane — alternative to ~C-o~ if wanted     |
+| ~S-C-<arrow>~   | (framemove)          | already via ~framemove~ + windmove           |
+
+** Grep / project search
+
+| Chord       | Command              | Notes                                           |
+|-------------+----------------------+-------------------------------------------------|
+| ~C-c /~     | ~helm-occur~         | buffer occur (~M-s o~ exists — lower priority)  |
+| ~C-c p g~   | ~helm-rgrep~         | project grep *if* recipe added                  |
+| ~C-c p f~   | ~helm-find-files~    | project-scoped find *if* ~helm-projectile~ added |
+
+* Implementation order (suggested)
+
+1. ~diff-hl~ + ~wgrep~ keys (~C-c v~ / grep hook) — small, high value.
+2. Extend ~H-c~ prefix (~t~, ~r~, ~n~) — org/howm workflow.
+3. ~C-c b~ → ~ibuffer~ — cross-platform buffer menu.
+4. CLI parity table in ~readme.org~ / ~insights.org~ for Hyper mirrors.
+5. ~early-init~ GCC path robustness.
+6. ~status.org~ / ~tasks.org~ housekeeping.
+
+* Explicit non-goals
+
+- *Hydra* for quit or small menus — current ~set-transient-map~ quit
+  flow and prefix maps are enough (~readme.org~ / session 2026-07-08).
+- *Replacing Helm* with Vertico/Orderless — settled choice; extend Helm
+  prefix instead.
+- *Replacing el-get* — large migration; only revisit if bootstrap pain
+  grows.
+
+* References
+
+- Current Hyper bindings: ~init.el~ (*Hyper key shortcuts* section)
+- TRAMP keys: ~lisp/scs-tramp.el~ commentary (~C-c t~)
+- Open tasks: ~tasks.org~
+- Health snapshot: ~status.org~ (needs refresh)
+- Design notes: ~insights.org~ (*Hyper modifier*, *corfu vs company*)

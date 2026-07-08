@@ -1,67 +1,74 @@
 #+title: Emacs Configuration Status
 #+author: scs
-#+date: 2026-06-29
+#+date: 2026-07-08
 
 * Health
 
 | Component          | Status | Notes                                       |
 |--------------------+--------+---------------------------------------------|
-| Startup            | OK     | Clean startup after el-get refresh          |
-| el-get             | OK     | 5.2 (447b7ef); all packages updated         |
+| Startup            | OK     | Init completes on macOS GUI after font fix  |
+| el-get             | OK     | 5.2; packages via ~:el-get~ keyword         |
+| native-comp        | OK     | Homebrew ~gcc~ + ~libgccjit~; ~early-init~ LIBRARY_PATH / CC |
 | helm               | OK     | Minibuffer UI; #2756 nil backup-dir fix     |
-| fido/orderless     | GONE   | Replaced by helm; orderless removed         |
-| marginalia         | GONE   | Replaced by helm; marginalia removed        |
-| custom.el          | GONE   | All settings in init.el;                    |
-|                    |        | custom-file redirected to /tmp/             |
+| fido/orderless     | GONE   | Replaced by helm                            |
+| marginalia         | GONE   | Replaced by helm                            |
+| custom.el          | GONE   | All settings in init.el; custom-file → /tmp/ |
 | org                | OK     | el-get builtin recipe                       |
 | org-contrib        | OK     | el-get git (sr.ht); org-expiry              |
-| scs-org-tools      | OK     | lisp/scs-org-tools.el; H-c d / H-c H-d creation-date |
+| scs-org-tools      | OK     | lisp/scs-org-tools.el; H-c d creation-date  |
 | ob-ly              | GONE   | Removed from org-contrib 0.8                |
-| eshell             | OK     | eshell-toggle, eshell-z, eshell-up,         |
-|                    |        | eshell-bookmark                             |
+| eshell             | OK     | eshell-toggle, eshell-z, eshell-up, eat     |
 | psvn               | GONE   | GitHub repo deleted; using vc-svn           |
-| company            | OK     | Active in-buffer completion UI; company-yasnippet |
-| yasnippet          | OK     | snippets/ (org meta/src/props, elisp, lisp, text-mode); company backend |
-| corfu              | GONE   | Removed; company is the active backend        |
+| company            | OK     | In-buffer UI; company-yasnippet             |
+| yasnippet          | OK     | snippets/ (org, elisp, lisp, text-mode)   |
+| corfu              | GONE   | Removed; company is the active backend      |
 | flycheck           | OK     | Deferred 3s; org-lint via lisp/ workaround  |
 | framemove          | OK     | Via el-get local recipe                     |
-| lisp/ libraries    | OK     | load-path; flycheck + org helpers           |
-| SLIME/SLY paths    | CHECK  | Verify ~/lisp/lispworks/ exists             |
-| howm               | OK     | Org notes in ~/notes; semantic rename       |
+| lisp/ libraries    | OK     | scs-org-tools, scs-tramp, org-tools, flycheck workaround |
+| SLIME/SLY paths    | CHECK  | Verify ~/lisp/lispworks/lw-console (tasks)  |
+| howm               | OK     | Org notes in ~/notes; slug rename command   |
 | org-node           | OK     | ID-based linking for howm notes             |
 | server (socket)    | OK     | Default server via Unix domain socket       |
 | server (TCP/scrim) | OK     | Second server for Scrim macOS app           |
-| no-littering       | OK     | Managing var/etc directories                |
-| tramp              | OK     | Settings consolidated in use-package        |
-| lexical-binding    | OK     | Enabled in init.el and early-init.el        |
-| RCS                | OK     | Id keywords in all tracked files            |
-| gitignore (.elc)   | OK     | *.elc ignored; do not commit bytecode       |
+| no-littering       | OK     | var/ and etc/ under user-emacs-directory    |
+| tramp              | OK     | lisp/scs-tramp.el; C-c t prefix             |
+| quit (C-x C-c)     | OK     | scs/quit-prefix transient map               |
+| diff-hl            | PART   | global mode on; hunk navigation keys TODO   |
+| wgrep              | PART   | loaded; no hook or key yet (plan.org)       |
+| minions / keycast  | IDLE   | installed; not configured                   |
+| revision control   | OK     | Git (~scsets/config-emacs~); vc Git + SVN   |
+| gitignore (.elc)   | OK     | *.elc ignored                               |
+| lexical-binding    | OK     | init.el and early-init.el                   |
+| plan.org           | OK     | Improvement and keybinding roadmap        |
 
 * Emacs Version
 
-Tested on Emacs 30.2 / 31.x.
+Tested on Emacs 30.2 / 31.x (emacs-plus@31 on macOS Homebrew).
 
 * Target Platforms
 
 | Platform | Mode    | Status | Notes                                    |
 |----------+---------+--------+------------------------------------------|
-| macOS    | GUI(NS) | OK     | Primary development platform             |
+| macOS    | GUI(NS) | OK     | Primary; Hyper keys, native-comp, Karabiner |
 | macOS    | CLI     | OK     | Guards skip GUI-only settings            |
-| FreeBSD  | CLI     | TARGET | No macOS-specific vars; exec guards      |
-| SmartOS  | CLI     | TARGET | No macOS-specific vars; exec guards      |
+| FreeBSD  | CLI     | TARGET | Smoke test pending (plan.org)            |
+| SmartOS  | CLI     | TARGET | Smoke test pending (plan.org)            |
 
 * Last Verified
 
-[2026-06-29 Sun] - Added =lisp/= local libraries (~scs-org-tools~,
-~flycheck-org-lint-workaround~). ~H-c~ Hyper prefix (~H-c c~ capture,
-~H-c d~ / ~H-c H-d~ creation-date). Karabiner + ~key-translation-map~
-fix macOS Fn+C / Control Center steal in Emacs. Added ~yasnippet~ with
-=snippets/= (Org ~meta~, blocks, Lisp templates). Documented in
-=readme.org=, =changes.org=, =insights.org=. Git ignores ~*.elc~.
+[2026-07-08 Wed] - Fixed init abort (~set-face-attribute~ frame arg).
+Restored ~C-x C-c~ quit confirmation (~scs/quit-prefix~). Configured
+Homebrew GCC for native compilation (~scs/setup-macos-native-comp~).
+Renamed GitHub repo to ~scsets/config-emacs~. Moved macOS modifier keys
+to ~early-init.el~. Added =plan.org=; refreshed =tasks.org= and this file.
+Dropped RCS workflow from =readme.org= (Git + SVN via ~vc~).
 
-[2026-06-21 Sat] - el-get updated to 5.2; full ~el-get-update-all~ via emacsclient.
-Removed orphaned ~corfu~, ~marginalia~, and ~orderless~. Fixed ~.status.el~ el-get
-entry, ~company-capf~ require, and ~hl-todo~ ~cond-let~ dependency. Helm
-updated; ~file-equal-p~ nil with ~no-littering-theme-backups~ fixed upstream
-(#2756, ~0aa89912~).
-[2026-05-11 Mon] - Package fetching moved from ~use-package :ensure t~ and ~package-vc~ to el-get through the local ~:el-get~ keyword. First-run bootstrap and package installation completed in a temporary profile, followed by a clean post-install startup. Helm is now installed through el-get and active for minibuffer completion, replacing the Fido/Orderless/Marginalia stack. A warmed-profile smoke test and byte-compile pass also completed; the byte-compile pass only reported existing undefined-function warnings.
+[2026-06-29 Sun] - Added =lisp/= libraries (~scs-org-tools~,
+~flycheck-org-lint-workaround~). ~H-c~ Hyper prefix. Karabiner Fn+C fix.
+~yasnippet~ with =snippets/=. Git ignores ~*.elc~.
+
+[2026-06-21 Sat] - el-get 5.2; ~el-get-update-all~; removed corfu,
+marginalia, orderless; Helm #2756 fix upstream.
+
+[2026-05-11 Mon] - el-get ~:el-get~ keyword; Helm replaced
+Fido/Orderless/Marginalia stack.

@@ -23,7 +23,8 @@ below). Byte-compiled =~.elc~= files are gitignored.
 | =early-init.el=   | Early initialization (GC, UI, packages)    |
 | =lisp/=           | Reusable local Elisp libraries             |
 | =changes.org=     | Changelog of manual fixes and changes      |
-| =tasks.org=       | Outstanding and completed tasks            |
+| =plan.org=        | Improvement roadmap and keybinding proposals |
+| =tasks.org=       | Outstanding and completed tasks              |
 | =status.org=      | Current configuration health status        |
 | =insights.org=    | Technical notes and lessons learned         |
 
