@@ -770,12 +770,27 @@ was nil during daemon startup, so font must be applied per frame."
 ;; C-x C-c protection
 ;; ----------------------------------------------------------
 
-;; Do not exit with C-x C-c
-(global-unset-key (kbd "C-x C-c"))
+;; Plain C-x C-c is disabled to prevent accidental quit; show the real chords.
+(defvar scs/quit-map
+  (let ((map (make-sparse-keymap "Quit Emacs")))
+    (define-key map (kbd "C-c") 'save-buffers-kill-terminal)
+    (define-key map (kbd "q") 'keyboard-escape-quit)
+    map))
 
-;; Instead use this
-(global-set-key (kbd "C-x C-c C-c") 'save-buffers-kill-terminal)
-(global-set-key (kbd "C-x C-c q")   'keyboard-escape-quit)
+(defun scs/quit-hint ()
+  "Show how to quit or cancel after C-x C-c."
+  (interactive)
+  (message "Quit: C-x C-c C-c  |  Cancel: C-x C-c q"))
+
+(defun scs/quit-prefix ()
+  "Show quit hint, then accept C-c or q to confirm."
+  (interactive)
+  (scs/quit-hint)
+  (set-transient-map scs/quit-map nil nil))
+
+(global-set-key (kbd "C-x C-c") #'scs/quit-prefix)
+
+;; With mac-command-modifier, use ⌘ x, ⌘ c, ⌘ c for quit.
 
 ;; ----------------------------------------------------------
 ;; C-o / M-o (window/frame navigation)
