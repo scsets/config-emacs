@@ -1449,6 +1449,7 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
   (setq howm-template
         (concat "* %title%cursor\n"
                 "%date %file\n"
+                "#TITLE:\n"
                 "#+filetags:\n\n"))
 
   ;; Menu: show more context.
