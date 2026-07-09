@@ -52,38 +52,36 @@ Emacs after large structural changes."
 ;; http://www.emacswiki.org/emacs/ParenthesisMatching#toc4
 ;; bind C-% to goto-match-paren
 ;; note, cursor must right before/on/after paren/brace/bracket
-(defun goto-match-paren (arg)
-  "Go to the matching  if on (){}[], similar to vi style of % "
+(defun goto-match-paren (_arg)
+  "Jump to the matching bracket when point is on (), {}, or [].
+Mimics the vi `%' motion.  Works from inside or just outside the
+bracket pair."
   (interactive "p")
-  ;; first, check for "outside of bracket" positions expected by forward-sexp, etc.
-  (cond ((looking-at "[\[\(\{]") (forward-sexp))
-        ((looking-back "[\]\)\}]" 1) (backward-sexp))
-        ;; now, try to succeed from inside of a bracket
-        ((looking-at "[\]\)\}]") (forward-char) (backward-sexp))
-        ((looking-back "[\[\(\{]" 1) (backward-char) (forward-sexp))
-        (t nil)))
+  (cond
+   ((looking-at-p "[][(){}]") (forward-sexp))
+   ((looking-back "[][(){}]" 1) (backward-sexp))
+   ((looking-at-p "[])}]") (forward-char) (backward-sexp))
+   ((looking-back "[][({]" 1) (backward-char) (forward-sexp))
+   (t nil)))
 
 ;; delete visited file and buffer
 ;; https://zck.org/deleting-files-in-emacs
 (defun delete-visited-file (buffer-name)
   "Delete the file visited by the buffer named BUFFER-NAME."
   (interactive "bDelete file visited by buffer ")
-  (let* ((buffer (get-buffer buffer-name))
-         (filename (buffer-file-name buffer)))
-    (when buffer
-      (when (and filename
-                 (file-exists-p filename))
-        (delete-file filename))
-      (kill-buffer buffer))))
+  (when-let* ((buffer (get-buffer buffer-name)))
+    (when-let* ((filename (buffer-file-name buffer))
+                (_ (file-exists-p filename)))
+      (delete-file filename))
+    (kill-buffer buffer)))
 
 ;; kill all dired buffers
 (defun kill-dired-buffers ()
   "Kill every buffer whose major mode is `dired-mode'."
   (interactive)
-  (mapc (lambda (buffer)
-          (when (eq 'dired-mode (buffer-local-value 'major-mode buffer))
-            (kill-buffer buffer)))
-        (buffer-list)))
+  (cl-loop for buffer in (buffer-list)
+           when (eq 'dired-mode (buffer-local-value 'major-mode buffer))
+           do (kill-buffer buffer)))
 
 ;; From Prot, via https://emacsredux.com/blog/2025/06/01/let-s-make-keyboard-quit-smarter/
 (defun prot/keyboard-quit-dwim ()
