@@ -937,6 +937,8 @@ was nil during daemon startup, so font must be applied per frame."
 (use-package yasnippet
   :el-get t
   :defer 2
+  :init
+  (setq yas-verbosity 2)
   :config
   (let ((dir (expand-file-name "snippets" user-emacs-directory)))
     (make-directory dir t)
