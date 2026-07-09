@@ -224,12 +224,6 @@ The DWIM behaviour of this command is as follows:
          :pkgname "emacs-helm/helm"
          :features helm
          :depends (async wfnames))
-        (:name hyperbole
-         :type github
-         :pkgname "rswgnu/hyperbole"
-         :load-path "."
-         :autoloads nil
-         :features hyperbole)
         (:name hl-todo
          :type github
          :pkgname "tarsius/hl-todo"
