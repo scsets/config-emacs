@@ -194,9 +194,6 @@ The DWIM behaviour of this command is as follows:
          :type github
          :pkgname "emacsmirror/eat"
          :depends (compat))
-        (:name el-job
-         :type github
-         :pkgname "meedstrom/el-job")
         (:name eshell-bookmark
          :type github
          :pkgname "Fuco1/eshell-bookmark")
@@ -275,18 +272,6 @@ The DWIM behaviour of this command is as follows:
          :type github
          :pkgname "arnm/ob-mermaid"
          :depends (org))
-        (:name org-mem
-         :type github
-         :pkgname "meedstrom/org-mem"
-         :depends (el-job llama truename-cache))
-        (:name org-node
-         :type github
-         :pkgname "meedstrom/org-node"
-         :depends (cond-let llama magit-section org org-mem))
-        (:name truename-cache
-         :type github
-         :pkgname "meedstrom/truename-cache"
-         :depends (compat))
         (:name wfnames
          :type github
          :pkgname "thierryvolpiatto/wfnames"
@@ -1614,44 +1599,27 @@ With prefix arg, treat the pattern as a fixed string."
   (define-key howm-mode-map (kbd "<backtab>") 'action-lock-goto-previous-link))
 
 ;; ----------------------------------------------------------
-;; org-node (find howm notes by ID)
+;; org-id (find howm notes by ID)
 ;; ----------------------------------------------------------
 
-;; https://baty.net/posts/2025/12/finding-howm-notes-with-org-node/
-;; org-node gives us fast ID-based linking across howm notes.
-(defun scs/org-node-init ()
-  "Build org-id and org-mem caches for `howm-directory' once at startup."
-  (when (file-directory-p howm-directory)
+(defun scs/howm-add-org-id ()
+  "Add an Org ID to the current howm note heading."
+  (org-id-get-create))
+
+(defun scs/org-id-init ()
+  "Build org-id locations for `howm-directory' once at startup."
+  (when (and (boundp 'howm-directory)
+             (file-directory-p howm-directory))
     (require 'org-id)
     (let ((notes (expand-file-name howm-directory)))
-      (setq org-mem-watch-dirs (list notes)
-            org-mem-do-look-everywhere nil)
-      ;; org-mem's src-block skip regexes are case-sensitive; accept Org's
-      ;; usual mixed-case #+BEGIN_SRC / #+END_SRC in older notes.
-      (setq org-mem-ignore-regions-regexps
-            (cl-loop for (begin . _end) in org-mem-ignore-regions-regexps
-                     if (string-match-p "begin_src" begin)
-                     collect (cons "^[ \t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc]"
-                                   "^[ \t]*#\\+[Ee][Nn][Dd]_[Ss][Rr][Cc]")
-                     else collect (cons begin _end)))
       (setq org-id-extra-files
             (delete-dups
              (append (directory-files-recursively notes "\\.org\\'")
                      (when (listp org-id-extra-files) org-id-extra-files))))
-      (org-id-update-id-locations)
-      (org-node-cache-ensure t t))))
+      (org-id-update-id-locations))))
 
-(use-package org-node
-  :el-get t
-  :after howm
-  :demand t
-  :hook
-  ;; New howm notes automatically get an org-id via org-node.
-  (howm-create . org-node-nodeify-entry)
-  :config
-  (org-node-cache-mode 1)
-  (org-mem-updater-mode 1)
-  (add-hook 'emacs-startup-hook #'scs/org-node-init 100))
+(add-hook 'howm-create-hook #'scs/howm-add-org-id)
+(add-hook 'emacs-startup-hook #'scs/org-id-init 100)
 
 ;; ----------------------------------------------------------
 ;; imenu-list
