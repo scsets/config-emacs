@@ -1161,7 +1161,7 @@ was nil during daemon startup, so font must be applied per frame."
   :commands
   (helm-M-x helm-find-files helm-mini helm-buffers-list
             helm-filtered-bookmarks helm-show-kill-ring helm-occur
-            helm-command-prefix helm-imenu)
+            helm-command-prefix helm-imenu helm-multi-files)
   :init
   (setq helm-M-x-fuzzy-match t)
   (setq helm-buffers-fuzzy-matching t)
@@ -1188,8 +1188,208 @@ was nil during daemon startup, so font must be applied per frame."
   (require 'helm-ring)
   (require 'helm-imenu)
   (require 'helm-occur)
+  (require 'helm-for-files)
   (helm-mode 1)
-  (helm-autoresize-mode 1))
+  (helm-autoresize-mode 1)
+
+  ;; helm-fd (C-/ in helm-find-files) is async and cannot fuzzy-match; it also
+  ;; feeds the pattern to fd as literal substrings.  Replace with an in-buffer
+  ;; source: list files once via fd, then use Helm fuzzy + space-separated tokens
+  ;; (e.g. "thing illumos" -> illumos-notes-something.org).
+  (defvar scs/helm-fuzzy-fd--cache (make-hash-table :test 'equal))
+  (defvar scs/helm-multi-files--fd-root nil)
+  (defvar scs/helm-source-fd-fuzzy nil)
+  (defvar scs/helm-multi-files--fd-on nil)
+
+  (defun scs/helm-fd-executable ()
+    (or (and (boundp 'helm-fd-executable) helm-fd-executable)
+        (executable-find "fdfind")
+        (executable-find "fd")))
+
+  (defun scs/helm-fd-root-unsafe-p (directory)
+    "True when DIRECTORY is too broad to index synchronously (e.g. $HOME)."
+    (let ((dir (file-name-as-directory (expand-file-name directory)))
+          (home (file-name-as-directory (expand-file-name "~"))))
+      (or (file-remote-p dir)
+          (string= dir "/")
+          (string= dir home))))
+
+  (defun scs/helm-multi-files-fd-root (&optional arg)
+    "Pick a safe fd root for `scs/helm-multi-files'.
+Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-directory'."
+    (let* ((notes (expand-file-name
+                   (or (and (boundp 'howm-directory) howm-directory)
+                       "~/notes")))
+           (requested (expand-file-name
+                       (if arg default-directory notes))))
+      (cond
+       ((not (scs/helm-fd-root-unsafe-p requested)) requested)
+       ((not (scs/helm-fd-root-unsafe-p notes)) notes)
+       (t (user-error "Refusing to index %s; open a narrower directory or set howm-directory"
+                      requested)))))
+
+  (defun scs/helm-fuzzy-fd--parse-buffer (_directory buffer)
+    (with-current-buffer buffer
+      (cl-loop for line in (split-string (buffer-string) "\n" t)
+               when (file-exists-p line)
+               collect (expand-file-name line))))
+
+  (defun scs/helm-fuzzy-fd--populate-cache-sync (directory)
+    (unless (gethash directory scs/helm-fuzzy-fd--cache)
+      (let ((fd (scs/helm-fd-executable)))
+        (cl-assert fd nil "Could not find fd executable")
+        (puthash directory
+                 (or (with-temp-buffer
+                       (call-process fd nil (current-buffer) nil
+                                     "--hidden" "--type" "f" "--glob" "*"
+                                     directory)
+                       (scs/helm-fuzzy-fd--parse-buffer directory (current-buffer)))
+                     '())
+                 scs/helm-fuzzy-fd--cache)))
+    (gethash directory scs/helm-fuzzy-fd--cache))
+
+  (defun scs/helm-fuzzy-fd--index-async (directory callback)
+    "Run fd in the background; call CALLBACK when DIRECTORY is cached."
+    (if (gethash directory scs/helm-fuzzy-fd--cache)
+        (funcall callback)
+      (let ((fd (scs/helm-fd-executable)))
+        (unless fd
+          (user-error "Could not find fd executable"))
+        (let ((buf (generate-new-buffer " *scs-fd-index*")))
+          (message "Indexing files under %s…" (abbreviate-file-name directory))
+          (make-process
+           :name "scs-fd-index"
+           :buffer buf
+           :noquery t
+           :command (list fd "--hidden" "--type" "f" "--glob" "*" directory)
+           :sentinel
+           (lambda (_proc event)
+             (if (string-match-p "finished\\|exited" event)
+                 (puthash directory
+                          (scs/helm-fuzzy-fd--parse-buffer directory buf)
+                          scs/helm-fuzzy-fd--cache)
+               (message "Fd indexing failed: %s" event))
+             (when (buffer-live-p buf)
+               (kill-buffer buf))
+             (funcall callback)))))))
+
+  (defun scs/helm-fuzzy-fd--file-list (directory)
+    (or (gethash directory scs/helm-fuzzy-fd--cache) '()))
+
+  (defun scs/helm-rebuild-fd-fuzzy-source (directory)
+    "Rebuild `scs/helm-source-fd-fuzzy' for DIRECTORY."
+    (require 'helm-fd)
+    (setq scs/helm-source-fd-fuzzy
+          (helm-make-source "Fd fuzzy"
+            'helm-source-in-buffer
+            :requires-pattern 1
+            :data (lambda ()
+                    (or (gethash directory scs/helm-fuzzy-fd--cache) '()))
+            :fuzzy-match helm-ff-fuzzy-matching
+            :multimatch t
+            :header-name
+            (lambda (name)
+              (format "%s (%s)"
+                      name (abbreviate-file-name directory)))
+            :action 'helm-type-file-actions
+            :keymap 'helm-fd-map)))
+
+  (defun scs/helm-make-fd-fuzzy-source (directory)
+    "Return a Helm source for fuzzy fd search under DIRECTORY."
+    (scs/helm-rebuild-fd-fuzzy-source directory)
+    scs/helm-source-fd-fuzzy)
+
+  (defun scs/helm-fuzzy-fd-1 (directory)
+    "Fuzzy file search under DIRECTORY (replacement for `helm-fd-1')."
+    (require 'helm-fd)
+    (let ((directory (expand-file-name directory)))
+      (cl-assert (scs/helm-fd-executable) nil "Could not find fd executable")
+      (cl-assert (not (file-remote-p directory))
+                 nil "Fd not supported on remote directories")
+      (when (scs/helm-fd-root-unsafe-p directory)
+        (user-error "Directory too broad for fuzzy fd (%s); cd into a subdir first"
+                    directory))
+      (when helm-current-prefix-arg
+        (remhash directory scs/helm-fuzzy-fd--cache))
+      (scs/helm-fuzzy-fd--populate-cache-sync directory)
+      (scs/helm-rebuild-fd-fuzzy-source directory)
+      (let ((default-directory directory))
+        (helm :sources 'scs/helm-source-fd-fuzzy
+              :buffer "*helm fd*"
+              :ff-transformer-show-only-basename nil))))
+
+  (advice-add 'helm-fd-1 :override #'scs/helm-fuzzy-fd-1)
+
+  (defun scs/helm-multi-files--fd-present-p ()
+    (with-helm-buffer
+      (cl-loop for src in helm-sources
+               thereis (equal (assoc-default 'name src) "Fd fuzzy"))))
+
+  (defun scs/helm-multi-files-enable-fd ()
+    (when (and helm-buffer (get-buffer helm-buffer))
+      (with-helm-buffer
+        (unless (scs/helm-multi-files--fd-present-p)
+          (scs/helm-rebuild-fd-fuzzy-source scs/helm-multi-files--fd-root)
+          (helm-set-sources (append helm-sources (list scs/helm-source-fd-fuzzy)))
+          (setq scs/helm-multi-files--fd-on t)
+          (helm-update)))))
+
+  (defun scs/helm-multi-files-disable-fd ()
+    (with-helm-alive-p
+      (with-helm-buffer
+        (setq helm-sources
+              (cl-remove-if (lambda (src)
+                              (equal (assoc-default 'name src) "Fd fuzzy"))
+                            helm-sources)
+              scs/helm-multi-files--fd-on nil)
+        (helm-set-source-filter nil)
+        (helm-update))))
+
+  (defun scs/helm-multi-files-toggle-fd ()
+    "Toggle fuzzy fd source in `scs/helm-multi-files' (HFF `C-/')."
+    (interactive)
+    (with-helm-alive-p
+      (if scs/helm-multi-files--fd-on
+          (scs/helm-multi-files-disable-fd)
+        (if (gethash scs/helm-multi-files--fd-root scs/helm-fuzzy-fd--cache)
+            (scs/helm-multi-files-enable-fd)
+          (scs/helm-fuzzy-fd--index-async
+           scs/helm-multi-files--fd-root
+           #'scs/helm-multi-files-enable-fd)))))
+  (put 'scs/helm-multi-files-toggle-fd 'helm-only t)
+
+  ;; Fd fuzzy is included up front (indexed under ~/notes by default).  C-/ toggles
+  ;; it off/on.  C-u uses `default-directory' and refreshes the fd cache.
+  (defun scs/helm-multi-files (&optional arg)
+    "Like `helm-multi-files' with fuzzy fd (HFF `C-/') under notes by default."
+    (interactive "P")
+    (require 'helm-for-files)
+    (require 'helm-x-files)
+    (unless helm-source-buffers-list
+      (setq helm-source-buffers-list
+            (helm-make-source "Buffers" 'helm-source-buffers)))
+    (setq scs/helm-multi-files--fd-root (scs/helm-multi-files-fd-root arg)
+          scs/helm-multi-files--fd-on nil)
+    (when arg (remhash scs/helm-multi-files--fd-root scs/helm-fuzzy-fd--cache))
+    (let* ((sources (remove 'helm-source-locate helm-for-files-preferred-list))
+           (old-key (lookup-key helm-map (kbd "C-/"))))
+      (when (not (scs/helm-fd-root-unsafe-p scs/helm-multi-files--fd-root))
+        (scs/helm-fuzzy-fd--populate-cache-sync scs/helm-multi-files--fd-root)
+        (scs/helm-rebuild-fd-fuzzy-source scs/helm-multi-files--fd-root)
+        (setq sources (append sources '(scs/helm-source-fd-fuzzy))
+              scs/helm-multi-files--fd-on t))
+      (unwind-protect
+          (progn
+            (define-key helm-map (kbd "C-/") #'scs/helm-multi-files-toggle-fd)
+            (helm :sources sources
+                  :buffer "*helm multi files*"
+                  :ff-transformer-show-only-basename nil
+                  :truncate-lines helm-buffers-truncate-lines))
+        (if old-key
+            (define-key helm-map (kbd "C-/") old-key)
+          (define-key helm-map (kbd "C-/") nil)))))
+
+  (advice-add 'helm-multi-files :override #'scs/helm-multi-files))
 
 ;; ----------------------------------------------------------
 ;; hl-todo
