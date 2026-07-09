@@ -20,6 +20,33 @@
   (with-current-buffer " *load*"
     (goto-char (point-max))))
 
+(defun scs/reapply-early-init-runtime ()
+  "Re-apply early-init.el settings that can change mid-session.
+
+`early-init.el' itself runs only once at startup.  Modifier remaps
+(`mac-command-modifier', etc.), `default-frame-alist' and
+`package-initialize' require a full Emacs restart."
+  (setq gc-cons-threshold (* 1024 1024 20)
+        gc-cons-percentage 0.2)
+  (when (fboundp #'scs/setup-macos-native-comp)
+    (scs/setup-macos-native-comp))
+  (message "Early-init runtime settings updated (restart for modifiers/packages)"))
+
+(defun scs/reload-config (&optional with-early)
+  "Reload `user-init-file' without restarting Emacs.
+
+Reloads init.el only.  early-init.el is not re-read; use a prefix
+argument to re-apply GC and native-comp env vars from early-init.
+Hook forms in init.el may run again and stack duplicates; restart
+Emacs after large structural changes."
+  (interactive "P")
+  (when with-early
+    (scs/reapply-early-init-runtime))
+  (load user-init-file nil t)
+  (message "Reloaded %s" (abbreviate-file-name user-init-file)))
+
+(global-set-key (kbd "C-c r") #'scs/reload-config)
+
 ;; http://www.emacswiki.org/emacs/ParenthesisMatching#toc4
 ;; bind C-% to goto-match-paren
 ;; note, cursor must right before/on/after paren/brace/bracket
