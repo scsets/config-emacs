@@ -1488,96 +1488,130 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
   ;; Keep summary visible when selecting an item.
   (setq howm-view-summary-persistent t)
 
-  ;; Rename howm files to title_tags_date.org format.
-  ;; Call M-x howm-rename-to-slug interactively when ready to rename.
-  ;; Format example: my-note-title_tag1-tag2_20260307.org
+  ;; Rename notes to a chosen filename (default from #TITLE: or * heading).
+  (defvar-local scs/howm-rename-offered-p nil
+    "Non-nil once we offered to rename this timestamp-named howm note.")
 
   (defun scs--howm-slugify (str)
     "Convert STR to a lowercase slug (alphanumeric and hyphens).
 Strips leading/trailing hyphens and collapses runs of hyphens."
-    (replace-regexp-in-string
-     "^-\\|-$" ""
-     (downcase
-      (replace-regexp-in-string
-       "-\\{2,\\}" "-"
-       (replace-regexp-in-string
-        "[^a-zA-Z0-9-]" "-"
-        (string-trim str))))))
+    (cl-reduce (lambda (acc fn) (funcall fn acc))
+               (list (lambda (s) (string-trim s))
+                     (lambda (s) (replace-regexp-in-string "[^a-zA-Z0-9-]" "-" s))
+                     (lambda (s) (replace-regexp-in-string "-\\{2,\\}" "-" s))
+                     #'downcase
+                     (lambda (s) (replace-regexp-in-string "^-\\|-$" "" s)))
+               :initial-value str))
 
-  (defun scs--howm-desired-filename ()
-    "Compute the desired filename from the note's title, filetags, and date.
-Reads the first org heading as title and #+filetags: as tags.
-Returns a filename like title_tags_20260307.org, or nil if no title."
+  (defun scs--howm-note-title ()
+    "Return note title from #TITLE:/#+TITLE: or the first org heading."
     (save-excursion
       (goto-char (point-min))
-      (let ((title (when (re-search-forward
-                          (concat "^" howm-view-title-header " +\\(.+\\)$")
-                          nil t)
-                     (match-string 1)))
-            (tags (progn
-                    (goto-char (point-min))
-                    (when (re-search-forward
-                           "^#\\+filetags: *\\(.+\\)$" nil t)
-                      (match-string 1))))
-            (date (format-time-string "%Y%m%d")))
-        (when (and title (not (string-blank-p title)))
-          (let ((slug (scs--howm-slugify title))
-                (tag-part (if (and tags (not (string-blank-p tags)))
-                              (scs--howm-slugify
-                               (replace-regexp-in-string ":" " " tags))
-                            nil)))
-            (concat slug
-                    (when tag-part (concat "_" tag-part))
-                    "_" date ".org"))))))
+      (or (when (re-search-forward
+                 "^#\\+?[Tt][Ii][Tt][Ll][Ee]:[ \t]*\\(.+\\)$" nil t)
+            (string-trim (match-string 1)))
+          (when (re-search-forward
+                 (concat "^" (regexp-quote howm-view-title-header)
+                         " +\\(.+\\)$")
+                 nil t)
+            (string-trim (match-string 1))))))
 
-  (defun howm-rename-to-slug ()
-    "Rename the current howm note to title_tags_date.org format.
-Derives the filename from the first org heading and #+filetags: line.
-Prompts for confirmation before renaming.  Does nothing if:
-- The buffer is not a howm note in `howm-directory'.
-- No title heading is found.
-- The filename already matches.
-- A file with the target name already exists."
+  (defun scs--howm-suggest-filename ()
+    "Suggest a note filename from `scs--howm-note-title'."
+    (let ((title (scs--howm-note-title)))
+      (when (and title (not (string-blank-p title)))
+        (concat (scs--howm-slugify title) ".org"))))
+
+  (defun scs--howm-timestamp-filename-p (filename)
+    "True when FILENAME is howm's default YYYY-MM-DD-HHMMSS.org pattern."
+    (string-match-p "\\`[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}-[0-9]\\{6\\}\\.org\\'"
+                    (file-name-nondirectory filename)))
+
+  (defun scs/howm-rename-note (&optional no-prompt-p)
+    "Rename the current howm note, choosing the filename interactively.
+
+Default suggestion comes from #TITLE:/#+TITLE:, else the first * heading."
     (interactive)
     (unless (and howm-mode buffer-file-name
                  (file-in-directory-p buffer-file-name howm-directory))
       (user-error "Not a howm note in %s" howm-directory))
-    (let ((desired (scs--howm-desired-filename)))
-      (unless desired
-        (user-error "No title heading found"))
-      (if (string= (file-name-nondirectory buffer-file-name) desired)
-          (message "Filename already matches: %s" desired)
-        (let ((new-path (expand-file-name desired
-                                          (file-name-directory buffer-file-name))))
-          (when (file-exists-p new-path)
-            (user-error "Target file already exists: %s" desired))
-          (when (y-or-n-p (format "Rename to %s? " desired))
-            (rename-file buffer-file-name new-path)
-            (set-visited-file-name new-path t t)
-            (message "Renamed to %s" desired))))))
+    (let* ((default (or (scs--howm-suggest-filename)
+                        (file-name-nondirectory buffer-file-name)))
+           (input (if no-prompt-p default
+                    (read-string "Note filename: " default nil default)))
+           (basename (if (string-match "\\.org\\'" input) input (concat input ".org")))
+           (new-path (expand-file-name basename
+                                       (file-name-directory buffer-file-name))))
+      (when (string-blank-p basename)
+        (user-error "Filename cannot be empty"))
+      (if (string= (file-name-nondirectory buffer-file-name) basename)
+          (message "Filename already matches: %s" basename)
+        (when (and (file-exists-p new-path) (not (string= new-path buffer-file-name)))
+          (user-error "Target file already exists: %s" basename))
+        (rename-file buffer-file-name new-path)
+        (set-visited-file-name new-path t t)
+        (message "Renamed to %s" basename))))
+
+  (defalias 'howm-rename-to-slug #'scs/howm-rename-note)
+
+  (defun scs/howm-maybe-offer-rename ()
+    "After first save, offer to rename a new timestamp-named howm note."
+    (when-let* ((_mode (and howm-mode buffer-file-name))
+                (_inhowm (file-in-directory-p buffer-file-name howm-directory))
+                (_not-yet (not scs/howm-rename-offered-p))
+                (_ts (scs--howm-timestamp-filename-p buffer-file-name))
+                (suggested (scs--howm-suggest-filename)))
+      (setq scs/howm-rename-offered-p t)
+      (when (y-or-n-p (format "Rename note to %s? " suggested))
+        (scs/howm-rename-note t))))
+
+  (defun scs/howm-setup-rename-offer ()
+    (add-hook 'after-save-hook #'scs/howm-maybe-offer-rename nil t))
+
+  (defun scs/notes-search ()
+    "Search org notes under `howm-directory' (howm summary + ripgrep).
+With prefix arg, treat the pattern as a fixed string."
+    (interactive)
+    (require 'howm)
+    (if current-prefix-arg
+        (call-interactively #'howm-list-grep-fixed)
+      (call-interactively #'howm-list-grep)))
+
+  (global-set-key (kbd "C-c n g") #'scs/notes-search)
+  (global-set-key (kbd "C-c n r") #'scs/howm-rename-note)
+  (when (eq system-type 'darwin)
+    (global-set-key (kbd "H-/") #'scs/notes-search))
 
   ;; Tag/name action-lock rules: #tag, +tag, @name become clickable links.
-  ;; Clicking searches across howm notes (uses rg via howm-view-grep).
+  ;; Invoke runs a fixed-string ripgrep across howm-directory (not howm-keyword-search).
   (defun scs--howm-grep-tag (tag)
-    "Search howm notes for TAG using howm's native search."
-    (howm-keyword-search tag nil nil))
+    "Search howm notes for literal TAG text (fixed-string ripgrep)."
+    (howm-set-command 'howm-list-grep-fixed)
+    (howm-search tag t nil nil (format "*howm: %s*" tag)))
 
   (defun scs--howm-add-tag-rules ()
     "Add action-lock rules for #tag, +tag, and @name patterns."
-    (dolist (rule
-             (list
-              ;; #tag -- topics/categories
-              (action-lock-general #'scs--howm-grep-tag
-                                   "\\(?:^\\|[ \t]\\)\\(#[a-zA-Z0-9_-]+\\)" 1 1)
-              ;; +tag -- projects/groups
-              (action-lock-general #'scs--howm-grep-tag
-                                   "\\(?:^\\|[ \t]\\)\\(\\+[a-zA-Z0-9_-]+\\)" 1 1)
-              ;; @name or @@tag -- people, files, resources
-              (action-lock-general #'scs--howm-grep-tag
-                                   "\\(?:^\\|[ \t]\\)\\(@@?[a-zA-Z0-9_.-]+\\)" 1 1)))
-      (add-to-list 'action-lock-rules rule t)))
+    (action-lock-add-rules
+     (list
+      ;; #tag -- topics/categories
+      (action-lock-general #'scs--howm-grep-tag
+                           "\\(?:^\\|[ \t]\\)\\(#[a-zA-Z0-9_-]+\\)" 1 1)
+      ;; +tag -- projects/groups
+      (action-lock-general #'scs--howm-grep-tag
+                           "\\(?:^\\|[ \t]\\)\\(\\+[a-zA-Z0-9_-]+\\)" 1 1)
+      ;; @name or @@tag -- people, files, resources
+      (action-lock-general #'scs--howm-grep-tag
+                           "\\(?:^\\|[ \t]\\)\\(@@?[a-zA-Z0-9_.-]+\\)" 1 1))
+     t))
 
-  (add-hook 'howm-mode-hook #'scs--howm-add-tag-rules))
+  (add-hook 'howm-mode-hook #'scs--howm-add-tag-rules)
+  (add-hook 'howm-mode-hook #'scs/howm-setup-rename-offer)
+
+  ;; Org steals RET; use C-c , RET to follow action-lock links in howm notes.
+  (define-key howm-mode-map (kbd "C-c , RET") 'action-lock-magic-return)
+  (define-key howm-mode-map (kbd "C-c , <return>") 'action-lock-magic-return)
+  (define-key howm-mode-map (kbd "<tab>") 'action-lock-goto-next-link)
+  (define-key howm-mode-map (kbd "<backtab>") 'action-lock-goto-previous-link))
 
 ;; ----------------------------------------------------------
 ;; org-node (find howm notes by ID)
