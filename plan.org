@@ -7,7 +7,7 @@
 Improvement ideas and candidate keybindings for ~scsets/config-emacs~.
 Grounded in the current setup: Helm minibuffer, Company in-buffer,
 Hyper namespace on macOS (Karabiner Fn), ~C-c~ / ~C-c t~ / ~C-c .~
-prefix maps, Org/howm/org-node notes, TRAMP via ~lisp/scs-tramp.el~.
+prefix maps, Org/howm/org-id notes, TRAMP via ~lisp/scs-tramp.el~.
 
 Priorities: keep Hyper for macOS-only ergonomics; add ~C-c~ chords for
 behaviour that must work on FreeBSD and SmartOS CLI too.
@@ -45,9 +45,8 @@ behaviour that must work on FreeBSD and SmartOS CLI too.
 - [ ] *~keycast~* — useful when tuning bindings; bind
   ~keycast-mode~ behind ~C-c h k~ or enable via ~M-x~ only (no default
   on startup).
-- [ ] *Magit vs ~magit-section~* — org-node pulls ~magit-section~ only;
-  decide whether full Magit (~magit-status~, ~magit-log~) is worth
-  adding or stay with ~vc~ + ~diff-hl~.
+- [ ] *Magit vs ~vc~* — decide whether full Magit (~magit-status~,
+  ~magit-log~) is worth adding or stay with ~vc~ + ~diff-hl~.
 - [ ] *Platform smoke tests* — ~status.org~ lists FreeBSD/SmartOS as
   TARGET; run one ~emacs -Q -l init.el~ (or ~--batch~ load) per platform
   after substantive init changes.

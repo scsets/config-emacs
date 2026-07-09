@@ -86,7 +86,7 @@
 - Disabled built-in Fido and removed the active ~marginalia~ and
   ~orderless~ declarations so Helm is the only active minibuffer
   completion UI. Corfu and Cape remain active for in-buffer completion.
-- Made the org-node cache setup non-interactive and made
+- Made the org-id cache setup non-interactive and made
   ~org-id-extra-files~ handling tolerate Org's default symbolic value,
   which keeps batch startup and byte compilation from prompting.
 
@@ -103,7 +103,7 @@
   useful upstream recipes, packages whose upstream recipes were ELPA-only, and
   packages whose primary Git host was not responsive during first-run testing.
 - Added explicit recipe dependencies for source installs, including ~dash~ for
-  ~eshell-toggle~ and the ~org-node~ dependency chain.
+  ~eshell-toggle~.
 - Moved ~framemove~ off direct ~package-vc-install~ and made
   ~eshell-bookmark~ an explicitly fetched package.
 - Removed the unused package archive stale-refresh helpers; el-get now owns
@@ -214,7 +214,7 @@
 - Won't rename if target file already exists.
 - Helper ~scs--howm-slugify~ converts strings to lowercase hyphenated slugs.
 
-* 2026-03-07 Add howm/org-node integration, fix Emacs server
+* 2026-03-07 Add howm/org-id integration, fix Emacs server
 
 - Removed ~server-use-tcp t~ for default server; now uses Unix domain sockets
   (works on macOS, FreeBSD, SmartOS). Added second TCP server named "scrim"
@@ -225,9 +225,9 @@
   - Moved ~howm-keyword-file~ and ~howm-history-file~ into ~no-littering~ paths.
   - Added hooks: ~howm-mode-set-buffer-name~, ~(org-mode . howm-mode)~.
   - Enabled ~howm-view-split-horizontally~ and ~howm-view-contents-limit~.
-- Added ~use-package org-node~ (from Baty's howm+org-node article):
-  - ~(howm-create . org-node-nodeify-entry)~ hook auto-adds org IDs to new notes.
-  - Populates ~org-id-extra-files~ from howm directory.
+- Added howm hooks for Org ID linking:
+  - New howm notes get an ~:ID:~ property.
+  - ~org-id-extra-files~ is populated from the howm directory.
 
 * 2026-03-07 Optimise startup (4s -> 0.6s)
 

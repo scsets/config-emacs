@@ -65,7 +65,7 @@ stops at the :end: marker so text beyond the drawer is never touched."
                 (downcase-region (match-beginning 2) (match-end 2))
                 (when (string= (match-string 2) "end")
                   (cl-return-from done)))
-              (forward-line 1))))))))
+              (forward-line 1)))))))))
 
 ;;;###autoload
 (defun scs/org-insert-creation-date ()

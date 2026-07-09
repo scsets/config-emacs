@@ -559,9 +559,8 @@ Side effects: may install packages while byte-compiling."
 (add-hook 'after-init-hook
           (lambda () (activate-input-method "latin-prefix")))
 
-;;   latin-prefix ('L>' in mode line)
-;;   Latin characters input method with prefix modifiers.
-;;   Union of various Latin-N input methods.
+;;   latin-prefix ('L>' in mode line) — quail/latin-pre
+;;   Modifier before letter: ` then a -> à, ' then e -> é, etc.
 ;;
 ;;    effect    | prefix | examples
 ;;   -----------+--------+--------------------------------------
@@ -580,6 +579,10 @@ Side effects: may install packages while byte-compiling."
 ;;    symbol    |   ^    | ^r -> ®   ^c -> ©   ^1 -> ¹   ^2 -> ²   ^3 -> ³
 ;;
 ;;   Doubling the prefix separates it from the letter: e.g. ''a -> 'a
+;;
+;;   On macOS: Option is Meta in early-init.el, so Option+` sends M-`, not
+;;   the quail grave prefix.  Type ` as a plain character (often the §/` key
+;;   without Option), then the letter.
 
 ;; ----------------------------------------------------------
 ;; Visual-line-mode hook for text-mode
@@ -956,6 +959,7 @@ was nil during daemon startup, so font must be applied per frame."
           company-echo-metadata-frontend))
 
   (defun my-company-return ()
+    "Complete the selected Company candidate, or fall back to normal RET."
     (interactive)
     (if company-selection
         (company-complete-selection)
@@ -1190,12 +1194,17 @@ was nil during daemon startup, so font must be applied per frame."
   ;; feeds the pattern to fd as literal substrings.  Replace with an in-buffer
   ;; source: list files once via fd, then use Helm fuzzy + space-separated tokens
   ;; (e.g. "thing illumos" -> illumos-notes-something.org).
-  (defvar scs/helm-fuzzy-fd--cache (make-hash-table :test 'equal))
-  (defvar scs/helm-multi-files--fd-root nil)
-  (defvar scs/helm-source-fd-fuzzy nil)
-  (defvar scs/helm-multi-files--fd-on nil)
+  (defvar scs/helm-fuzzy-fd--cache (make-hash-table :test 'equal)
+    "Cache mapping fd root directories to expanded file-name lists.")
+  (defvar scs/helm-multi-files--fd-root nil
+    "Current fd root used by `scs/helm-multi-files'.")
+  (defvar scs/helm-source-fd-fuzzy nil
+    "Helm source object for the current fuzzy fd file list.")
+  (defvar scs/helm-multi-files--fd-on nil
+    "Non-nil when the fuzzy fd source is active in `scs/helm-multi-files'.")
 
   (defun scs/helm-fd-executable ()
+    "Return the fd executable Helm should use, or nil when unavailable."
     (or (and (boundp 'helm-fd-executable) helm-fd-executable)
         (executable-find "fdfind")
         (executable-find "fd")))
@@ -1223,12 +1232,14 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
                       requested)))))
 
   (defun scs/helm-fuzzy-fd--parse-buffer (_directory buffer)
+    "Return existing files listed one per line in BUFFER."
     (with-current-buffer buffer
       (cl-loop for line in (split-string (buffer-string) "\n" t)
                when (file-exists-p line)
                collect (expand-file-name line))))
 
   (defun scs/helm-fuzzy-fd--populate-cache-sync (directory)
+    "Synchronously populate and return the fuzzy fd cache for DIRECTORY."
     (unless (gethash directory scs/helm-fuzzy-fd--cache)
       (let ((fd (scs/helm-fd-executable)))
         (cl-assert fd nil "Could not find fd executable")
@@ -1268,6 +1279,7 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
              (funcall callback)))))))
 
   (defun scs/helm-fuzzy-fd--file-list (directory)
+    "Return cached fuzzy fd file names for DIRECTORY, or an empty list."
     (or (gethash directory scs/helm-fuzzy-fd--cache) '()))
 
   (defun scs/helm-rebuild-fd-fuzzy-source (directory)
@@ -1315,11 +1327,13 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
   (advice-add 'helm-fd-1 :override #'scs/helm-fuzzy-fd-1)
 
   (defun scs/helm-multi-files--fd-present-p ()
+    "Return non-nil when the fuzzy fd source is in `helm-sources'."
     (with-helm-buffer
       (cl-loop for src in helm-sources
                thereis (equal (assoc-default 'name src) "Fd fuzzy"))))
 
   (defun scs/helm-multi-files-enable-fd ()
+    "Add the fuzzy fd source to the live Helm multi-files session."
     (when (and helm-buffer (get-buffer helm-buffer))
       (with-helm-buffer
         (unless (scs/helm-multi-files--fd-present-p)
@@ -1329,6 +1343,7 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
           (helm-update)))))
 
   (defun scs/helm-multi-files-disable-fd ()
+    "Remove the fuzzy fd source from the live Helm multi-files session."
     (with-helm-alive-p
       (with-helm-buffer
         (setq helm-sources
@@ -1410,6 +1425,9 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
   :after org
   :defer t
   :init
+  (setq howm-directory "~/notes")
+  (setq howm-home-directory howm-directory)
+
   ;; Org-compatible filenames and syntax.
   (setq howm-file-name-format "%Y-%m-%d-%H%M%S.org")
   (setq howm-view-title-header "*")
@@ -1461,9 +1479,6 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
   (org-mode . howm-mode)
 
   :config
-  (setq howm-directory "~/notes")
-  (setq howm-home-directory howm-directory)
-
   ;; Sort by mtime so recently-touched notes appear first.
   (setq howm-normalizer 'howm-sort-items-by-mtime)
   ;; Preview contents in summary view.
@@ -1551,6 +1566,7 @@ Default suggestion comes from #TITLE:/#+TITLE:, else the first * heading."
         (scs/howm-rename-note t))))
 
   (defun scs/howm-setup-rename-offer ()
+    "Install the buffer-local after-save hook that may offer note renaming."
     (add-hook 'after-save-hook #'scs/howm-maybe-offer-rename nil t))
 
   (defun scs/notes-search ()
@@ -1611,11 +1627,14 @@ With prefix arg, treat the pattern as a fixed string."
   (when (and (boundp 'howm-directory)
              (file-directory-p howm-directory))
     (require 'org-id)
+    (setq org-id-locations-file
+          (no-littering-expand-var-file-name "org/id-locations.el"))
     (let ((notes (expand-file-name howm-directory)))
       (setq org-id-extra-files
-            (delete-dups
+            (cl-remove-duplicates
              (append (directory-files-recursively notes "\\.org\\'")
-                     (when (listp org-id-extra-files) org-id-extra-files))))
+                     (when (listp org-id-extra-files) org-id-extra-files))
+             :test #'string=))
       (org-id-update-id-locations))))
 
 (add-hook 'howm-create-hook #'scs/howm-add-org-id)
@@ -1696,6 +1715,9 @@ With prefix arg, treat the pattern as a fixed string."
 
 ;; Enable BIND property. This will work:
 ;; #+BIND variable "scs"
+;; This config intentionally treats my Org files as trusted.  Exports may
+;; honour #+BIND and Babel blocks without prompts because these files are part
+;; of my own publishing workflow, not untrusted input.
 (setq org-export-allow-bind-keyword t)
 
 (setq org-html-validation-link "<a href=\"https://scs.re\">$SCS$</a>")
@@ -1818,6 +1840,7 @@ With prefix arg, treat the pattern as a fixed string."
         '((:results . "file")
           (:exports . "results")))
 
+  ;; See the trusted-Org comment near `org-export-allow-bind-keyword'.
   (setq org-confirm-babel-evaluate nil)
   (let ((pdir (getenv "PROFILE_DIR")))
     (when pdir
@@ -1851,17 +1874,19 @@ With prefix arg, treat the pattern as a fixed string."
   (recentf-max-saved-items 2000)
   ;;  (recentf-save-file (user-data "recentf"))
   :preface
-  (defun scs/recentf-load-file--safe (orig &rest args)
+  (defun scs/recentf-load-list--safe (orig &rest args)
     "Recover quietly when `recentf-save-file' is truncated mid-write."
     (condition-case err
         (apply orig args)
       (end-of-file
        (message "recentf: save file truncated; starting with empty list")
-       (setq recentf-list nil))
+       (setq recentf-list nil
+             recentf-filter-changer-current nil))
       (error
        (message "recentf: could not load save file (%s)"
                 (error-message-string err))
-       (setq recentf-list nil))))
+       (setq recentf-list nil
+             recentf-filter-changer-current nil))))
   (defun recentf-add-dired-directory ()
     "Add directories visited by dired into recentf."
     (when (and dired-directory
@@ -1870,7 +1895,7 @@ With prefix arg, treat the pattern as a fixed string."
       (recentf-add-file (string-trim-right dired-directory "/"))))
   :hook (dired-mode . recentf-add-dired-directory)
   :config
-  (advice-add 'recentf-load-file :around #'scs/recentf-load-file--safe)
+  (advice-add 'recentf-load-list :around #'scs/recentf-load-list--safe)
   (add-to-list 'recentf-exclude
                (recentf-expand-file-name no-littering-var-directory))
   (add-to-list 'recentf-exclude

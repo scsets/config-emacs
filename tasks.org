@@ -15,7 +15,7 @@ See =plan.org= for rationale and proposed keybindings.
 - [ ] Consolidate ~avy~ (~H-j~ vs ~C-c j~)
 - [ ] Bind ~howm-rename-to-slug~ when slug rename is trusted
 - [ ] Configure ~minions~ or remove if unused
-- [ ] Decide on full Magit vs ~vc~ + ~diff-hl~ (~magit-section~ via org-node)
+- [ ] Decide on full Magit vs ~vc~ + ~diff-hl~
 - [ ] Platform smoke test on FreeBSD and SmartOS CLI
 
 ** Lower priority
@@ -117,9 +117,9 @@ CLOSED: [2026-03-07 Sat]
 Added ~scs--howm-maybe-rename~ hook on save. Prompts before renaming.
 Changed howm directory from ~/note to ~/notes.
 
-* DONE Add howm/org-node integration
+* DONE Add howm/org-id integration
 CLOSED: [2026-03-07 Sat]
-Enhanced howm with org-node hooks, better template, no-littering paths.
+Enhanced howm with Org IDs, better template, no-littering paths.
 Switched Emacs server from TCP to Unix sockets; added separate TCP server for Scrim.
 
 * DONE Optimise startup time (4s -> 0.6s)

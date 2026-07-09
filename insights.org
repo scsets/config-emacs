@@ -435,12 +435,11 @@ forms like ~-nwa ""~ cause argument parsing errors on some builds (the
 parser reads ~""~ as the timeout for ~-a~ instead of the alternate
 editor string).
 
-* org-node for howm notes
+* org-id for howm notes
 
-~org-node~ provides fast, cache-based ID lookup across org files.
-The ~(howm-create . org-node-nodeify-entry)~ hook automatically
-adds an ~:ID:~ property to new howm notes, making them discoverable
-via ~org-id~ and linkable with standard ~[[id:...]]~ links.
+The howm creation hook adds an ~:ID:~ property to new howm notes,
+making them discoverable via ~org-id~ and linkable with standard
+~[[id:...]]~ links.
 
 The ~(org-mode . howm-mode)~ hook enables howm's action-lock minor
 mode in all org buffers, so comefrom links (~<<< keyword~) work
@@ -479,10 +478,9 @@ field separator.
 MELPA is a rolling-release archive — packages get new version
 timestamps on every commit.  The local package archive cache (built
 by ~package-refresh-contents~) stores download URLs with specific
-version strings.  If a transitive dependency (e.g. ~el-job~, pulled
-in by ~org-node~) gets a new release between cache refreshes, the
-cached URL 404s with "Not found", even though the package still
-exists on MELPA.
+version strings.  If a transitive dependency gets a new release
+between cache refreshes, the cached URL 404s with "Not found", even
+though the package still exists on MELPA.
 
 Fix: run ~package-refresh-contents~ (or ~M-x package-refresh-contents~)
 to rebuild the cache, then retry the install.  For init.el resilience,

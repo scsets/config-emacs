@@ -4,7 +4,7 @@
 
 * Overview
 
-Personal Emacs configuration for Emacs 30.x.
+Personal Emacs configuration for Emacs 30.2 and Emacs 31.x.
 
 Uses built-in ~use-package~ for package declarations and el-get for
 package fetching through the local ~:el-get~ keyword. Local el-get
@@ -55,13 +55,36 @@ files are gitignored and must not be committed.
 Emacs ~vc~ is configured for Git and SVN elsewhere in the tree; see
 =init.el= and =changes.org=.
 
+* Generated State
+
+Generated runtime state belongs outside Git:
+
+| Path / pattern          | Owner                  | Notes                         |
+|-------------------------+------------------------+-------------------------------|
+| =var/=                  | no-littering, Org, TRAMP, recentf | Ignored; persistent local state |
+| =eln-cache/=            | native compilation     | Ignored; safe to delete after Emacs/GCC upgrades |
+| =*.elc=                 | byte compilation       | Ignored; source is authoritative |
+| =.org-id-locations=     | legacy Org default     | Ignored; config uses =var/org/id-locations.el= |
+
+~early-init.el~ sets ~load-prefer-newer~ so stale bytecode does not shadow
+newer source if an ignored =~.elc~= file is accidentally left behind.
+
+* Smoke Tests
+
+Useful checks after startup-sensitive edits:
+
+#+begin_src sh
+emacs --debug-init --batch -l init.el --eval "(require 'org)"
+emacs --fg-daemon=scs-config-smoke --debug-init
+#+end_src
+
 * Key Packages
 
 - *Completion:* helm for minibuffer commands, company (with yasnippet) and cape for in-buffer completion
 - *Snippets:* yasnippet with personal templates in =snippets/= (Org, Emacs Lisp, Common Lisp, shared text-mode). Org triggers include ~meta~ (file ~#+title:~ / author / date), ~src~, ~props~, ~hd~; see =insights.org=.
 - *Shell:* eshell, eshell-toggle, eshell-z, eshell-up
 - *Org:* org-mode (el-get builtin), org-contrib (el-get git; org-expiry)
-- *Notes:* howm (=~/notes=, semantic filenames), org-node (ID linking)
+- *Notes:* howm (=~/notes=, semantic filenames), org-id (ID linking)
 - *Lint:* flycheck (with local org-lint workaround in =lisp/=)
 - *Lisp:* slime (LispWorks)
 - *UI:* hl-todo, delight, which-key, minions

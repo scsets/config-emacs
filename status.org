@@ -27,7 +27,7 @@
 | lisp/ libraries    | OK     | scs-org-tools, scs-tramp, org-tools, flycheck workaround |
 | SLIME/SLY paths    | CHECK  | Verify ~/lisp/lispworks/lw-console (tasks)  |
 | howm               | OK     | Org notes in ~/notes; slug rename command   |
-| org-node           | OK     | ID-based linking for howm notes             |
+| org-id             | OK     | ID-based linking for howm notes; locations under =var/= |
 | server (socket)    | OK     | Default server via Unix domain socket       |
 | server (TCP/scrim) | OK     | Second server for Scrim macOS app           |
 | no-littering       | OK     | var/ and etc/ under user-emacs-directory    |
@@ -55,6 +55,11 @@ Tested on Emacs 30.2 / 31.x (emacs-plus@31 on macOS Homebrew).
 | SmartOS  | CLI     | TARGET | Smoke test pending (plan.org)            |
 
 * Last Verified
+
+[2026-07-09 Thu] - Fixed startup timer errors (~recentf-load-list~ advice
+for Emacs 31 and missing close paren in =lisp/scs-org-tools.el=). Moved
+Org ID locations out of the repo root and refreshed stale ID-linking
+documentation.
 
 [2026-07-08 Wed] - Fixed init abort (~set-face-attribute~ frame arg).
 Restored ~C-x C-c~ quit confirmation (~scs/quit-prefix~). Configured

@@ -150,7 +150,7 @@
 
 (defvar org-tools--latex-size-commands
   '("tiny" "scriptsize" "footnotesize" "small" "normalsize"
-    "large" "Large" "huge" "HUGE")
+    "large" "Large" "huge" "Huge")
   "LaTeX size command names accepted as center-line modifiers.")
 
 (defvar org-tools--smallcaps-modifiers '("sc" "smallcaps")
@@ -218,7 +218,7 @@ Return (MODIFIERS TEXT)."
   (let ((mods nil)
         (rest (string-trim content)))
     (while (string-match
-             "\\`\\(sc\\|smallcaps\\|runfont\\|headerfont\\|ag\\|tiny\\|scriptsize\\|footnotesize\\|small\\|normalsize\\|large\\|Large\\|huge\\|HUGE\\|[0-9.]+pt\\)\\s-+\\(.*\\)\\'"
+             "\\`\\(sc\\|smallcaps\\|runfont\\|headerfont\\|ag\\|tiny\\|scriptsize\\|footnotesize\\|small\\|normalsize\\|large\\|Large\\|huge\\|Huge\\|[0-9.]+pt\\)\\s-+\\(.*\\)\\'"
              rest)
       (push (match-string 1 rest) mods)
       (setq rest (match-string 2 rest)))
@@ -502,7 +502,7 @@ Signal `error' on missing binary or non-zero exit."
 ;;;###autoload
 (defun org-tools-prepare-stationery (_backend)
   "Build faded stationery PDF for the current export buffer."
-  (when-let ((faded (org-tools-ensure-stationery-faded)))
+  (when-let* ((faded (org-tools-ensure-stationery-faded)))
     (setq org-tools--stationery-faded-path faded))
   nil)
 
@@ -520,7 +520,7 @@ Signal `error' on missing binary or non-zero exit."
   (interactive)
   (unless (derived-mode-p 'org-mode)
     (user-error "Not in Org mode"))
-  (if-let ((faded (org-tools-ensure-stationery-faded)))
+  (if-let* ((faded (org-tools-ensure-stationery-faded)))
       (message "Faded stationery ready: %s" faded)
     (user-error "Set #+SCS_STATIONERY_FADE: in this file")))
 
@@ -562,7 +562,7 @@ Signal `error' on missing binary or non-zero exit."
 
 (defun org-tools--pdfx-requested-p ()
   "Return non-nil when #+SCS_PDFX: requests PDF/X-1a post-processing."
-  (when-let ((raw (org-tools--stationery-keyword "SCS_PDFX")))
+  (when-let* ((raw (org-tools--stationery-keyword "SCS_PDFX")))
     (not (member (downcase (string-trim raw))
                  org-tools--pdfx-disabled-values))))
 

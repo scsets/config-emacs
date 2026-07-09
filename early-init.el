@@ -86,6 +86,8 @@
 
 (setq warning-minimum-level :emergency)
 (setq byte-compile-warnings '(not free-vars obsolete cl-functions lexical))
+;; Prefer edited source over stale local bytecode when both are present.
+(setq load-prefer-newer t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -8,4 +8,5 @@
 /el-get/
 /.emacs.desktop
 /server/
+/.org-id-locations
 *.elc

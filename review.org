@@ -35,7 +35,7 @@ Files reviewed:
 - [[*B.  init.el — el-get plumbing (lines 142–462)][B. init.el — el-get plumbing]]
 - [[*C.  init.el — general settings (lines 465–710)][C. init.el — general settings]]
 - [[*D.  init.el — howm (lines 1422–1620)][D. init.el — howm]]
-- [[*E.  init.el — recentf, org-node, misc][E. init.el — recentf, org-node, misc]]
+- [[*E.  init.el — recentf, org-id, misc][E. init.el — recentf, org-id, misc]]
 - [[*F.  lisp/scs-org-tools.el][F. lisp/scs-org-tools.el]]
 - [[*G.  lisp/org-tools.el][G. lisp/org-tools.el]]
 - [[*H.  lisp/scs-tramp.el][H. lisp/scs-tramp.el]]
@@ -410,43 +410,37 @@ Recommendation: **optional**.  The current form is already readable; this is
 a style preference.  Apply if you like the data-driven approach (regexes in a
 table, behaviour generated from it).
 
-* E.  init.el — recentf, org-node, misc
+* E.  init.el — recentf, org-id, misc
 
-** E.1  ~scs/recentf-load-file--safe~ — ~cl-case~ over ~condition-case~?   :skip
+** E.1  ~scs/recentf-load-list--safe~ — ~cl-case~ over ~condition-case~?   :skip
 
 The ~condition-case~ form is already the right tool here (you want to catch
 exception *types*, not dispatch on values).  ~cl-case~ would not improve it.
 **Skip.**
 
-** E.2  ~scs/org-node-init~ — ~cl-loop~ + ~cl-destructuring-bind~ over ~mapcar~   :rec:
+** E.2  ~scs/org-id-init~ — ~cl-remove-duplicates~ for generated file list   :rec:
 
-The current ~mapcar~ over ~org-mem-ignore-regions-regexps~ manually rebuilds
-~cons~ cells.  ~cl-loop~ with explicit destructuring is clearer.
+The current howm ID setup builds `org-id-extra-files' from the note tree.
+Prefer ~cl-remove-duplicates~ with an explicit string test over destructive
+~delete-dups~ so the comparison semantics are obvious.
 
 #+begin_src elisp
 ;; BEFORE
-(setq org-mem-ignore-regions-regexps
-      (mapcar (lambda (pair)
-                (if (string-match "begin_src" (car pair))
-                    (cons "^[ \t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc]"
-                          "^[ \t]*#\\+[Ee][Nn][Dd]_[Ss][Rr][Cc]")
-                  pair))
-              org-mem-ignore-regions-regexps))
+(setq org-id-extra-files
+      (delete-dups
+       (append (directory-files-recursively notes "\\.org\\'")
+               (when (listp org-id-extra-files) org-id-extra-files))))
 
 ;; AFTER
-(setq org-mem-ignore-regions-regexps
-      (cl-loop for (begin . _end) in org-mem-ignore-regions-regexps
-               if (string-match-p "begin_src" begin)
-               collect (cons "^[ \t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc]"
-                             "^[ \t]*#\\+[Ee][Nn][Dd]_[Ss][Rr][Cc]")
-               else collect (cons begin _end)))
+(setq org-id-extra-files
+      (cl-remove-duplicates
+       (append (directory-files-recursively notes "\\.org\\'")
+               (when (listp org-id-extra-files) org-id-extra-files))
+       :test #'string=))
 #+end_src
 
-Recommendation: **apply**, with care.  The destructuring ~(begin . _end)~
-makes the intent obvious: "match on the begin-regex, keep the pair, but
-substitute both halves when it's a src block".  Test after applying —
-~org-mem-ignore-regions-regexps~ may contain non-pair entries in some
-versions.
+Recommendation: **applied**.  This keeps the howm note list explicit while
+avoiding destructive duplicate removal.
 
 ** E.3  ~org-babel-sh-strip-weird-long-prompt~ — ~cl-loop~ with ~always~   :maybe
 
@@ -827,7 +821,7 @@ Recommended order if you apply them one at a time (each is independent):
 6. *D.1, D.3* — howm slugify + rename-offer flattening.
 7. *F.2* — ~cl-block~ / ~cl-return~ in scs-org-tools.
 8. *G.1, G.4, G.6* — org-tools cleanups.
-9. *E.2* — org-node ~cl-loop~ (test carefully).
+9. *E.2* — org-id file-list deduplication.
 10. *J.2* — byte-compile sweep.
 
 Optional / cosmetic (apply only if you want the whole config to read the same way):

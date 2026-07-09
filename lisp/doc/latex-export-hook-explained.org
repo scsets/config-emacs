@@ -127,10 +127,9 @@ Some items are optional.
 
 | Token                   | LaTeX effect                     |
 |-------------------------+----------------------------------|
-| =sc=, =smallcaps=       | #ERROR                           |
-| =tiny= … =huge=, =HUGE= | =\tiny= … =\huge=                |
+| =sc=, =smallcaps=       | =\textsc{...}= (via =scs-fontspec.tex=) |
+| =tiny= … =huge=, =Huge= | =\tiny= … =\Huge=                |
 | =10pt=, =12.5pt=, etc.  | =\fontsize{...}{...}\selectfont= |
-#+TBLFM: $2=\textsc{...}= (via =scs-fontspec.tex=)
 
 Examples:
 
