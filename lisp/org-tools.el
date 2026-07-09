@@ -135,6 +135,7 @@
 
 (require 'org)
 (require 'cl-lib)
+(require 'subr-x)
 
 ;;;###autoload
 (defgroup org-tools nil
