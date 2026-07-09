@@ -1369,30 +1369,40 @@ Prompts for confirmation before renaming.  Does nothing if:
 
 ;; https://baty.net/posts/2025/12/finding-howm-notes-with-org-node/
 ;; org-node gives us fast ID-based linking across howm notes.
+(defun scs/org-node-init ()
+  "Build org-id and org-mem caches for `howm-directory' once at startup."
+  (when (file-directory-p howm-directory)
+    (require 'org-id)
+    (let ((notes (expand-file-name howm-directory)))
+      (setq org-mem-watch-dirs (list notes)
+            org-mem-do-look-everywhere nil)
+      ;; org-mem's src-block skip regexes are case-sensitive; accept Org's
+      ;; usual mixed-case #+BEGIN_SRC / #+END_SRC in older notes.
+      (setq org-mem-ignore-regions-regexps
+            (mapcar (lambda (pair)
+                      (if (string-match "begin_src" (car pair))
+                          (cons "^[ \t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc]"
+                                "^[ \t]*#\\+[Ee][Nn][Dd]_[Ss][Rr][Cc]")
+                        pair))
+                    org-mem-ignore-regions-regexps))
+      (setq org-id-extra-files
+            (delete-dups
+             (append (directory-files-recursively notes "\\.org\\'")
+                     (when (listp org-id-extra-files) org-id-extra-files))))
+      (org-id-update-id-locations)
+      (org-node-cache-ensure t t))))
+
 (use-package org-node
   :el-get t
   :after howm
-  :defer t
+  :demand t
   :hook
   ;; New howm notes automatically get an org-id via org-node.
   (howm-create . org-node-nodeify-entry)
   :config
-  (require 'org-id)
-  ;; Include the howm directory in org-id's search scope.
-  (when (file-directory-p howm-directory)
-    (let ((extra-files (cond
-                        ((symbolp org-id-extra-files)
-                         (and (boundp org-id-extra-files)
-                              (symbol-value org-id-extra-files)))
-                        ((listp org-id-extra-files)
-                         org-id-extra-files))))
-      (setq org-id-extra-files
-            (delete-dups
-             (append (directory-files-recursively howm-directory "\\.org\\'")
-                     extra-files)))))
   (org-node-cache-mode 1)
   (org-mem-updater-mode 1)
-  (run-with-idle-timer 1 nil #'org-node-cache-ensure))
+  (add-hook 'emacs-startup-hook #'scs/org-node-init 100))
 
 ;; ----------------------------------------------------------
 ;; imenu-list
