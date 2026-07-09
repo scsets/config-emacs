@@ -1,5 +1,7 @@
 ;;; flycheck-org-lint-workaround.el --- Flycheck org-lint integration fix  -*- lexical-binding: t; -*-
 
+(require 'cl-lib)
+
 (defun scs/flycheck--org-lint-line-cell-p (line)
   "Return non-nil if LINE is an org-lint tabulated-list line cell."
   (and (stringp line)
@@ -7,26 +9,29 @@
 
 (defun scs/flycheck--org-lint-integration-broken-p ()
   "Return non-nil if Flycheck mishandles org-lint report line cells."
-  (and (fboundp 'org-lint)
-       (require 'org nil t)
-       (fboundp 'flycheck-error-new-at)
-       (fboundp 'flycheck-error-line)
-       (with-current-buffer (get-buffer-create " *scs-flycheck-org-lint-test*")
-         (erase-buffer)
-         (org-mode)
-         (insert "#+begin_src\nx\n#+end_src\n")
-         (let* ((entry (car (org-lint)))
-                (line (and entry (aref (cadr entry) 0))))
-           (when (scs/flycheck--org-lint-line-cell-p line)
-             (condition-case _
-                 (progn
-                   (flycheck-line-column-to-position
-                    (flycheck-error-line
-                     (flycheck-error-new-at line nil 'info "test"
-                                            :checker 'org-lint))
-                    1)
-                   nil)
-               (error t)))))))
+  (cl-block test
+    (unless (and (fboundp 'org-lint)
+                 (require 'org nil t)
+                 (fboundp 'flycheck-error-new-at)
+                 (fboundp 'flycheck-error-line))
+      (cl-return-from test nil))
+    (with-current-buffer (get-buffer-create " *scs-flycheck-org-lint-test*")
+      (erase-buffer)
+      (org-mode)
+      (insert "#+begin_src\nx\n#+end_src\n")
+      (let* ((entry (car (org-lint)))
+             (line (and entry (aref (cadr entry) 0))))
+        (unless (scs/flycheck--org-lint-line-cell-p line)
+          (cl-return-from test nil))
+        (condition-case _
+            (progn
+              (flycheck-line-column-to-position
+               (flycheck-error-line
+                (flycheck-error-new-at line nil 'info "test"
+                                       :checker 'org-lint))
+               1)
+              nil)
+          (error t))))))
 
 (defun scs/flycheck-error-new-at--org-lint-advice (orig line &rest args)
   "Use org-lint markers when Flycheck passes propertized line cells."
