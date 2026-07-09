@@ -134,6 +134,14 @@ The DWIM behaviour of this command is as follows:
 (autoload 'my/tramp-reopen "scs-tramp" "Revert remote buffer from host." t)
 (autoload 'scs/tramp-find-file "scs-tramp" "Find file on a known TRAMP host." t)
 (autoload 'scs/tramp-dired "scs-tramp" "Dired on a known TRAMP host." t)
+(autoload 'scs/frame-state-capture "scs-frame-state"
+  "Capture the selected frame's geometry." t)
+(autoload 'scs/frame-state-save "scs-frame-state"
+  "Capture and save the selected frame's geometry." t)
+(autoload 'scs/frame-state-load "scs-frame-state"
+  "Load and inspect saved frame geometry." t)
+(autoload 'scs/frame-state-restore "scs-frame-state"
+  "Restore the selected frame's saved geometry." t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1875,9 +1883,13 @@ With prefix arg, treat the pattern as a fixed string."
   ;;  (recentf-save-file (user-data "recentf"))
   :preface
   (defun scs/recentf-load-list--safe (orig &rest args)
-    "Recover quietly when `recentf-save-file' is truncated mid-write."
+    "Load `recentf-save-file' quietly, recovering from truncated state."
     (condition-case err
-        (apply orig args)
+        ;; Emacs 31's `recentf-load-list' uses `load-file', which always
+        ;; announces "Loading ...recentf-save.el...done".  Suppress only that
+        ;; normal load chatter; keep the explicit recovery messages below.
+        (let ((inhibit-message t))
+          (apply orig args))
       (end-of-file
        (message "recentf: save file truncated; starting with empty list")
        (setq recentf-list nil

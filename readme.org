@@ -41,7 +41,62 @@ pollute the config.
 | Library                          | Loaded from   | Purpose                          |
 |----------------------------------+---------------+----------------------------------|
 | =scs-org-tools.el=               | ~org~ hook; Hyper prefix autoload | Org helpers; ~scs/org-insert-creation-date~ sets lowercase ~:creation-date:~ (ISO date) on the current headline |
+| =scs-frame-state.el=             | autoload      | Minimal frame geometry helper; saves/restores ~left~, ~top~, ~pixel-width~, ~pixel-height~, and ~fullscreen~ |
 | =flycheck-org-lint-workaround.el= | ~flycheck~ block | Advice around broken Flycheck/org-lint line-cell handling; auto-enabled by ~scs/flycheck-setup-org-lint-workaround~ |
+
+** Frame Geometry Save/Restore
+
+To save the selected frame's geometry under a label so it can be restored
+after an Emacs restart or machine reboot:
+
+#+begin_example
+M-x scs/frame-state-save
+#+end_example
+
+The command prompts for a label and defaults to the current pixel
+geometry, e.g. =1440x900+0+25=.  All saved geometries are written to the
+same readable file, =var/frame-state.el=, as an alist of labeled entries:
+
+#+begin_src emacs-lisp
+(("1440x900+0+25"
+  (left . 0)
+  (top . 25)
+  (pixel-width . 1440)
+  (pixel-height . 900)
+  (fullscreen))
+ ("1200x800+80+40"
+  (left . 80)
+  (top . 40)
+  (pixel-width . 1200)
+  (pixel-height . 800)
+  (fullscreen)))
+#+end_src
+
+Each entry contains only ~left~, ~top~, ~pixel-width~, ~pixel-height~,
+and ~fullscreen~.  Saving with an existing label replaces that label's
+geometry.
+
+After rebooting and starting Emacs again, restore the selected frame by
+choosing a saved label with completion:
+
+#+begin_example
+M-x scs/frame-state-restore
+#+end_example
+
+The Lisp API is:
+
+#+begin_src emacs-lisp
+(setq state (scs/frame-state-capture)) ; in-memory geometry
+(scs/frame-state-restore state)        ; apply immediately
+
+(scs/frame-state-save "wide-left")     ; persist under a label
+(scs/frame-state-load "wide-left")     ; load one saved geometry
+(scs/frame-state-restore)              ; choose and apply later
+#+end_src
+
+Use a prefix argument with ~scs/frame-state-save~,
+~scs/frame-state-load~, or ~scs/frame-state-restore~ to choose a
+non-default file.
 
 See =insights.org= for property-drawer behaviour, the ~H-c~ Hyper prefix,
 and the Karabiner + ~key-translation-map~ workaround for macOS Fn+C /
@@ -62,6 +117,7 @@ Generated runtime state belongs outside Git:
 | Path / pattern          | Owner                  | Notes                         |
 |-------------------------+------------------------+-------------------------------|
 | =var/=                  | no-littering, Org, TRAMP, recentf | Ignored; persistent local state |
+| =var/frame-state.el=    | =scs-frame-state.el= | Ignored; saved frame geometry for reboot-safe restore |
 | =eln-cache/=            | native compilation     | Ignored; safe to delete after Emacs/GCC upgrades |
 | =*.elc=                 | byte compilation       | Ignored; source is authoritative |
 | =.org-id-locations=     | legacy Org default     | Ignored; config uses =var/org/id-locations.el= |
