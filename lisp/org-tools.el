@@ -479,16 +479,16 @@ Signal `error' on missing binary or non-zero exit."
 
 (defun org-tools-ensure-stationery-faded ()
   "Ensure faded stationery for the current buffer exists; return its path."
-  (when-let ((percent (org-tools--stationery-fade-percent)))
-    (let* ((source (org-tools--stationery-source-path))
-           (faded (org-tools--stationery-faded-path-for source percent)))
-      (unless (file-readable-p source)
-        (user-error "Stationery source not found: %s" source))
-      (when (org-tools--stationery-needs-regenerate-p source faded)
-        (message "org-tools: regenerating faded stationery (%d%%) → %s"
-                 percent faded)
-        (org-tools--regenerate-stationery-faded source faded percent))
-      faded)))
+  (when-let* ((percent (org-tools--stationery-fade-percent))
+              (source (org-tools--stationery-source-path))
+              (faded (org-tools--stationery-faded-path-for source percent)))
+    (unless (file-readable-p source)
+      (user-error "Stationery source not found: %s" source))
+    (when (org-tools--stationery-needs-regenerate-p source faded)
+      (message "org-tools: regenerating faded stationery (%d%%) → %s"
+               percent faded)
+      (org-tools--regenerate-stationery-faded source faded percent))
+    faded))
 
 (defun org-tools--substitute-stationery-in-string (contents path)
   "Return CONTENTS with stationery placeholder replaced by PATH."
