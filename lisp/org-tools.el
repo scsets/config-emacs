@@ -203,7 +203,7 @@ Your Org file must define this command, e.g. in #+LATEX_HEADER."
                (end-re (format "^#\\+\\(?:end\\|END\\)_%s" (regexp-quote kind))))
           (when (re-search-forward end-re nil t)
             (push (cons start (line-end-position)) regions)))))
-    (sort regions (lambda (a b) (< (car a) (car b))))))
+    (cl-sort regions #'< :key #'car)))
 
 (defun org-tools--in-protected-region-p (pos regions)
   "Return non-nil if POS lies inside any region in REGIONS."
