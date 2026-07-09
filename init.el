@@ -1883,22 +1883,32 @@ With prefix arg, treat the pattern as a fixed string."
   (recentf-max-saved-items 2000)
   ;;  (recentf-save-file (user-data "recentf"))
   :preface
+  (defun scs/recentf-load-file--safe (orig &rest args)
+    "Recover quietly when `recentf-save-file' is truncated mid-write."
+    (condition-case err
+        (apply orig args)
+      (end-of-file
+       (message "recentf: save file truncated; starting with empty list")
+       (setq recentf-list nil))
+      (error
+       (message "recentf: could not load save file (%s)"
+                (error-message-string err))
+       (setq recentf-list nil))))
   (defun recentf-add-dired-directory ()
-    "Add directories visit by dired into recentf."
-    (if (and dired-directory
-             (file-directory-p dired-directory)
-             (not (string= "/" dired-directory)))
-        (let ((last-idx (1- (length dired-directory))))
-          (recentf-add-file
-           (if (= ?/ (aref dired-directory last-idx))
-               (substring dired-directory 0 last-idx)
-             dired-directory)))))
+    "Add directories visited by dired into recentf."
+    (when (and dired-directory
+               (file-directory-p dired-directory)
+               (not (string= "/" dired-directory)))
+      (recentf-add-file (string-trim-right dired-directory "/"))))
   :hook (dired-mode . recentf-add-dired-directory)
   :config
+  (advice-add 'recentf-load-file :around #'scs/recentf-load-file--safe)
   (add-to-list 'recentf-exclude
                (recentf-expand-file-name no-littering-var-directory))
   (add-to-list 'recentf-exclude
                (recentf-expand-file-name no-littering-etc-directory))
+  (add-to-list 'recentf-exclude "/private/var/folders/")
+  (add-to-list 'recentf-exclude (regexp-quote temporary-file-directory))
   (recentf-mode 1))
 
 ;; ----------------------------------------------------------
