@@ -1629,12 +1629,11 @@ With prefix arg, treat the pattern as a fixed string."
       ;; org-mem's src-block skip regexes are case-sensitive; accept Org's
       ;; usual mixed-case #+BEGIN_SRC / #+END_SRC in older notes.
       (setq org-mem-ignore-regions-regexps
-            (mapcar (lambda (pair)
-                      (if (string-match "begin_src" (car pair))
-                          (cons "^[ \t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc]"
-                                "^[ \t]*#\\+[Ee][Nn][Dd]_[Ss][Rr][Cc]")
-                        pair))
-                    org-mem-ignore-regions-regexps))
+            (cl-loop for (begin . _end) in org-mem-ignore-regions-regexps
+                     if (string-match-p "begin_src" begin)
+                     collect (cons "^[ \t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc]"
+                                   "^[ \t]*#\\+[Ee][Nn][Dd]_[Ss][Rr][Cc]")
+                     else collect (cons begin _end)))
       (setq org-id-extra-files
             (delete-dups
              (append (directory-files-recursively notes "\\.org\\'")
