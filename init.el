@@ -8,6 +8,8 @@
 ;;
 ;;; Code:
 
+(require 'cl-lib)
+(require 'subr-x)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Custom functions
