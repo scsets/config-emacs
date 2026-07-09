@@ -637,19 +637,35 @@ Side effects: may install packages while byte-compiling."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (blink-cursor-mode -1)
-(desktop-save-mode t)
 (with-eval-after-load 'desktop
+  (defun scs/desktop-clear-stale-lock ()
+    "Remove a stale `.emacs.desktop.lock' left by a crashed session."
+    (when-let* ((_dir (and (boundp 'desktop-dirname) (stringp desktop-dirname)))
+                (lock (expand-file-name ".emacs.desktop.lock" desktop-dirname))
+                (_ (file-readable-p lock)))
+      (let ((pid (ignore-errors
+                   (string-to-number
+                    (string-trim (with-temp-buffer
+                                   (insert-file-contents lock)
+                                   (buffer-string)))))))
+        (when (or (not (natnump pid))
+                  (not (zerop
+                        (call-process "kill" nil nil nil "-0"
+                                      (number-to-string pid)))))
+          (delete-file lock)))))
+  (scs/desktop-clear-stale-lock)
   (defun scs/desktop-sanitize-before-save ()
     "Repair buffer state that breaks `desktop-buffer-info' during desktop save.
 
 EWW buffers with a nil `eww-history-position' make desktop save signal
 `wrong-type-argument' (integerp nil) when quitting Emacs."
-    (dolist (buf (buffer-list))
-      (when (eq (buffer-local-value 'major-mode buf) 'eww-mode)
-        (with-current-buffer buf
-          (unless (natnump eww-history-position)
-            (setq eww-history-position 0))))))
+    (cl-loop for buf in (buffer-list)
+             when (eq (buffer-local-value 'major-mode buf) 'eww-mode)
+             do (with-current-buffer buf
+                  (unless (natnump eww-history-position)
+                    (setq eww-history-position 0)))))
   (add-hook 'desktop-save-hook #'scs/desktop-sanitize-before-save))
+(desktop-save-mode t)
 (size-indication-mode t)
 (load-theme 'tango-dark t)
 
