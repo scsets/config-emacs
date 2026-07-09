@@ -355,19 +355,18 @@ definitions.  When el-get itself is absent from `.status.el', the
 cached recipe is nil and `el-get-package-method' treats nil as a
 symbol, calls `el-get-package-def', and fails with \"recipe for
 package \\\"nil\\\"\"."
-  (let ((sync
-         (lambda (package)
-           (let* ((declared (el-get-package-def package))
-                  (cached (el-get-read-package-status-recipe package))
-                  (cached-type (and cached (el-get-package-method cached)))
-                  (declared-type (and declared (el-get-package-method declared))))
-             (when (or (not cached)
-                       (not (eq cached-type declared-type)))
-               (el-get-save-package-status package "installed" declared))))))
+  (cl-labels ((sync (package)
+                 (let* ((declared (el-get-package-def package))
+                        (cached (el-get-read-package-status-recipe package))
+                        (cached-type (and cached (el-get-package-method cached)))
+                        (declared-type (and declared (el-get-package-method declared))))
+                   (when (or (not cached)
+                             (not (eq cached-type declared-type)))
+                     (el-get-save-package-status package "installed" declared)))))
     (when (file-directory-p (expand-file-name "el-get" el-get-dir))
-      (funcall sync "el-get"))
+      (sync "el-get"))
     (when (el-get-read-package-status-recipe "cl-lib")
-      (funcall sync "cl-lib"))))
+      (sync "cl-lib"))))
 
 (scs/el-get-sync-status-recipes)
 
