@@ -86,7 +86,10 @@
 
 (setq warning-minimum-level :emergency)
 (setq byte-compile-warnings '(not free-vars obsolete cl-functions lexical))
-;; Prefer edited source over stale local bytecode when both are present.
+;; Set this early so every subsequent `load' during startup prefers edited
+;; source over stale local bytecode when both are present.  This matters after
+;; changing files under lisp/: an old ignored .elc should never shadow a fixed
+;; .el during init.
 (setq load-prefer-newer t)
 
 
