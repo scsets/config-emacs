@@ -432,21 +432,23 @@ Return (MODIFIERS TEXT)."
   (or (not (file-readable-p faded))
       (file-newer-than-file-p source faded)))
 
-(defun org-tools--stationery-run (program args)
-  "Run PROGRAM with ARGS via `call-process'.  Signal `error' on failure."
+(defun org-tools--run-process (program args &optional output-buffer)
+  "Run PROGRAM with ARGS, optionally capturing to OUTPUT-BUFFER.
+Signal `error' on missing binary or non-zero exit."
   (unless (executable-find program)
     (error "Program %s not found on PATH" program))
-  (let ((exit (apply #'call-process program nil (list t) nil args)))
+  (let ((exit (apply #'call-process program nil
+                     (and output-buffer (list output-buffer)) nil args)))
     (unless (and (numberp exit) (zerop exit))
       (error "%s failed (%s)" program exit))))
 
+(defun org-tools--stationery-run (program args)
+  "Run PROGRAM with ARGS, capturing stdout into the current buffer."
+  (org-tools--run-process program args t))
+
 (defun org-tools--run-silent (program args)
-  "Run PROGRAM with ARGS; discard stdout, signal `error' on failure."
-  (unless (executable-find program)
-    (error "Program %s not found on PATH" program))
-  (let ((exit (apply #'call-process program nil nil nil args)))
-    (unless (and (numberp exit) (zerop exit))
-      (error "%s failed (%s)" program exit))))
+  "Run PROGRAM with ARGS, discarding stdout."
+  (org-tools--run-process program args nil))
 
 (defun org-tools--regenerate-stationery-faded (source faded percent)
   "Build FADED from SOURCE at PERCENT % colour strength."
