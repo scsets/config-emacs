@@ -406,10 +406,10 @@ Return (MODIFIERS TEXT)."
 
 (defun org-tools--stationery-fade-percent ()
   "Return colour strength 1–100 from #+SCS_STATIONERY_FADE:, or nil."
-  (when-let ((raw (org-tools--stationery-keyword "SCS_STATIONERY_FADE")))
-    (let ((n (string-to-number (string-trim raw))))
-      (when (and (numberp n) (> n 0) (<= n 100))
-        n))))
+  (when-let* ((raw (org-tools--stationery-keyword "SCS_STATIONERY_FADE"))
+              (n (string-to-number (string-trim raw)))
+              (_ (and (numberp n) (> n 0) (<= n 100))))
+    n))
 
 (defun org-tools--stationery-source-path ()
   "Return expanded source stationery PDF path."
