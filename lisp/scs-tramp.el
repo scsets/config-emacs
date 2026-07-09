@@ -23,6 +23,7 @@
 ;;; Code:
 
 (require 'tramp)
+(require 'cl-lib)
 
 (defconst scs/tramp-hosts
   '("fido" "dasfrp" "ganafrp" "ckg1" "ckg2")
@@ -65,10 +66,10 @@
    'remote-bsd-process
    '((insert-directory-program . "gls")))
 
-  (dolist (host scs/tramp-freebsd-hosts)
-    (connection-local-set-profiles
-     `(:application tramp :machine ,host)
-     'remote-bsd-process)))
+  (cl-loop for host in scs/tramp-freebsd-hosts
+           do (connection-local-set-profiles
+               `(:application tramp :machine ,host)
+               'remote-bsd-process)))
 
 (defun scs/tramp--configure-no-trace ()
   "Keep TRAMP side effects on remote hosts and in $HOME to a minimum."
