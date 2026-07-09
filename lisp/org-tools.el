@@ -240,23 +240,26 @@ Return (MODIFIERS TEXT)."
 
 (defun org-tools--apply-latex-styles (text modifiers)
   "Wrap TEXT with LaTeX size/sc commands from MODIFIERS."
-  (let ((result text))
-    (when (org-tools--smallcaps-p modifiers)
-      (setq result (format "\\textsc{%s}" result)))
-    (dolist (mod modifiers)
-      (unless (or (member mod org-tools--smallcaps-modifiers)
-                  (member mod org-tools--header-font-modifiers))
-        (setq result
-              (cond
-               ((member mod org-tools--latex-size-commands)
-                (format "{\\%s %s}" mod result))
-               ((string-match "\\`[0-9.]+pt\\'" mod)
-                (format "{\\fontsize{%s}{%s}\\selectfont %s}"
-                        mod (org-tools--latex-baseline-skip mod) result))
-               (t result)))))
-    (when (org-tools--header-font-p modifiers)
-      (setq result (format "%s%s" org-tools-latex-header-font-command result)))
-    result))
+  (let ((wrapped
+         (cl-reduce
+          (lambda (acc mod)
+            (cond
+             ((member mod org-tools--latex-size-commands)
+              (format "{\\%s %s}" mod acc))
+             ((string-match-p "\\`[0-9.]+pt\\'" mod)
+              (format "{\\fontsize{%s}{%s}\\selectfont %s}"
+                      mod (org-tools--latex-baseline-skip mod) acc))
+             (t acc)))
+          (cl-remove-if (lambda (m)
+                          (or (member m org-tools--smallcaps-modifiers)
+                              (member m org-tools--header-font-modifiers)))
+                        modifiers)
+          :initial-value (if (org-tools--smallcaps-p modifiers)
+                             (format "\\textsc{%s}" text)
+                           text))))
+    (if (org-tools--header-font-p modifiers)
+        (format "%s%s" org-tools-latex-header-font-command wrapped)
+      wrapped)))
 
 (defun org-tools--center-line->org (raw-line backend)
   "Turn a single !-prefixed RAW-LINE into Org markup for BACKEND."
