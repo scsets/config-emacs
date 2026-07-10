@@ -1,10 +1,11 @@
-;;; init.el --- Personal configuration  -*- lexical-binding: t; -*-
+;;; init.el --- Personal configuration  -*- lexical-binding: t; no-byte-compile: t; -*-
 ;;
 ;; $Id: init.el,v 1.19 2026/03/23 08:27:13 scs Exp $
 ;;
 ;;; Commentary:
 ;;  Main Emacs configuration.  Requires Emacs 29+.
 ;;  Reusable Elisp libraries live in lisp/ (see readme.org).
+;;  fix: 2026-07-10 — no-byte-compile cookie; source is authoritative
 ;;
 ;;; Code:
 
@@ -17,10 +18,12 @@
 
 ;; https://emacs.stackexchange.com/a/28927
 ;; Call this anywhere to end loading init file, good to debug.
-(defun my-exit ()
+;; fix: 2026-07-10 — rename my-exit → scs/exit-loading
+(defun scs/exit-loading ()
   "Abort loading the current file by jumping to its end."
   (with-current-buffer " *load*"
     (goto-char (point-max))))
+(defalias 'my-exit #'scs/exit-loading)
 
 (defun scs/reapply-early-init-runtime ()
   "Re-apply early-init.el settings that can change mid-session.
@@ -109,20 +112,23 @@ The DWIM behaviour of this command is as follows:
     (keyboard-quit))))
 
 ;; https://baty.net/posts/2026/02/global-org-capture-shortcut-in-kde/
-(defun my/org-capture-finalize-hook ()
+;; fix: 2026-07-10 — rename my/org-capture-finalize-hook → scs/
+(defun scs/org-capture-finalize-hook ()
   "Close frame after org-capture if it was opened for capture."
   (when (and (> (length (frame-list)) 1)  ; More than one frame
              (frame-parameter nil 'client)) ; Frame created by emacsclient
     (delete-frame)))
 
-(add-hook 'org-capture-after-finalize-hook 'my/org-capture-finalize-hook)
+(add-hook 'org-capture-after-finalize-hook #'scs/org-capture-finalize-hook)
 
-(defun my/switch-to-scratch-buffer (f)
-  "Switch to the *scratch* buffer in newly created frame F."
-  (with-selected-frame f
+;; fix: 2026-07-10 — rename; docstring matched *scratch* but opened Remember
+(defun scs/switch-to-remember-notes (frame)
+  "Open the Remember notes buffer in newly created FRAME.
+Intentionally not *scratch*; new frames land on persistent notes."
+  (with-selected-frame frame
     (remember-notes t)))
 
-(add-hook 'after-make-frame-functions #'my/switch-to-scratch-buffer)
+(add-hook 'after-make-frame-functions #'scs/switch-to-remember-notes)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -130,8 +136,9 @@ The DWIM behaviour of this command is as follows:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
-(autoload 'my/tramp-cleanup "scs-tramp" "Clean up TRAMP connections." t)
-(autoload 'my/tramp-reopen "scs-tramp" "Revert remote buffer from host." t)
+;; fix: 2026-07-10 — autoload scs/tramp-* (was my/tramp-*)
+(autoload 'scs/tramp-cleanup "scs-tramp" "Clean up TRAMP connections." t)
+(autoload 'scs/tramp-reopen "scs-tramp" "Revert remote buffer from host." t)
 (autoload 'scs/tramp-find-file "scs-tramp" "Find file on a known TRAMP host." t)
 (autoload 'scs/tramp-dired "scs-tramp" "Dired on a known TRAMP host." t)
 (autoload 'scs/frame-state-capture "scs-frame-state"
@@ -363,6 +370,38 @@ package \\\"nil\\\"\"."
 
 (scs/el-get-sync-status-recipes)
 
+;; add: 2026-07-10
+(defun scs/el-get-report ()
+  "Report installed el-get packages with source URL and revision."
+  (interactive)
+  (require 'el-get)
+  (with-current-buffer (get-buffer-create "*scs el-get report*")
+    (let ((inhibit-read-only t))
+      (erase-buffer)
+      (insert (format "# el-get report %s\n\n" (format-time-string "%F %T")))
+      (dolist (pkg (sort (el-get-list-package-names-with-status "installed")
+                         #'string<))
+        (let* ((def (ignore-errors (el-get-package-def pkg)))
+               (type (and def (el-get-package-method def)))
+               (url (or (and def (plist-get def :url))
+                        (and def (plist-get def :pkgname)
+                             (format "github:%s" (plist-get def :pkgname)))
+                        ""))
+               (dir (el-get-package-directory pkg))
+               (rev (when (and dir (file-directory-p (expand-file-name ".git" dir)))
+                      (string-trim
+                       (shell-command-to-string
+                        (format "git -C %s rev-parse --short HEAD"
+                                (shell-quote-argument dir)))))))
+          (insert (format "%-20s  %-10s  %-40s  %s\n"
+                          pkg
+                          (or type "?")
+                          (if (string-empty-p url) "-" url)
+                          (or rev "-"))))))
+    (goto-char (point-min))
+    (view-mode 1)
+    (display-buffer (current-buffer))))
+
 ;; Register load-paths and autoloads for installed packages once,
 ;; without requiring their features.  Per-package :el-get sync below
 ;; only runs for packages that are not yet installed.
@@ -519,8 +558,17 @@ Side effects: may install packages while byte-compiling."
 ;; ----------------------------------------------------------
 
 ;; Ensure that files end with a new line and contain no trailing whitespace
+;; on owned local text.  Skip remote, huge, and patch-like buffers.
 (setq require-final-newline t)
-(add-hook 'before-save-hook #'delete-trailing-whitespace)
+;; fix: 2026-07-10 — predicate instead of global delete-trailing-whitespace
+(defun scs/delete-trailing-whitespace-maybe ()
+  "Delete trailing whitespace unless the buffer should be left alone."
+  (unless (or (and buffer-file-name (file-remote-p buffer-file-name))
+              (> (buffer-size) (* 1024 1024))
+              (derived-mode-p 'diff-mode 'change-log-mode 'comint-mode)
+              (and (boundp 'git-commit-mode) git-commit-mode))
+    (delete-trailing-whitespace)))
+(add-hook 'before-save-hook #'scs/delete-trailing-whitespace-maybe)
 
 ;; ----------------------------------------------------------
 ;; Show-paren, indent tabs, sentence double-space
@@ -625,7 +673,10 @@ Side effects: may install packages while byte-compiling."
 ;; Custom file
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Redirect customize output so it never pollutes init.el
+;; Configuration-as-code: Customize must not write into the Git tree.
+;; The target under temporary-file-directory is intentionally disposable
+;; and is never loaded — copy any wanted values into init.el / lisp/.
+;; fix: 2026-07-10 — document non-persistence (behaviour unchanged)
 (setq custom-file (expand-file-name "custom.el" temporary-file-directory))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1246,6 +1297,21 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
                when (file-exists-p line)
                collect (expand-file-name line))))
 
+  ;; add: 2026-07-10
+  (defun scs/helm-fuzzy-fd--notes-root-p (directory)
+    "Return non-nil when DIRECTORY is the howm/notes tree (safe to sync-index)."
+    (let ((dir (file-name-as-directory (expand-file-name directory)))
+          (notes (file-name-as-directory
+                  (expand-file-name
+                   (or (and (boundp 'howm-directory) howm-directory)
+                       "~/notes")))))
+      (string= dir notes)))
+
+  ;; add: 2026-07-10
+  (defun scs/helm-fuzzy-fd--invalidate (directory)
+    "Drop the fuzzy fd cache entry for DIRECTORY, if any."
+    (remhash (expand-file-name directory) scs/helm-fuzzy-fd--cache))
+
   (defun scs/helm-fuzzy-fd--populate-cache-sync (directory)
     "Synchronously populate and return the fuzzy fd cache for DIRECTORY."
     (unless (gethash directory scs/helm-fuzzy-fd--cache)
@@ -1324,7 +1390,7 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
         (user-error "Directory too broad for fuzzy fd (%s); cd into a subdir first"
                     directory))
       (when helm-current-prefix-arg
-        (remhash directory scs/helm-fuzzy-fd--cache))
+        (scs/helm-fuzzy-fd--invalidate directory))
       (scs/helm-fuzzy-fd--populate-cache-sync directory)
       (scs/helm-rebuild-fd-fuzzy-source directory)
       (let ((default-directory directory))
@@ -1375,8 +1441,10 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
            #'scs/helm-multi-files-enable-fd)))))
   (put 'scs/helm-multi-files-toggle-fd 'helm-only t)
 
-  ;; Fd fuzzy is included up front (indexed under ~/notes by default).  C-/ toggles
-  ;; it off/on.  C-u uses `default-directory' and refreshes the fd cache.
+  ;; Notes root: sync index (measured ~10ms).  Other roots: open Helm
+  ;; immediately and attach fd when the async index finishes.  C-/ toggles
+  ;; fd off/on.  C-u uses `default-directory' and refreshes the fd cache.
+  ;; fix: 2026-07-10 — async cold-cache for non-notes roots
   (defun scs/helm-multi-files (&optional arg)
     "Like `helm-multi-files' with fuzzy fd (HFF `C-/') under notes by default."
     (interactive "P")
@@ -1387,14 +1455,20 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
             (helm-make-source "Buffers" 'helm-source-buffers)))
     (setq scs/helm-multi-files--fd-root (scs/helm-multi-files-fd-root arg)
           scs/helm-multi-files--fd-on nil)
-    (when arg (remhash scs/helm-multi-files--fd-root scs/helm-fuzzy-fd--cache))
-    (let* ((sources (remove 'helm-source-locate helm-for-files-preferred-list))
+    (when arg (scs/helm-fuzzy-fd--invalidate scs/helm-multi-files--fd-root))
+    (let* ((root scs/helm-multi-files--fd-root)
+           (safe (not (scs/helm-fd-root-unsafe-p root)))
+           (cached (and safe (gethash root scs/helm-fuzzy-fd--cache)))
+           (sync-ok (and safe (or cached (scs/helm-fuzzy-fd--notes-root-p root))))
+           (sources (remove 'helm-source-locate helm-for-files-preferred-list))
            (old-key (lookup-key helm-map (kbd "C-/"))))
-      (when (not (scs/helm-fd-root-unsafe-p scs/helm-multi-files--fd-root))
-        (scs/helm-fuzzy-fd--populate-cache-sync scs/helm-multi-files--fd-root)
-        (scs/helm-rebuild-fd-fuzzy-source scs/helm-multi-files--fd-root)
+      (when (and safe sync-ok)
+        (scs/helm-fuzzy-fd--populate-cache-sync root)
+        (scs/helm-rebuild-fd-fuzzy-source root)
         (setq sources (append sources '(scs/helm-source-fd-fuzzy))
               scs/helm-multi-files--fd-on t))
+      (when (and safe (not sync-ok))
+        (scs/helm-fuzzy-fd--index-async root #'scs/helm-multi-files-enable-fd))
       (unwind-protect
           (progn
             (define-key helm-map (kbd "C-/") #'scs/helm-multi-files-toggle-fd)
@@ -1476,6 +1550,15 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
   (setq howm-keyword-file (no-littering-expand-var-file-name "howm/keys"))
   (setq howm-history-file (no-littering-expand-var-file-name "howm/history"))
 
+  ;; add: 2026-07-10 — scope howm to notes tree (was all org-mode buffers)
+  (defun scs/howm-enable-in-notes ()
+    "Turn on `howm-mode' for Org files under `howm-directory'."
+    (when (and buffer-file-name
+               (boundp 'howm-directory)
+               (file-directory-p howm-directory)
+               (file-in-directory-p buffer-file-name howm-directory))
+      (howm-mode 1)))
+
   :bind
   ("<f9>" . howm-list-all)
   ("<C-f9>" . howm-create)
@@ -1483,8 +1566,8 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
   :hook
   ;; Set buffer names from note title.
   (howm-mode . howm-mode-set-buffer-name)
-  ;; Enable howm minor mode in all org buffers for comefrom links.
-  (org-mode . howm-mode)
+  ;; Enable howm only for Org files under the notes directory (not every Org buffer).
+  (org-mode . scs/howm-enable-in-notes)
 
   :config
   ;; Sort by mtime so recently-touched notes appear first.
@@ -1558,6 +1641,10 @@ Default suggestion comes from #TITLE:/#+TITLE:, else the first * heading."
           (user-error "Target file already exists: %s" basename))
         (rename-file buffer-file-name new-path)
         (set-visited-file-name new-path t t)
+        ;; add: 2026-07-10 — keep org-id + fd cache in sync after rename
+        (scs/org-id-update-current-file)
+        (when (fboundp 'scs/helm-fuzzy-fd--invalidate)
+          (scs/helm-fuzzy-fd--invalidate howm-directory))
         (message "Renamed to %s" basename))))
 
   (defalias 'howm-rename-to-slug #'scs/howm-rename-note)
@@ -1630,23 +1717,124 @@ With prefix arg, treat the pattern as a fixed string."
   "Add an Org ID to the current howm note heading."
   (org-id-get-create))
 
-(defun scs/org-id-init ()
-  "Build org-id locations for `howm-directory' once at startup."
+;; add: 2026-07-10
+(defun scs/org-id--notes-files ()
+  "Return Org files under `howm-directory', or nil."
   (when (and (boundp 'howm-directory)
              (file-directory-p howm-directory))
-    (require 'org-id)
-    (setq org-id-locations-file
-          (no-littering-expand-var-file-name "org/id-locations.el"))
-    (let ((notes (expand-file-name howm-directory)))
+    (directory-files-recursively (expand-file-name howm-directory)
+                                 "\\.org\\'")))
+
+;; add: 2026-07-10
+(defun scs/org-id--configure-locations-file ()
+  "Point `org-id-locations-file' at the no-littering var path."
+  (require 'org-id)
+  (setq org-id-locations-file
+        (no-littering-expand-var-file-name "org/id-locations.el")))
+
+;; add: 2026-07-10
+(defun scs/org-id-update-current-file ()
+  "Refresh org-id locations for the current buffer's file only."
+  (when (and buffer-file-name
+             (string-match-p "\\.org\\'" buffer-file-name)
+             (boundp 'howm-directory)
+             (file-directory-p howm-directory)
+             (file-in-directory-p buffer-file-name howm-directory))
+    (scs/org-id--configure-locations-file)
+    (org-id-update-id-locations (list buffer-file-name) t)
+    (when (fboundp 'scs/helm-fuzzy-fd--invalidate)
+      (scs/helm-fuzzy-fd--invalidate howm-directory))))
+
+;; add: 2026-07-10
+(defun scs/org-id-report-duplicates ()
+  "Report duplicate Org IDs under `howm-directory'."
+  (interactive)
+  (scs/org-id--configure-locations-file)
+  (let* ((files (or (scs/org-id--notes-files)
+                    (user-error "howm-directory is not available")))
+         (table (make-hash-table :test #'equal))
+         (dups 0))
+    (dolist (file files)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (org-mode)
+        (org-map-entries
+         (lambda ()
+           (when-let* ((id (org-entry-get (point) "ID")))
+             (push file (gethash id table))))
+         t 'file)))
+    (with-current-buffer (get-buffer-create "*scs org-id duplicates*")
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert (format "# Org ID duplicates under %s\n\n"
+                        (abbreviate-file-name howm-directory)))
+        (maphash
+         (lambda (id files)
+           (setq files (delete-dups files))
+           (when (> (length files) 1)
+             (setq dups (1+ dups))
+             (insert (format "ID %s\n" id))
+             (dolist (f files)
+               (insert (format "  %s\n" (abbreviate-file-name f))))
+             (insert "\n")))
+         table)
+        (goto-char (point-min))
+        (if (zerop dups)
+            (message "No duplicate Org IDs under %s"
+                     (abbreviate-file-name howm-directory))
+          (message "%d duplicate Org ID%s" dups (if (= dups 1) "" "s")))
+        (view-mode 1)
+        (display-buffer (current-buffer))))))
+
+;; add: 2026-07-10
+(defun scs/org-id-rebuild (&optional quiet)
+  "Fully rebuild org-id locations for `howm-directory'.
+With QUIET non-nil, only message the elapsed time."
+  (interactive)
+  (scs/org-id--configure-locations-file)
+  (let* ((files (or (scs/org-id--notes-files)
+                    (user-error "howm-directory is not available")))
+         (t0 (float-time)))
+    (setq org-id-extra-files
+          (cl-remove-duplicates
+           (append files
+                   (when (listp org-id-extra-files) org-id-extra-files))
+           :test #'string=))
+    (org-id-update-id-locations)
+    (let ((elapsed (- (float-time) t0)))
+      (unless quiet
+        (message "org-id rebuild: %d files in %.3fs"
+                 (length files) elapsed))
+      elapsed)))
+
+;; fix: 2026-07-10 — load persisted locations; no full startup rescan
+(defun scs/org-id-init ()
+  "Load persisted org-id locations; do not rescan the whole notes tree.
+Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
+  (when (and (boundp 'howm-directory)
+             (file-directory-p howm-directory))
+    (scs/org-id--configure-locations-file)
+    (let ((files (scs/org-id--notes-files)))
       (setq org-id-extra-files
             (cl-remove-duplicates
-             (append (directory-files-recursively notes "\\.org\\'")
+             (append files
                      (when (listp org-id-extra-files) org-id-extra-files))
-             :test #'string=))
-      (org-id-update-id-locations))))
+             :test #'string=)))
+    (when (file-readable-p org-id-locations-file)
+      (org-id-locations-load))
+    (message "org-id: loaded %s (%s known files)"
+             (abbreviate-file-name org-id-locations-file)
+             (if (hash-table-p org-id-locations)
+                 (hash-table-count org-id-locations)
+               0))))
 
 (add-hook 'howm-create-hook #'scs/howm-add-org-id)
 (add-hook 'emacs-startup-hook #'scs/org-id-init 100)
+;; add: 2026-07-10
+(defun scs/howm-setup-id-on-save ()
+  "Update org-id for this howm note after save; invalidate fd cache."
+  (add-hook 'after-save-hook #'scs/org-id-update-current-file nil t))
+(add-hook 'howm-mode-hook #'scs/howm-setup-id-on-save)
 
 ;; ----------------------------------------------------------
 ;; imenu-list
@@ -1824,7 +2012,10 @@ With prefix arg, treat the pattern as a fixed string."
      ;; (jupyter    . t)
      ))                  ; must be last
 
-  (remove-hook 'kill-emacs-hook 'org-babel-remove-temporary-directory)
+  ;; fix: 2026-07-10 — restore Babel temp-dir cleanup (removed prior remove-hook)
+  ;; Keep Babel temp-dir cleanup on kill-emacs (disk hygiene).  Re-add a
+  ;; documented exception here only if a publishing workflow needs the
+  ;; directories to survive the Emacs session.
 
   (defun org-babel-sh-strip-weird-long-prompt (string)
     "Remove prompt cruft from a string of shell output."
@@ -2034,9 +2225,7 @@ With prefix arg, treat the pattern as a fixed string."
   (setq remote-file-name-inhibit-cache 60)     ;; seconds; nil=forever, t=never
 
   ;; VC exclusion for remote files is set in the vc use-package block below
-
-  ;; Hardcode /tmp to prevent hundreds of shell commands probing temp dir
-  (put 'temporary-file-directory 'standard-value '("/tmp"))
+  ;; fix: 2026-07-10 — removed ineffective (put … 'standard-value '("/tmp"))
 
   ;; ----------------------------------------------------------
   ;; Remote PATH discovery
