@@ -1,10 +1,11 @@
-;;; early-init.el --- Early initialization  -*- lexical-binding: t; -*-
+;;; early-init.el --- Early initialization  -*- lexical-binding: t; no-byte-compile: t; -*-
 ;;
 ;; $Id: early-init.el,v 1.1 2026/03/23 07:36:04 scs Exp $
 ;;
 ;;; Commentary:
 ;;  Startup performance tweaks, UI defaults, and package setup.
 ;;  Loaded before init.el by Emacs 27+.
+;;  fix: 2026-07-10 — no-byte-compile cookie; do not leave early-init.elc around
 ;;
 ;;; Code:
 
@@ -46,40 +47,69 @@
 ;; Warnings and compilation
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(require 'cl-lib)
+
+;; add: 2026-07-10
+(defun scs/brew-executable ()
+  "Return a usable Homebrew `brew' executable, or nil."
+  (or (executable-find "brew")
+      (cl-loop for candidate in '("/opt/homebrew/bin/brew"
+                                  "/usr/local/bin/brew")
+               when (file-executable-p candidate)
+               return candidate)))
+
+;; add: 2026-07-10
+(defun scs/brew-prefix (package &optional brew)
+  "Return Homebrew prefix for PACKAGE using BREW, or nil."
+  (when-let* ((brew (or brew (scs/brew-executable)))
+              (out (string-trim
+                    (shell-command-to-string
+                     (format "%s --prefix %s" brew package)))))
+    (and (file-directory-p out) out)))
+
+;; fix: 2026-07-10 — portable brew; fewer subprocesses
 (defun scs/native-comp-library-paths ()
   "Library dirs Homebrew GCC/libgccjit need for native compilation."
-  (let ((brew "/opt/homebrew/bin/brew")
+  (let ((brew (scs/brew-executable))
         paths)
-    (when (file-exists-p brew)
-      (dolist (pkg '("gcc" "libgccjit"))
-        (let* ((prefix (string-trim (shell-command-to-string
-                                      (format "%s --prefix %s" brew pkg))))
-               (lib-current (expand-file-name "lib/gcc/current" prefix)))
-          (when (file-directory-p lib-current)
-            (push lib-current paths))))
-      (let* ((gcc-prefix (string-trim (shell-command-to-string
-                                         (format "%s --prefix gcc" brew))))
-             (gcc-current (expand-file-name "lib/gcc/current" gcc-prefix))
-             (arch-dirs (file-expand-wildcards
-                          (expand-file-name "gcc/*-apple-darwin*/*"
-                                            gcc-current))))
-        (when arch-dirs
-          (push (expand-file-name (car (sort arch-dirs #'string>)) gcc-current)
-                paths))))
+    (when brew
+      (let ((gcc-prefix (scs/brew-prefix "gcc" brew))
+            (jit-prefix (scs/brew-prefix "libgccjit" brew)))
+        (dolist (prefix (delq nil (list gcc-prefix jit-prefix)))
+          (let ((lib-current (expand-file-name "lib/gcc/current" prefix)))
+            (when (file-directory-p lib-current)
+              (push lib-current paths))))
+        (when gcc-prefix
+          (let* ((gcc-current (expand-file-name "lib/gcc/current" gcc-prefix))
+                 (arch-dirs (file-expand-wildcards
+                             (expand-file-name "gcc/*-apple-darwin*/*"
+                                               gcc-current))))
+            (when arch-dirs
+              (push (expand-file-name (car (sort arch-dirs #'string>))
+                                      gcc-current)
+                    paths))))))
     (delete-dups (nreverse paths))))
 
+;; add: 2026-07-10
+(defun scs/homebrew-gcc-driver (&optional brew)
+  "Return the newest Homebrew GCC driver executable, or nil."
+  (when-let* ((prefix (scs/brew-prefix "gcc" brew))
+              (drivers (file-expand-wildcards
+                        (expand-file-name "bin/gcc-[0-9]*" prefix)))
+              (drivers (cl-remove-if-not #'file-executable-p drivers)))
+    (car (sort drivers #'string>))))
+
+;; fix: 2026-07-10 — dynamic gcc-* instead of hard-coded gcc-16
 (defun scs/setup-macos-native-comp ()
   "Set env vars Emacs needs before libgccjit runs (macOS GUI)."
   (when (eq system-type 'darwin)
-    (let ((paths (scs/native-comp-library-paths)))
+    (let* ((brew (scs/brew-executable))
+           (paths (scs/native-comp-library-paths))
+           (gcc (scs/homebrew-gcc-driver brew)))
       (when paths
         (setenv "LIBRARY_PATH" (mapconcat #'identity paths ":")))
-      (let ((gcc (expand-file-name
-                  "bin/gcc-16"
-                  (string-trim (shell-command-to-string
-                                 "/opt/homebrew/bin/brew --prefix gcc")))))
-        (when (file-exists-p gcc)
-          (setenv "CC" gcc))))))
+      (when gcc
+        (setenv "CC" gcc)))))
 
 ;; Must run before package-native-compile / libgccjit is invoked.
 (scs/setup-macos-native-comp)
