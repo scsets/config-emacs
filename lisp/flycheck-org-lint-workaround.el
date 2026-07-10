@@ -1,6 +1,6 @@
 ;;; flycheck-org-lint-workaround.el --- Flycheck org-lint integration fix  -*- lexical-binding: t; -*-
 
-(require 'cl-lib)
+(require 'scs-cl)
 
 (defun scs/flycheck--org-lint-line-cell-p (line)
   "Return non-nil if LINE is an org-lint tabulated-list line cell."

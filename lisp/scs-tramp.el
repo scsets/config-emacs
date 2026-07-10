@@ -23,7 +23,7 @@
 ;;; Code:
 
 (require 'tramp)
-(require 'cl-lib)
+(require 'scs-cl)
 
 (defconst scs/tramp-hosts
   '("fido" "dasfrp" "ganafrp" "ckg1" "ckg2")

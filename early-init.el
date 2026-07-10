@@ -47,7 +47,9 @@
 ;; Warnings and compilation
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(require 'cl-lib)
+;; Full CL toolkit (cl-lib, cl-macs, cl-seq, cl-extra, …); see lisp/scs-cl.el
+(add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+(require 'scs-cl)
 
 ;; add: 2026-07-10
 (defun scs/brew-executable ()

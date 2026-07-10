@@ -16,7 +16,7 @@
 
 ;;; Code:
 
-(require 'cl-lib)
+(require 'scs-cl)
 (require 'pp)
 
 ;;;###autoload

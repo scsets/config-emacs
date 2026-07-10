@@ -134,7 +134,7 @@
 ;;; Code:
 
 (require 'org)
-(require 'cl-lib)
+(require 'scs-cl)
 (require 'subr-x)
 
 ;;;###autoload

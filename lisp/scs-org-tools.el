@@ -20,7 +20,7 @@
 ;;; Code:
 
 (require 'org)
-(require 'cl-lib)
+(require 'scs-cl)
 
 (defun scs/org--property-drawer-bounds ()
   "Return (START END INDENT) of the property drawer on the current heading, or nil.
@@ -53,19 +53,20 @@ no drawer.
 Locates the drawer with `scs/org--property-drawer-bounds'.  Iteration
 stops at the :end: marker so text beyond the drawer is never touched."
   (let ((bounds (scs/org--property-drawer-bounds)))
-    (cl-cond
-     (bounds
-      (cl-destructuring-bind (start end _indent) bounds
-        (save-restriction
-          (narrow-to-region start end)
-          (goto-char (point-min))
-          (cl-block done
-            (while (not (eobp))
-              (when (looking-at "^\\([ \t]*\\):\\([^:\n]+\\):")
-                (downcase-region (match-beginning 2) (match-end 2))
-                (when (string= (match-string 2) "end")
-                  (cl-return-from done)))
-              (forward-line 1)))))))))
+    ;; cl-case on (null bounds): non-nil bounds => nil => match ((nil) …)
+    (cl-case (null bounds)
+      ((nil)
+       (cl-destructuring-bind (start end _indent) bounds
+         (save-restriction
+           (narrow-to-region start end)
+           (goto-char (point-min))
+           (cl-block done
+             (while (not (eobp))
+               (when (looking-at "^\\([ \t]*\\):\\([^:\n]+\\):")
+                 (downcase-region (match-beginning 2) (match-end 2))
+                 (when (string= (match-string 2) "end")
+                   (cl-return-from done)))
+               (forward-line 1)))))))))
 
 ;;;###autoload
 (defun scs/org-insert-creation-date ()

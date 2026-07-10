@@ -9,7 +9,10 @@
 ;;
 ;;; Code:
 
-(require 'cl-lib)
+;; lisp/ may already be on load-path from early-init; keep this for
+;; batch shapes that load init.el without early-init.el.
+(add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+(require 'scs-cl)
 (require 'subr-x)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
