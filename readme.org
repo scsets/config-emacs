@@ -2,6 +2,11 @@
 #+title: Emacs Configuration
 #+author: scs
 
+* Document role
+
+Installation, normal operation, smoke tests, and day-to-day operator
+commands for this personal Emacs profile.
+
 * Overview
 
 Personal Emacs configuration for Emacs 30.2 and Emacs 31.x.
@@ -22,27 +27,48 @@ below). Byte-compiled =~.elc~= files are gitignored.
 | =init.el=         | Main configuration (all settings)          |
 | =early-init.el=   | Early initialization (GC, UI, packages)    |
 | =lisp/=           | Reusable local Elisp libraries             |
-| =changes.org=     | Changelog of manual fixes and changes      |
+| =bin/=            | Launch helpers (=emacs-gui=, =emacs-tty=, =emacs-diagnostic=) |
+| =CHANGELOG.org=   | Changelog of manual fixes and changes      |
 | =plan.org=        | Improvement roadmap and keybinding proposals |
 | =tasks.org=       | Outstanding and completed tasks              |
 | =status.org=      | Current configuration health status        |
 | =insights.org=    | Technical notes and lessons learned         |
 
-No =custom.el= — all settings live in =init.el=. The ~custom-file~
-variable is redirected to =/tmp/= so Emacs customize writes never
-pollute the config.
+No =custom.el= in the repository — all lasting settings live in
+=init.el= / =lisp/=.  ~custom-file~ is redirected under
+~temporary-file-directory~ so Customize never pollutes Git.  That file
+is *intentionally disposable and never loaded*: treat the Customize UI
+as inspection-only, and copy any wanted values into source.
+
+* Trust boundary (Org)
+
+This profile treats *your* Org files as trusted:
+
+- ~org-export-allow-bind-keyword~ is on
+- ~org-confirm-babel-evaluate~ is nil
+- Babel backends include shell, Python, SQL, C, Lisp, and others
+
+Do *not* evaluate or export downloaded, emailed, cloned, or otherwise
+untrusted Org files in this profile.  Use ~emacs -Q~,
+=bin/emacs-diagnostic=, or a separate safe profile for untrusted
+material.
+
+~howm-mode~ is enabled only for Org files under ~howm-directory~
+(=~/notes=), not for every Org buffer.
 
 * Local libraries (=lisp/=)
 
 =init.el= adds =lisp/= to ~load-path~ once at startup. Each library
 ~NAME.el~ must end with ~(provide 'NAME)~ and is loaded with
-~(require 'NAME)~.
+~(require 'NAME)~ or an autoload.
 
-| Library                          | Loaded from   | Purpose                          |
-|----------------------------------+---------------+----------------------------------|
-| =scs-org-tools.el=               | ~org~ hook; Hyper prefix autoload | Org helpers; ~scs/org-insert-creation-date~ sets lowercase ~:creation-date:~ (ISO date) on the current headline |
-| =scs-frame-state.el=             | autoload      | Minimal frame geometry helper; saves/restores ~left~, ~top~, ~pixel-width~, ~pixel-height~, and ~fullscreen~ |
-| =flycheck-org-lint-workaround.el= | ~flycheck~ block | Advice around broken Flycheck/org-lint line-cell handling; auto-enabled by ~scs/flycheck-setup-org-lint-workaround~ |
+| Library | Loaded from | Purpose |
+|---------+-------------+---------|
+| =scs-org-tools.el= | ~org~ hook; Hyper prefix autoload | ~scs/org-insert-creation-date~ (lowercase ~:creation-date:~) |
+| =scs-frame-state.el= | autoload | Frame geometry save/restore |
+| =scs-tramp.el= | TRAMP ~:config~ + autoload | Known hosts, cleanup, no-trace policy |
+| =org-tools.el= | ~require~ after Org | Export helpers (PDF/X, Ghostscript, ImageMagick when used) |
+| =flycheck-org-lint-workaround.el= | ~flycheck~ block | Advice for broken Flycheck/org-lint line-cell handling |
 
 ** Frame Geometry Save/Restore
 
@@ -55,52 +81,53 @@ M-x scs/frame-state-save
 
 The command prompts for a label and defaults to the current pixel
 geometry, e.g. =1440x900+0+25=.  All saved geometries are written to the
-same readable file, =var/frame-state.el=, as an alist of labeled entries:
+same readable file, =var/frame-state.el=, as an alist of labeled entries.
 
-#+begin_src emacs-lisp
-(("1440x900+0+25"
-  (left . 0)
-  (top . 25)
-  (pixel-width . 1440)
-  (pixel-height . 900)
-  (fullscreen))
- ("1200x800+80+40"
-  (left . 80)
-  (top . 40)
-  (pixel-width . 1200)
-  (pixel-height . 800)
-  (fullscreen)))
-#+end_src
-
-Each entry contains only ~left~, ~top~, ~pixel-width~, ~pixel-height~,
-and ~fullscreen~.  Saving with an existing label replaces that label's
-geometry.
-
-After rebooting and starting Emacs again, restore the selected frame by
-choosing a saved label with completion:
+After rebooting and starting Emacs again, restore with:
 
 #+begin_example
 M-x scs/frame-state-restore
 #+end_example
 
-The Lisp API is:
-
-#+begin_src emacs-lisp
-(setq state (scs/frame-state-capture)) ; in-memory geometry
-(scs/frame-state-restore state)        ; apply immediately
-
-(scs/frame-state-save "wide-left")     ; persist under a label
-(scs/frame-state-load "wide-left")     ; load one saved geometry
-(scs/frame-state-restore)              ; choose and apply later
-#+end_src
-
-Use a prefix argument with ~scs/frame-state-save~,
-~scs/frame-state-load~, or ~scs/frame-state-restore~ to choose a
-non-default file.
-
 See =insights.org= for property-drawer behaviour, the ~H-c~ Hyper prefix,
 and the Karabiner + ~key-translation-map~ workaround for macOS Fn+C /
 Control Center.
+
+* Day-2 operations
+
+| Command / action | Purpose |
+|------------------+---------|
+| ~C-c r~ / ~scs/reload-config~ | Reload =init.el=; prefix also re-applies early-init runtime bits |
+| ~scs/frame-state-save~ / ~restore~ | Geometry across reboot |
+| ~C-c t f/d/c/r~ | TRAMP find / dired / cleanup / reopen |
+| ~scs/org-id-rebuild~ | Full Org ID rescan after external note moves |
+| ~scs/org-id-report-duplicates~ | List duplicate ~id:~ values under notes |
+| ~scs/el-get-report~ | Package name, source, installed revision |
+| =bin/emacs-diagnostic= | Start with ~warning-minimum-level :warning~ |
+| delete =eln-cache/= | After Emacs or Homebrew GCC upgrades |
+| el-get repair | Remove broken =el-get/<pkg>= checkout, restart Emacs (bootstrap/sync) |
+
+First-run note: if the =el-get/el-get= checkout is missing, startup clones
+it over the network.  That is intentional for a single-user profile.
+
+* External dependencies
+
+| Tool | Class | Notes |
+|------+-------+-------|
+| Git | required | el-get bootstrap and VC |
+| ~rg~ | optional | howm search; falls back to grep |
+| ~fd~ / ~fdfind~ | optional | Helm fuzzy file index |
+| ~ugrep~ | optional | ~xref-search-program~ when present |
+| aspell | optional | flyspell (currently idle in config) |
+| Homebrew + GCC + libgccjit | macOS native-comp | discovered in =early-init.el= |
+| Karabiner | macOS Hyper | Fn → Hyper; Fn+C proxy for ~H-c~ |
+| ~mmdc~ | feature | Mermaid Babel |
+| PlantUML / ditaa jars | feature | via ~PROFILE_DIR~/lib when set |
+| Ghostscript / ImageMagick | feature | =org-tools.el= export helpers |
+| LispWorks | feature | SLIME ~inferior-lisp-program~ |
+
+When ~PROFILE_DIR~ is unset, PlantUML/ditaa jar paths are simply left
+unset; the rest of the config still starts.
 
 * Revision Control
 
@@ -108,7 +135,7 @@ Git repository: ~scsets/config-emacs~ on GitHub (branch ~trunk~). =~.elc~=
 files are gitignored and must not be committed.
 
 Emacs ~vc~ is configured for Git and SVN elsewhere in the tree; see
-=init.el= and =changes.org=.
+=init.el= and =CHANGELOG.org=.
 
 * Generated State
 
@@ -118,7 +145,9 @@ Generated runtime state belongs outside Git:
 |-------------------------+------------------------+-------------------------------|
 | =var/=                  | no-littering, Org, TRAMP, recentf | Ignored; persistent local state |
 | =var/frame-state.el=    | =scs-frame-state.el= | Ignored; saved frame geometry for reboot-safe restore |
+| =var/org/id-locations.el= | org-id | Ignored; rebuilt with ~scs/org-id-rebuild~ |
 | =eln-cache/=            | native compilation     | Ignored; safe to delete after Emacs/GCC upgrades |
+| =el-get/=               | el-get | Ignored; package checkouts |
 | =*.elc=                 | byte compilation       | Ignored; source is authoritative |
 | =.org-id-locations=     | legacy Org default     | Ignored; config uses =var/org/id-locations.el= |
 
@@ -127,11 +156,35 @@ newer source if an ignored =~.elc~= file is accidentally left behind.
 
 * Smoke Tests
 
-Useful checks after startup-sensitive edits:
+Useful checks after startup-sensitive edits.  Note: ~--batch~ implies
+~-q~, so Emacs will *not* auto-load this profile in batch mode.  Always
+load =early-init.el= and =init.el= explicitly (do not ~-l init.el~ alone,
+which skips early-init).
 
 #+begin_src sh
-emacs --debug-init --batch -l init.el --eval "(require 'org)"
+# A. Isolated load of this profile (both files, once each)
+emacs -Q --batch -l early-init.el -l init.el \
+  --eval '(message "init time: %s" (emacs-init-time))'
+
+# B. Paren structure only
+emacs -Q --batch --eval "(progn
+  (dolist (file (append (list \"early-init.el\" \"init.el\")
+                        (directory-files \"lisp\" t \"\\\\.el$\")))
+    (with-temp-buffer
+      (insert-file-contents file)
+      (emacs-lisp-mode)
+      (check-parens))))"
+
+# C. Daemon smoke (real GUI/server startup path); stop afterwards
 emacs --fg-daemon=scs-config-smoke --debug-init
+emacsclient -s scs-config-smoke -e '(progn (message "%s" (emacs-init-time)) (kill-emacs))'
+#+end_src
+
+Diagnostic launch (warnings visible; still loads this profile explicitly):
+
+#+begin_src sh
+bin/emacs-diagnostic
+# or: bin/emacs-diagnostic --batch --eval '(message "%s" (emacs-init-time))'
 #+end_src
 
 * Key Packages

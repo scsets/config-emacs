@@ -1,12 +1,29 @@
 #+title: Emacs Configuration Tasks
 #+author: scs
 
+* Document role
+
+Actionable outstanding and completed tasks.  Rationale lives in
+=plan.org=; history of user-visible changes lives in =CHANGELOG.org=.
+
+* DONE cursor-review.org findings (2026-07-10)
+CLOSED: [2026-07-10 Fri]
+- Docs: smoke tests, library inventory, custom-file policy, trusted Org,
+  dependency matrix, day-2 ops, document-role lines
+- Removed TRAMP ~standard-value~ no-op; renamed ~my/~ TRAMP and frame hooks
+- Org ID: load persisted locations; ~scs/org-id-rebuild~ /
+  ~scs/org-id-report-duplicates~; incremental update on note save/rename
+- Fixed duplicate Org IDs in =~/notes/zsmistare/=
+- Dynamic Homebrew GCC (~gcc-*~); Helm async for non-notes roots
+- Whitespace predicate; Babel temp cleanup restored; ~bin/emacs-diagnostic~
+- ~scs/el-get-report~; howm scoped to notes directory
+
 * TODO From plan.org (2026-07-08)
 See =plan.org= for rationale and proposed keybindings.
 
 ** High priority
 - [ ] Verify ~/lisp/lispworks/lw-console path exists (SLIME)
-- [ ] Dynamic Homebrew GCC driver in ~early-init.el~ (not hard-coded ~gcc-16~)
+- [X] Dynamic Homebrew GCC driver in ~early-init.el~ (not hard-coded ~gcc-16~)
 - [ ] ~wgrep~ workflow — hook or key after grep / occur
 - [ ] ~diff-hl~ navigation keys (~C-c v~ prefix or similar)
 

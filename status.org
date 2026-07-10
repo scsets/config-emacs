@@ -2,20 +2,27 @@
 #+author: scs
 #+date: 2026-07-08
 
+* Document role
+
+Current verified health and known limitations.  Not a changelog or roadmap.
+
 * Health
 
 | Component          | Status | Notes                                       |
 |--------------------+--------+---------------------------------------------|
 | Startup            | OK     | Init completes on macOS GUI after font fix  |
-| el-get             | OK     | 5.2; packages via ~:el-get~ keyword         |
-| native-comp        | OK     | Homebrew ~gcc~ + ~libgccjit~; ~early-init~ LIBRARY_PATH / CC |
-| helm               | OK     | Minibuffer UI; #2756 nil backup-dir fix     |
+| el-get             | OK     | 5.2; packages via ~:el-get~ keyword; ~scs/el-get-report~ |
+| native-comp        | OK     | Homebrew ~gcc-*~ + ~libgccjit~; portable brew discovery |
+| helm               | OK     | Minibuffer UI; notes fd sync; other roots async |
 | fido/orderless     | GONE   | Replaced by helm                            |
 | marginalia         | GONE   | Replaced by helm                            |
-| custom.el          | GONE   | All settings in init.el; custom-file → /tmp/ |
-| org                | OK     | el-get builtin recipe                       |
+| custom.el          | GONE   | Settings in init.el; custom-file disposable + never loaded |
+| org                | OK     | el-get builtin recipe; trusted-Org documented |
 | org-contrib        | OK     | el-get git (sr.ht); org-expiry              |
 | scs-org-tools      | OK     | lisp/scs-org-tools.el; H-c d creation-date  |
+| scs-frame-state    | OK     | lisp/scs-frame-state.el; save/restore geometry |
+| scs-tramp          | OK     | lisp/scs-tramp.el; C-c t prefix             |
+| org-tools          | OK     | lisp/org-tools.el; export helpers           |
 | ob-ly              | GONE   | Removed from org-contrib 0.8                |
 | eshell             | OK     | eshell-toggle, eshell-z, eshell-up, eat     |
 | psvn               | GONE   | GitHub repo deleted; using vc-svn           |
@@ -24,10 +31,10 @@
 | corfu              | GONE   | Removed; company is the active backend      |
 | flycheck           | OK     | Deferred 3s; org-lint via lisp/ workaround  |
 | framemove          | OK     | Via el-get local recipe                     |
-| lisp/ libraries    | OK     | scs-org-tools, scs-tramp, org-tools, flycheck workaround |
+| lisp/ libraries    | OK     | scs-org-tools, scs-frame-state, scs-tramp, org-tools, flycheck workaround |
 | SLIME/SLY paths    | CHECK  | Verify ~/lisp/lispworks/lw-console (tasks)  |
-| howm               | OK     | Org notes in ~/notes; slug rename command   |
-| org-id             | OK     | ID-based linking for howm notes; locations under =var/= |
+| howm               | OK     | Org notes in ~/notes; howm only under notes |
+| org-id             | OK     | Load persisted locations; ~scs/org-id-rebuild~ / ~report-duplicates~ |
 | server (socket)    | OK     | Default server via Unix domain socket       |
 | server (TCP/scrim) | OK     | Second server for Scrim macOS app           |
 | no-littering       | OK     | var/ and etc/ under user-emacs-directory    |
@@ -55,6 +62,12 @@ Tested on Emacs 30.2 / 31.x (emacs-plus@31 on macOS Homebrew).
 | SmartOS  | CLI     | TARGET | Smoke test pending (plan.org)            |
 
 * Last Verified
+
+[2026-07-10 Fri] - cursor-review fixes: disposable custom-file policy,
+trusted-Org docs, Org ID load-without-full-scan + rebuild/report commands,
+dynamic Homebrew GCC, Helm async for non-notes roots, TRAMP no-op removed,
+whitespace predicate, howm scoped to notes, duplicate Org IDs in zsmistare
+repaired.
 
 [2026-07-09 Thu] - Fixed startup timer errors (~recentf-load-list~ advice
 for Emacs 31 and missing close paren in =lisp/scs-org-tools.el=). Moved

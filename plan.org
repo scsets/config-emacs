@@ -2,6 +2,11 @@
 #+author: scs
 #+date: 2026-07-08
 
+* Document role
+
+Future work and keybinding proposals.  Open items should also appear in
+=tasks.org= when they are actionable.
+
 * Overview
 
 Improvement ideas and candidate keybindings for ~scsets/config-emacs~.
@@ -20,10 +25,8 @@ behaviour that must work on FreeBSD and SmartOS CLI too.
   =~/lisp/lispworks/lw-console=; confirm or fix before relying on SLIME.
 - [X] *Refresh ~status.org~* — done 2026-07-08; Git/SVN, ~config-emacs~,
   native-comp, quit chord, ~plan.org~ tracked.
-- [ ] *Dynamic Homebrew GCC in ~early-init.el~* — ~bin/gcc-16~ breaks
-  on the next major GCC bump; resolve via ~brew --prefix gcc~ +
-  ~file-expand-wildcards~ for ~bin/gcc-*~ (same pattern as
-  ~scs/native-comp-library-paths~).
+- [X] *Dynamic Homebrew GCC in ~early-init.el~* — done 2026-07-10;
+  portable ~brew~, one prefix call per package, ~gcc-*~ via wildcards.
 - [ ] *~wgrep~ workflow* — package is loaded but has no hook or key;
   enable editable grep buffers after ~H-g~ / ~M-s o~ / ~C-c f~ searches.
 - [ ] *~diff-hl~ navigation* — ~global-diff-hl-mode~ is on; add
@@ -48,8 +51,9 @@ behaviour that must work on FreeBSD and SmartOS CLI too.
 - [ ] *Magit vs ~vc~* — decide whether full Magit (~magit-status~,
   ~magit-log~) is worth adding or stay with ~vc~ + ~diff-hl~.
 - [ ] *Platform smoke tests* — ~status.org~ lists FreeBSD/SmartOS as
-  TARGET; run one ~emacs -Q -l init.el~ (or ~--batch~ load) per platform
-  after substantive init changes.
+  TARGET; run the README smoke shapes (~emacs --batch~ normal path, or
+  ~emacs -Q -l early-init.el -l init.el~) per platform after substantive
+  init changes.
 
 ** Lower priority / polish
 

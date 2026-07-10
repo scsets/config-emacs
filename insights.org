@@ -2,6 +2,11 @@
 #+title: Technical Insights
 #+author: scs
 
+* Document role
+
+Durable technical lessons and incident notes.  Not current operator
+instructions (see =readme.org=) and not the open backlog (=tasks.org=).
+
 * Emacs 30 strict plist checking
 
 In Emacs < 30, ~plist-put~ on a non-plist (like a string) silently
@@ -369,7 +374,7 @@ use ~rcs -l~ to lock an existing working file.
 For batch check-ins (multiple files, same message):
 
 #+begin_example
-for f in init.el changes.org status.org; do
+for f in init.el CHANGELOG.org status.org; do
   rcs -l "$f" && ci -u -m"commit message" "$f"
 done
 #+end_example
