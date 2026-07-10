@@ -94,8 +94,9 @@
     (setq scs/tramp-prefix-map (make-sparse-keymap))
     (define-key scs/tramp-prefix-map (kbd "f") #'scs/tramp-find-file)
     (define-key scs/tramp-prefix-map (kbd "d") #'scs/tramp-dired)
-    (define-key scs/tramp-prefix-map (kbd "c") #'my/tramp-cleanup)
-    (define-key scs/tramp-prefix-map (kbd "r") #'my/tramp-reopen))
+    ;; fix: 2026-07-10 — bind scs/tramp-* (was my/tramp-*)
+    (define-key scs/tramp-prefix-map (kbd "c") #'scs/tramp-cleanup)
+    (define-key scs/tramp-prefix-map (kbd "r") #'scs/tramp-reopen))
   (define-key global-map (kbd "C-c t") scs/tramp-prefix-map))
 
 ;;;###autoload
@@ -122,7 +123,8 @@ DIRECTORY from the minibuffer."
   (dired directory))
 
 ;;;###autoload
-(defun my/tramp-cleanup ()
+;; fix: 2026-07-10 — rename my/tramp-cleanup → scs/tramp-cleanup
+(defun scs/tramp-cleanup ()
   "Clean up all TRAMP connections and buffers."
   (interactive)
   (tramp-cleanup-all-connections)
@@ -130,12 +132,17 @@ DIRECTORY from the minibuffer."
   (message "TRAMP: all connections and buffers cleaned up"))
 
 ;;;###autoload
-(defun my/tramp-reopen ()
+;; fix: 2026-07-10 — rename my/tramp-reopen → scs/tramp-reopen
+(defun scs/tramp-reopen ()
   "Revert current remote buffer, refreshing from remote host."
   (interactive)
   (when (file-remote-p default-directory)
     (revert-buffer t t)
     (message "Refreshed from remote")))
+
+;; add: 2026-07-10 — compatibility aliases for older keybinding docs / muscle memory
+(defalias 'my/tramp-cleanup #'scs/tramp-cleanup)
+(defalias 'my/tramp-reopen #'scs/tramp-reopen)
 
 (provide 'scs-tramp)
 ;;; scs-tramp.el ends here
