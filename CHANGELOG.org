@@ -1,6 +1,31 @@
-# $Id: changes.org,v 1.12 2026/03/23 08:22:57 scs Exp $
+# $Id$
 #+title: Emacs Configuration Changelog
 #+author: scs
+
+* Document role
+
+Historical, user-visible changes.  Not the open backlog (=tasks.org=).
+Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
+
+* 2026-07-10 Rename changes.org → CHANGELOG.org
+
+- Renamed =changes.org= to =CHANGELOG.org= and updated references in
+  =readme.org=, =tasks.org=, =insights.org=, and =cursor-review.org=.
+
+* 2026-07-10 cursor-review fixes
+
+- Corrected smoke tests; expanded library inventory and day-2 ops docs.
+- Documented disposable ~custom-file~ (never loaded) and trusted-Org boundary.
+- Removed ineffective TRAMP ~standard-value~ mutation.
+- Org ID: startup loads persisted locations; ~scs/org-id-rebuild~ and
+  ~scs/org-id-report-duplicates~; incremental updates on note save/rename.
+- Repaired duplicate Org IDs under =~/notes/zsmistare/=.
+- Portable Homebrew discovery and dynamic ~gcc-*~ in =early-init.el=.
+- Helm fd: sync for notes, async attach for other roots; cache invalidation.
+- Trailing-whitespace predicate; Babel temp-dir cleanup restored.
+- Renamed misleading ~my/~ frame/TRAMP helpers to ~scs/~; ~bin/emacs-diagnostic~.
+- ~scs/el-get-report~; howm enabled only under ~howm-directory~.
+- Dated ~add:~ / ~fix:~ comments on new and changed Lisp from this pass.
 
 * 2026-07-08 Rename GitHub repository to config-emacs
 
