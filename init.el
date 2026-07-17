@@ -801,6 +801,7 @@ was nil during daemon startup, so font must be applied per frame."
   (global-set-key (kbd "H-c") 'scs/hyper-c-prefix-map)
   (define-key scs/hyper-c-prefix-map (kbd "c") 'org-capture) ;; Capture
   (autoload 'scs/org-insert-creation-date "scs-org-tools" nil t)
+  (autoload 'scs/org-append-zwsp-markers "scs-org-tools" nil t)
   (define-key scs/hyper-c-prefix-map (kbd "d") #'scs/org-insert-creation-date)
   (define-key scs/hyper-c-prefix-map (kbd "H-d") #'scs/org-insert-creation-date)
   (global-set-key (kbd "H-a") 'org-agenda)               ;; Agenda
