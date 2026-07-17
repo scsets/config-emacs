@@ -1,0 +1,57 @@
+#+TITLE: Org paragraph \\zwsp{} markers — design
+#+AUTHOR: SCS
+#+DATE: 2026-07-16
+#+LAST-UPDATED: 2026-07-16
+
+* Summary
+
+Add an interactive Org command that appends sequential ~\zwsp{}_N~ markers to
+the end of every Org ~paragraph~ element from point to the end of the buffer,
+optionally starting at a chosen number, and overwriting any marker already
+present.
+
+* Command
+
+- Name: ~scs/org-append-zwsp-markers~
+- File: =lisp/scs-org-tools.el=
+- Signature: ~(scs/org-append-zwsp-markers &optional start)~
+- Interactive: numeric prefix argument is ~start~; default is ~1~
+- Guard: ~user-error~ unless ~(derived-mode-p 'org-mode)~
+- No keybinding in this change
+
+* Behavior
+
+1. Collect every Org element of type ~paragraph~ whose end position is ≥ point
+   (the paragraph containing point is included).
+2. Walk those paragraphs in buffer order; assign ~N = start, start+1, …~.
+3. For each paragraph end:
+   - If the text already ends with ~\zwsp{}_[0-9]+~ (allowing trailing
+     whitespace before the element end), remove that marker.
+   - Append ~\zwsp{}_N~ (do not insert or normalize sentence punctuation).
+4. Edit from last paragraph to first (or edit using pre-collected end
+   positions processed backwards) so earlier replacements do not shift later
+   positions.
+5. Message how many paragraphs were updated.
+
+* Non-goals
+
+- Do not tag headlines, list items, drawers, source/example/export blocks, or
+  other non-~paragraph~ Org elements.
+- Do not force a trailing ~.~ before the marker.
+- Do not renumber paragraphs before point.
+
+* Implementation sketch
+
+- ~org-element-parse-buffer~ then ~org-element-map~ over ~'paragraph~, filter
+  by end ≥ point, collect ~(end . n)~ pairs (or ends first, then zip with
+  numbers).
+- Marker match at paragraph end: ~\\zwsp{}_[0-9]+~ immediately before optional
+  trailing whitespace at the element end.
+- Autoload the command like ~scs/org-insert-creation-date~.
+
+* Success criteria
+
+- From point, every later Org paragraph ends with ~\zwsp{}_N~ in sequence from
+  ~start~.
+- Re-running overwrites existing ~\zwsp{}_…~ markers instead of stacking them.
+- Headlines and lists in the same region are unchanged.
