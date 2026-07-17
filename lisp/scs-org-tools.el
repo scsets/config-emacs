@@ -26,11 +26,6 @@
 (require 'org)
 (require 'scs-cl)
 
-(defun scs/org--paragraph-in-list-item-p (paragraph)
-  "Return non-nil if PARAGRAPH is nested inside an Org list item."
-  (let ((parent (org-element-property :parent paragraph)))
-    (and parent (eq (org-element-type parent) 'item))))
-
 (defun scs/org--property-drawer-bounds ()
   "Return (START END INDENT) of the property drawer on the current heading, or nil.
 START and END are buffer positions spanning :properties: through :end:.
@@ -94,6 +89,11 @@ Signals `user-error' if called outside Org mode."
   (org-entry-put nil "creation-date" (format-time-string "%Y-%m-%d"))
   (scs/org--downcase-property-drawer))
 
+(defun scs/org--paragraph-in-list-item-p (paragraph)
+  "Return non-nil if PARAGRAPH is nested inside an Org list item."
+  (let ((parent (org-element-property :parent paragraph)))
+    (and parent (eq (org-element-type parent) 'item))))
+
 (defconst scs/org-zwsp-marker-re "\\\\zwsp{}_[0-9]+"
   "Regexp matching a trailing Org paragraph \\\\zwsp{}_N marker.")
 
@@ -115,10 +115,10 @@ lines)."
 (defun scs/org-append-zwsp-markers (&optional start)
   "Append sequential \\\\zwsp{}_N markers to Org paragraphs from point.
 START (prefix arg; default 1) is the first number used.  Only Org
-elements of type `paragraph' whose `:begin' is at or after point, and
-that are not nested inside a list item, are updated.  An existing
-trailing \\\\zwsp{}_[0-9]+ is replaced.  Sentence punctuation is left
-unchanged.
+elements of type `paragraph' that contain point or lie after it are
+updated; at a paragraph boundary the prior paragraph is skipped.  List
+item paragraphs are never updated.  An existing trailing
+\\\\zwsp{}_[0-9]+ is replaced.  Sentence punctuation is left unchanged.
 
 Signals `user-error' if called outside Org mode."
   (interactive "p")
@@ -129,8 +129,10 @@ Signals `user-error' if called outside Org mode."
          (paragraphs
           (org-element-map (org-element-parse-buffer) 'paragraph
             (lambda (p)
-              (when (and (>= (org-element-property :begin p) origin)
-                         (not (scs/org--paragraph-in-list-item-p p)))
+              (when (and (not (scs/org--paragraph-in-list-item-p p))
+                         (or (> (org-element-property :end p) origin)
+                             (and (<= (org-element-property :begin p) origin)
+                                  (< origin (org-element-property :end p)))))
                 p))))
          (n start)
          (jobs nil))

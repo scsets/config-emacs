@@ -50,6 +50,20 @@ its beginning, then the marker text is left in the buffer."
        (should-not (string-match-p "\\\\zwsp{}_99" s))
        (should-not (string-match-p "\\\\zwsp{}_5\\\\zwsp{}" s))))))
 
+(ert-deftest scs/org-append-zwsp-markers-tags-mid-paragraph ()
+  "Include the paragraph containing point when point is mid-paragraph."
+  (scs-org-tools-test--with-org
+   (concat "Before.\n\n"
+           "First tagged.\n\n"
+           "After.\n")
+   "tag"
+   (lambda ()
+     (scs/org-append-zwsp-markers 1)
+     (let ((s (buffer-string)))
+       (should-not (string-match-p "Before\\.\\\\zwsp{}" s))
+       (should (string-match-p "First tagged\\.\\\\zwsp{}_1\n" s))
+       (should (string-match-p "After\\.\\\\zwsp{}_2\n" s))))))
+
 (ert-deftest scs/org-append-zwsp-markers-optional-start-and-guard ()
   "Default start is 1; non-Org buffers signal user-error."
   (scs-org-tools-test--with-org
