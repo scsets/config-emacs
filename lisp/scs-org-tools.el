@@ -7,8 +7,9 @@
 ;;; Commentary:
 ;;
 ;; Reusable Org-mode helpers for howm notes and other Org files in this
-;; config.  Currently provides `scs/org-insert-creation-date'; additional
-;; commands can be added here over time.
+;; config.  Provides `scs/org-insert-creation-date' and
+;; `scs/org-append-zwsp-markers'; additional commands can be added here
+;; over time.
 ;;
 ;; `scs/org-insert-creation-date' sets the :creation-date: property on the
 ;; current Org headline to today's date in ISO 8601 format (YYYY-MM-DD).  If
@@ -16,11 +17,19 @@
 ;; is then normalized to lowercase -- :properties:, :end:, and every
 ;; property key -- so the new key always lands in a clean, consistent drawer
 ;; regardless of what was there before.
+;;
+;; `scs/org-append-zwsp-markers' appends sequential \zwsp{}_N markers to
+;; Org paragraphs from point onward, replacing any existing trailing marker.
 
 ;;; Code:
 
 (require 'org)
 (require 'scs-cl)
+
+(defun scs/org--paragraph-in-list-item-p (paragraph)
+  "Return non-nil if PARAGRAPH is nested inside an Org list item."
+  (let ((parent (org-element-property :parent paragraph)))
+    (and parent (eq (org-element-type parent) 'item))))
 
 (defun scs/org--property-drawer-bounds ()
   "Return (START END INDENT) of the property drawer on the current heading, or nil.
@@ -84,6 +93,56 @@ Signals `user-error' if called outside Org mode."
   (org-back-to-heading t)
   (org-entry-put nil "creation-date" (format-time-string "%Y-%m-%d"))
   (scs/org--downcase-property-drawer))
+
+(defconst scs/org-zwsp-marker-re "\\\\zwsp{}_[0-9]+"
+  "Regexp matching a trailing Org paragraph \\\\zwsp{}_N marker.")
+
+(defun scs/org--set-zwsp-marker-at (contents-end n)
+  "At paragraph CONTENTS-END, set trailing marker to N.
+Removes an existing match of `scs/org-zwsp-marker-re' immediately before
+CONTENTS-END, then inserts \\\\zwsp{}_N.  CONTENTS-END is an Org
+`:contents-end' position (text end, not `:end' which includes blank
+lines)."
+  (save-excursion
+    (goto-char contents-end)
+    (skip-chars-backward " \t\n")
+    (when (looking-back scs/org-zwsp-marker-re
+                        (max (point-min) (- (point) 80)))
+      (delete-region (match-beginning 0) (match-end 0)))
+    (insert (format "\\zwsp{}_%d" n))))
+
+;;;###autoload
+(defun scs/org-append-zwsp-markers (&optional start)
+  "Append sequential \\\\zwsp{}_N markers to Org paragraphs from point.
+START (prefix arg; default 1) is the first number used.  Only Org
+elements of type `paragraph' whose `:begin' is at or after point, and
+that are not nested inside a list item, are updated.  An existing
+trailing \\\\zwsp{}_[0-9]+ is replaced.  Sentence punctuation is left
+unchanged.
+
+Signals `user-error' if called outside Org mode."
+  (interactive "p")
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Not in Org mode"))
+  (let* ((start (or start 1))
+         (origin (point))
+         (paragraphs
+          (org-element-map (org-element-parse-buffer) 'paragraph
+            (lambda (p)
+              (when (and (>= (org-element-property :begin p) origin)
+                         (not (scs/org--paragraph-in-list-item-p p)))
+                p))))
+         (n start)
+         (jobs nil))
+    (dolist (p paragraphs)
+      (push (cons (org-element-property :contents-end p) n) jobs)
+      (setq n (1+ n)))
+    ;; `push' built jobs last→first already; edit in that order.
+    (dolist (job jobs)
+      (scs/org--set-zwsp-marker-at (car job) (cdr job)))
+    (message "Updated %d paragraph%s"
+             (length jobs)
+             (if (= (length jobs) 1) "" "s"))))
 
 (provide 'scs-org-tools)
 
