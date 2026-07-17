@@ -791,7 +791,7 @@ was nil during daemon startup, so font must be applied per frame."
   (global-set-key (kbd "H-p") 'previous-error)           ;; Previous
   (global-set-key (kbd "H-z") 'eshell-toggle)            ;; Z-shell
   (global-set-key (kbd "H-o") 'other-window)             ;; Other
-  (global-set-key (kbd "H-w") 'delete-window)            ;; Window
+  (global-set-key (kbd "H-w") 'delete-frame)             ;; Window
   (global-set-key (kbd "H-0") 'delete-window)            ;; 0 windows
   (global-set-key (kbd "H-1") 'delete-other-windows)     ;; 1 window
   (global-set-key (kbd "H-2") 'split-window-below)       ;; 2 horiz
