@@ -1,0 +1,143 @@
+#+TITLE: Org buffer header ensure -- design
+#+FILENAME: 2026-07-22-org-buffer-header-design.org
+#+DESCRIPTION: Design for scs/org-ensure-buffer-header from a template file
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-07-22 Wed 14:21
+#+VERSION: 0.1.1
+#+LAST-UPDATED: 2026-07-22 Wed 14:22
+#+UPDATE: 1
+
+* Summary
+
+Add ~scs/org-ensure-buffer-header~ so an Org buffer gets a full SCS file
+header from ~lisp/scs_org-buffer-template.org~. If a header is already
+present, add missing keywords and reorder lines to match the template.
+Existing keyword values are kept. Unknown keywords stay after the
+canonical block.
+
+* Goals
+
+- One interactive command in Org mode.
+- Template file is the ordered source of truth for which keywords exist
+  and in what order.
+- Idempotent when the header is already complete and correctly ordered.
+- Teachable helpers in ~scs-org-tools.el~, covered by ERT.
+
+* Non-goals
+
+- No keymap binding in this change (can add later).
+- Do not bump ~VERSION~ / ~LAST-UPDATED~ / ~UPDATE~ on existing headers.
+- Do not rewrite body text or headline property drawers.
+- Do not remove unknown ~#+...~ keywords.
+
+* Data model
+
+** Template
+
+File: ~lisp/scs_org-buffer-template.org~
+
+One ~#+KEYWORD: value~ line per field, in this order:
+
+1. ~TITLE~
+2. ~FILENAME~
+3. ~DESCRIPTION~
+4. ~AUTHOR~
+5. ~COPYRIGHT~
+6. ~DATE~ (Created; stable once set)
+7. ~VERSION~
+8. ~LAST-UPDATED~
+9. ~UPDATE~
+
+Keyword names in the template are canonical (uppercase). Path is
+customizable; default is that file next to ~scs-org-tools.el~.
+
+** Buffer preamble
+
+From ~point-min~, accept (in any mix):
+
+- ~#+KEY: ...~ lines (case-insensitive key)
+- blank lines
+- leading ~#~ comment lines (e.g. ~# $Id$~)
+
+Stop at the first other non-blank line, or at the first Org headline.
+
+Collected into:
+
+- ~leading-comments~: ~#~ comment lines found before/among the header,
+  preserved in order at the very top of the rewrite
+- ~known~: alist ~keyword -> value~ for template keys (first occurrence
+  wins if duplicates appear)
+- ~unknown~: list of full lines for keys not in the template, in the
+  order they were found
+
+* Defaults for missing keywords
+
+When a template keyword is absent or has an empty value:
+
+| Keyword | Default |
+|---+---|
+| FILENAME | ~file-name-nondirectory~ of ~buffer-file-name~, or buffer name |
+| DATE | now, ~YYYY-MM-DD Day HH:MM~ |
+| LAST-UPDATED | same stamp as DATE when both are being filled |
+| AUTHOR | ~SCS~ |
+| COPYRIGHT | ~Copyright (C) YYYY, SCS, all rights reserved.~ (current year) |
+| VERSION | ~0.1.0~ |
+| UPDATE | ~0~ |
+| TITLE | if empty/missing: from the same basename used for FILENAME -- strip ~.org~, replace ~-~ / ~_~ with spaces, sentence-case (first letter upper, rest lower). Example: ~foo-bar.org~ -> ~Foo bar~ |
+| DESCRIPTION | empty string (leave ~#+DESCRIPTION: ~ for the user) |
+
+Existing non-empty values are never overwritten.
+
+* Algorithm
+
+1. Require Org mode (~derived-mode-p 'org-mode~); else ~user-error~.
+2. Load template keyword order (and any default placeholder values if
+   present; placeholders are only hints -- runtime defaults above win
+   when filling).
+3. Scan preamble; build ~known~ and ~unknown~.
+4. For each template keyword in order: take existing value if non-empty;
+   else compute default.
+5. Replace the scanned preamble region with:
+   - leading ~#~ comment lines (if any)
+   - canonical ~#+KEY: value~ lines in template order
+   - one blank line
+   - unknown keyword lines (unchanged values)
+   - then the remainder of the buffer unchanged
+6. Echo a short summary: added count, whether reordered, or already OK.
+
+Keyword name case is normalized to the template form (e.g. ~#+title:~
+becomes ~#+TITLE:~).
+
+* Placement
+
+| Piece | Location |
+|---+---|
+| Command + helpers | ~lisp/scs-org-tools.el~ |
+| Template | ~lisp/scs_org-buffer-template.org~ |
+| Tests | ~test/scs-org-tools-test.el~ |
+| Changelog | ~CHANGELOG.org~ on implement |
+
+Command name: ~scs/org-ensure-buffer-header~.
+
+* Tests (ERT)
+
+- Empty Org buffer: inserts full header with defaults; TITLE from a
+  mocked filename.
+- Partial out-of-order header: adds missing keys, reorders, keeps
+  existing values.
+- Complete correct header: no content change (idempotent).
+- Unknown keywords (~#+OPTIONS:~, ~#+LATEX_HEADER:~): preserved after
+  the canonical block.
+- Empty ~#+TITLE:~ with visited ~foo-bar.org~: TITLE becomes ~Foo bar~.
+- Leading ~# $Id$~ comment: kept above the canonical header; old
+  keywords after it are still collected and normalized.
+
+* Open points (resolved in this design)
+
+- Template path: ~emacs/lisp/~ -> ~lisp/scs_org-buffer-template.org~
+- Existing values: keep (option A)
+- Missing defaults: auto-fill (option A)
+- Unknown keywords: after canonical block (option A)
+- Approach: line-based preamble rebuild (option 1)
+- Empty TITLE: derive sentence from filename

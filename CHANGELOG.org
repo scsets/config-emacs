@@ -7,6 +7,18 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 
+* 2026-07-22 Wed Org buffer header ensure
+
+- lisp/scs_org-buffer-template.org: canonical #+KEYWORD order for SCS
+  Org file headers.
+- lisp/scs-org-tools.el: ~scs/org-ensure-buffer-header~ adds missing
+  keywords, keeps existing values, reorders to match the template;
+  empty TITLE becomes sentence-case from the filename.
+- init.el: autoload ~scs/org-ensure-buffer-header~; ~H-c h~.
+- test/scs-org-tools-test.el: ERT coverage for ensure-buffer-header.
+- docs/2026-07-22-org-buffer-header-design.org,
+  docs/2026-07-22-org-buffer-header-plan.org.
+
 * 2026-07-22 Wed scs/convert (Pandoc markdown -> Org)
 
 - lisp/scs-convert/: ~scs/convert~ replaces region or buffer via Pandoc.

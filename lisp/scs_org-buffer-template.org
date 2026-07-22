@@ -1,0 +1,9 @@
+#+TITLE: <short description>
+#+FILENAME: <file.org>
+#+DESCRIPTION: <short description>
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) <YYYY>, SCS, all rights reserved.
+#+DATE: <YYYY-MM-DD Day HH:MM>
+#+VERSION: 0.1.0
+#+LAST-UPDATED: <YYYY-MM-DD Day HH:MM>
+#+UPDATE: 0

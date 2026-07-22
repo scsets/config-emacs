@@ -1,0 +1,35 @@
+#+TITLE: Org buffer header ensure -- implementation plan
+#+FILENAME: 2026-07-22-org-buffer-header-plan.org
+#+DESCRIPTION: Implementation plan for scs/org-ensure-buffer-header
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-07-22 Wed 14:22
+#+VERSION: 0.1.0
+#+LAST-UPDATED: 2026-07-22 Wed 14:22
+#+UPDATE: 0
+
+* Goal
+
+Implement ~scs/org-ensure-buffer-header~ per
+=docs/2026-07-22-org-buffer-header-design.org=.
+
+* Architecture
+
+Line-based preamble rebuild in =lisp/scs-org-tools.el~. Template order
+from =lisp/scs_org-buffer-template.org~. ERT in
+=test/scs-org-tools-test.el=.
+
+* Tasks
+
+- [X] Task 1: Add template file
+- [X] Task 2: Add failing ERT cases
+- [X] Task 3: Implement command + helpers
+- [X] Task 4: Autoload in init.el; CHANGELOG entry
+- [X] Task 5: Run ERT batch suite green
+
+* Test runner
+
+#+begin_src shell
+emacs -batch -L lisp -l ert -l lisp/scs-cl.el -l lisp/scs-org-tools.el \
+  -l test/scs-org-tools-test.el -f ert-run-tests-batch-and-exit
+#+end_src
