@@ -1,0 +1,106 @@
+#+TITLE: scs/convert -- Pandoc format conversion design
+#+FILENAME: 2026-07-22-scs-convert-design.org
+#+DESCRIPTION: Design for scs/convert: region/buffer Pandoc conversion with tidy Org output
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-07-22 Wed 13:08
+#+VERSION: 0.1.2
+#+LAST-UPDATED: 2026-07-22 Wed 14:12
+#+UPDATE: 2
+
+* Summary
+
+Add an interactive command ~scs/convert~ that converts the active region, or
+the whole buffer if no region is active, from Markdown to Org using Pandoc.
+Pandoc output is tidied via a Lua filter so the result looks like hand-written
+Emacs Org (no ~CUSTOM_ID~ drawers, no hard-wrap noise). The convert pair is
+data-driven so more formats can be added later without new commands.
+
+* Decisions
+
+- Engine: Pandoc (already on PATH; version observed locally: 3.10).
+- Edit target: replace in place.
+- Mode: never infer from/to from ~major-mode~. A Markdown fragment may live
+  inside an Org buffer; conversion always uses the selected format pair.
+- After whole-buffer convert /to/ Org: enable ~org-mode~ (independent of
+  prior major mode and of file name).
+- Rename: if the whole buffer was converted and the visited file ends in
+  ~.md~ or ~.markdown~, prompt to rename/save as ~.org~.
+- Region replace: leave major mode and file name alone.
+- Keybinding: ~H-c v~.
+
+* Command
+
+- Name: ~scs/convert~
+- Package dir: =lisp/scs-convert/=
+  - =lisp/scs-convert/scs-convert.el=
+  - =lisp/scs-convert/tidy-org.lua=
+- Why a directory: macOS cannot host both =lisp/scs-convert.el= and
+  =lisp/scs-convert/=; keep Elisp and the Lua filter together under the dir.
+- Interactive: region if ~(use-region-p)~; else whole buffer.
+- v1 pair: markdown -> org (hard-wired default of the format alist).
+- Keybinding: ~H-c v~ (~scs/hyper-c-prefix-map~).
+
+* Data flow
+
+1. Resolve bounds: region or ~(point-min)~ / ~(point-max)~.
+2. Reject empty input with ~user-error~.
+3. Look up convert pair in ~scs/convert-formats~ (v1: markdown -> org).
+4. Run Pandoc on the text:
+   - ~-f markdown -t org --wrap=none --lua-filter=tidy-org.lua~
+5. On success, replace the same bounds with stdout.
+6. If whole buffer and the convert pair targets Org: ~(org-mode)~.
+7. If whole buffer and visited file ends in ~.md~ or ~.markdown~: prompt
+   to rename/save as ~.org~.
+8. If only a region was converted: do not change major mode or file name.
+9. On Pandoc missing or non-zero exit: ~user-error~ with stderr; leave
+   buffer text unchanged.
+
+* Tidy rules (Lua filter)
+
+File: =lisp/scs-convert/tidy-org.lua=
+
+1. Clear header identifiers so the Org writer does not emit
+   ~:PROPERTIES:~ / ~:CUSTOM_ID:~ drawers.
+2. Unwrap ~Div~ nodes to drop empty attribute wrappers.
+3. Pandoc always called with ~--wrap=none~.
+
+Verified locally: with the ID-clearing filter, ~# Hello~ becomes ~* Hello~
+with no property drawer.
+
+* Extensibility
+
+~scs/convert-formats~ is an alist (or similar) keyed by ~(FROM . TO)~ whose
+value names Pandoc ~-f~ / ~-t~ strings and optional Lua filters. v1 ships
+only ~(markdown . org)~. Later pairs add data, not new interactive commands.
+
+Customs:
+
+- ~scs/convert-pandoc-program~ -- default ~"pandoc"~
+- ~scs/convert-formats~ -- convert pair table
+
+* Wiring
+
+- Add =lisp/scs-convert/= to ~load-path~ (or otherwise ensure
+  ~(require 'scs-convert)~ resolves), matching how =lisp/= is already used.
+- Autoload ~scs/convert~ from =init.el= the same way
+  ~scs/org-insert-creation-date~ is autoloaded from ~scs-org-tools~.
+- Record the addition in =CHANGELOG.org= when implemented.
+
+* Non-goals (v1)
+
+- No transient "edit as format" mode.
+- No auto-convert on ~find-file~.
+- No other format pairs yet (structure only).
+- No rewrite of internal ~#id~ links after stripping header IDs.
+- No forced ~#+TITLE:~ or document metadata on fragments.
+
+* Success criteria
+
+- Markdown region inside an Org buffer converts in place; buffer stays in
+  ~org-mode~; file name unchanged.
+- Whole buffer converts in place and switches to ~org-mode~; if the visited
+  file was ~.md~ / ~.markdown~, prompts for ~.org~ rename.
+- Result has no Pandoc ~CUSTOM_ID~ property drawers and no hard-wrapped
+  lines from Pandoc.
+- Missing Pandoc or convert failure leaves the original text untouched.

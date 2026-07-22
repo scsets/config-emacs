@@ -7,6 +7,13 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 
+* 2026-07-22 Wed scs/convert (Pandoc markdown -> Org)
+
+- lisp/scs-convert/: ~scs/convert~ replaces region or buffer via Pandoc.
+- lisp/scs-convert/tidy-org.lua: strip header IDs (no ~CUSTOM_ID~ drawers).
+- init.el: load-path, autoload, ~H-c v~ for ~scs/convert~.
+- docs/2026-07-22-scs-convert-design.org: design notes.
+
 * 2026-07-10 Rename changes.org → CHANGELOG.org
 
 - Renamed =changes.org= to =CHANGELOG.org= and updated references in

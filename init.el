@@ -12,6 +12,7 @@
 ;; lisp/ may already be on load-path from early-init; keep this for
 ;; batch shapes that load init.el without early-init.el.
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "lisp/scs-convert" user-emacs-directory))
 (require 'scs-cl)
 (require 'subr-x)
 
@@ -139,6 +140,7 @@ Intentionally not *scratch*; new frames land on persistent notes."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "lisp/scs-convert" user-emacs-directory))
 ;; fix: 2026-07-10 — autoload scs/tramp-* (was my/tramp-*)
 (autoload 'scs/tramp-cleanup "scs-tramp" "Clean up TRAMP connections." t)
 (autoload 'scs/tramp-reopen "scs-tramp" "Revert remote buffer from host." t)
@@ -152,6 +154,8 @@ Intentionally not *scratch*; new frames land on persistent notes."
   "Load and inspect saved frame geometry." t)
 (autoload 'scs/frame-state-restore "scs-frame-state"
   "Restore the selected frame's saved geometry." t)
+(autoload 'scs/convert "scs-convert"
+  "Convert region or buffer via Pandoc (markdown -> org)." t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -804,6 +808,7 @@ was nil during daemon startup, so font must be applied per frame."
   (autoload 'scs/org-append-zwsp-markers "scs-org-tools" nil t)
   (define-key scs/hyper-c-prefix-map (kbd "d") #'scs/org-insert-creation-date)
   (define-key scs/hyper-c-prefix-map (kbd "H-d") #'scs/org-insert-creation-date)
+  (define-key scs/hyper-c-prefix-map (kbd "v") #'scs/convert) ;; conVert
   (global-set-key (kbd "H-a") 'org-agenda)               ;; Agenda
   (global-set-key (kbd "H-l") 'org-store-link)           ;; Link
   (global-set-key (kbd "H-i") 'helm-imenu)               ;; Imenu
