@@ -156,6 +156,21 @@ Intentionally not *scratch*; new frames land on persistent notes."
   "Restore the selected frame's saved geometry." t)
 (autoload 'scs/convert "scs-convert"
   "Convert region or buffer via Pandoc (markdown -> org)." t)
+;; add: 2026-07-20 -- mail lab (mu4e / notmuch / BBDB / org-msg)
+(autoload 'scs/mail-lab-mu4e "scs-mail-lab"
+  "Open mu4e on the shared ~/mail vault." t)
+(autoload 'scs/mail-lab-notmuch "scs-mail-lab"
+  "Open notmuch on the shared ~/mail vault." t)
+(autoload 'scs/mail-lab-search "scs-mail-lab"
+  "notmuch search on the shared ~/mail vault." t)
+(autoload 'scs/mail-lab-compose "scs-mail-lab"
+  "Compose mail as one of the lab addresses." t)
+(autoload 'scs/mail-lab-bbdb "scs-mail-lab"
+  "Open BBDB for the mail lab." t)
+(autoload 'scs/mail-lab-export-contacts "scs-mail-lab"
+  "Export mu contacts into the BBDB file." t)
+(autoload 'scs/mail-lab-install-keys "scs-mail-lab"
+  "Bind C-c m for the mail lab." t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -294,6 +309,23 @@ Intentionally not *scratch*; new frames land on persistent notes."
          :type github
          :pkgname "arnm/ob-mermaid"
          :depends (org))
+        ;; add: 2026-07-20 -- mail lab contacts + HTML compose
+        ;; Build via lisp/makefile-temp (no automake/autoconf required).
+        (:name bbdb
+         :type git
+         :url "https://git.savannah.nongnu.org/git/bbdb.git"
+         :description "Insidious Big Brother Database (contacts)"
+         :load-path ("./lisp")
+         ;; /usr/bin/make: zsh may shadow `make' with a function.
+         :build (("/usr/bin/make" "--directory=lisp" "--makefile=./makefile-temp"))
+         :features bbdb-loaddefs
+         :autoloads nil)
+        (:name org-msg
+         :type github
+         :pkgname "jeremy-compostella/org-msg"
+         :description "Org-mode HTML compose for message-mode MUAs"
+         :depends (htmlize)
+         :features org-msg)
         (:name wfnames
          :type github
          :pkgname "thierryvolpiatto/wfnames"
@@ -545,8 +577,9 @@ Side effects: may install packages while byte-compiling."
 ;; Prefer UTF-8
 (prefer-coding-system 'utf-8)
 
-;; Default line length
-(setq-default fill-column 70)
+;; Default line length (mail-friendly 72; was 70)
+(setq-default fill-column 72)
+(global-set-key (kbd "C-c q") #'set-fill-column) ; was C-x f
 
 ;; Overwrite selected text when typing
 (delete-selection-mode t)
@@ -721,7 +754,7 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
   (add-hook 'desktop-save-hook #'scs/desktop-sanitize-before-save))
 (desktop-save-mode t)
 (size-indication-mode t)
-(load-theme 'tango-dark t)
+(load-theme 'adwaita t) ;; used to be tango-dark
 
 (setq byte-compile-error-on-warn nil)
 (when (executable-find "ugrep")
@@ -1240,7 +1273,8 @@ was nil during daemon startup, so font must be applied per frame."
   (setq helm-autoresize-min-height 10)
   :bind
   (("M-x"       . helm-M-x)
-   ("C-x C-f"   . helm-find-files)
+   ("C-x C-f"   . helm-multi-files) ; name search (buffers/recent/fd)
+   ("C-x f"     . helm-find-files)  ; path browser (was C-x C-f)
    ("C-x b"     . helm-mini)
    ("C-x C-b"   . helm-buffers-list)
    ("C-x r b"   . helm-filtered-bookmarks)
@@ -2396,6 +2430,28 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
 
 ;; Edit grep results in-place and apply changes back to files
 (use-package wgrep :el-get t)
+
+
+;; ----------------------------------------------------------
+;; mail lab (mu4e + notmuch on ~/mail)
+;; ----------------------------------------------------------
+
+;; Homebrew ships mu4e/notmuch Lisp; lisp/scs-mail-lab.el wires
+;; load-path, BBDB contacts, org-msg compose, and msmtp send.
+;; Sync stays in the terminal (mbsync / mu index / notmuch new).
+;; add: 2026-07-20
+(use-package bbdb
+  :el-get t
+  :defer t)
+
+(use-package org-msg
+  :el-get t
+  :defer t)
+
+(use-package scs-mail-lab
+  :demand t
+  :config
+  (scs/mail-lab-install-keys))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

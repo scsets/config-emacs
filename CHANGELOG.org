@@ -26,6 +26,25 @@ Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 - init.el: load-path, autoload, ~H-c v~ for ~scs/convert~.
 - docs/2026-07-22-scs-convert-design.org: design notes.
 
+* 2026-07-22 Wed Helm find keys and fill-column 72
+
+- init.el: ~C-x C-f~ -> ~helm-multi-files~; ~C-x f~ -> ~helm-find-files~.
+- init.el: ~set-fill-column~ moved to ~C-c q~ (near ~M-q~); default
+  ~fill-column~ 70 -> 72.
+
+* 2026-07-20 Mon Emacs mail lab scaffold
+
+- docs/2026-07-20-emacs-mail-lab.org: shared Maildir vault (mu4e / notmuch).
+- bin/authinfo-pass: PassCmd helper to read ~/.authinfo for mbsync/msmtp.
+- docs/msmtprc.mail-lab + ~/.msmtprc: primary send (msmtp SMTPS :465).
+- bin/mail-lab-sendmail: Python ssl :465 fallback if msmtp GnuTLS fails.
+- Pilot sync lives outside the repo: ~/mail/scs@scs.re/, ~/.mbsyncrc, ~/.authinfo.
+- lisp/scs-mail-lab.el: mu4e + notmuch (Gnus dropped); msmtp -a From;
+  BBDB contacts via mu cfind JSON; org-msg compose; C-c m m/n/s/c/b/e.
+- el-get: bbdb (makefile-temp build), org-msg (depends htmlize).
+- ~/.mbsyncrc: three channels (scs@scs.re, priyadarshan@goldenboat.in,
+  mail@vsm.in) under ~/mail/<email>/.
+
 * 2026-07-10 Rename changes.org → CHANGELOG.org
 
 - Renamed =changes.org= to =CHANGELOG.org= and updated references in

@@ -1,0 +1,345 @@
+#+TITLE: Org paragraph \\zwsp{} markers — implementation plan
+#+AUTHOR: SCS
+#+DATE: 2026-07-17
+#+LAST-UPDATED: 2026-07-17
+
+* For agentic workers
+
+REQUIRED SUB-SKILL: Use ~superpowers:subagent-driven-development~
+(recommended) or ~superpowers:executing-plans~ to implement this plan
+task-by-task. Steps use checkbox (~- [ ]~) syntax for tracking.
+
+* Goal
+
+Add ~scs/org-append-zwsp-markers~ so Org buffers can append sequential
+~\zwsp{}_N~ markers to every Org ~paragraph~ from point onward, with an
+optional start number and overwrite of existing markers.
+
+* Architecture
+
+One command in =lisp/scs-org-tools.el= parses the buffer with
+~org-element-parse-buffer~, maps ~paragraph~ elements whose ~:end~ is ≥
+point, numbers them from ~start~, and edits each paragraph at
+~:contents-end~ (not ~:end~, so blank lines after the paragraph stay
+untouched). Edits run last→first so positions stay valid. ERT coverage
+lives in =test/scs-org-tools-test.el= and runs under ~emacs -batch~.
+
+* Tech stack
+
+Emacs 29+, Org 9+, ~org-element~, ERT, existing =lisp/scs-org-tools.el=
+(loaded via ~with-eval-after-load 'org~ in =init.el=).
+
+* Spec
+
+Canonical design: =docs/2026-07-16-org-zwsp-markers-design.org=
+
+* Global constraints
+
+- Command name: ~scs/org-append-zwsp-markers~
+- File: =lisp/scs-org-tools.el=
+- Signature: ~(scs/org-append-zwsp-markers &optional start)~
+- Interactive numeric prefix = ~start~; default ~1~
+- ~user-error~ outside Org mode
+- Org ~paragraph~ elements only (not headlines, lists, drawers, blocks)
+- Append ~\zwsp{}_N~ only (no forced ~.~)
+- Overwrite existing trailing ~\zwsp{}_[0-9]+~
+- From point to EOB; do not renumber paragraphs before point
+- No keybinding in this change
+- Autoload like ~scs/org-insert-creation-date~ (autoload form only; no map binding)
+
+* File structure
+
+| File | Role |
+|------+------|
+| =lisp/scs-org-tools.el= | Helper + interactive command |
+| =test/scs-org-tools-test.el= | ERT tests (new) |
+| =init.el= | Autoload form for the new command (near creation-date autoload) |
+
+No new package; no keybinding map changes.
+
+* Test runner (all tasks)
+
+From repo root (~/.config/emacs~):
+
+#+begin_src shell
+emacs -batch -L lisp -l ert -l lisp/scs-cl.el -l lisp/scs-org-tools.el \
+  -l test/scs-org-tools-test.el -f ert-run-tests-batch-and-exit
+#+end_src
+
+Expected when green: ~Ran N tests, 0 failed~
+
+* Task 1: Failing ERT for marker append / overwrite
+
+**Files:**
+- Create: =test/scs-org-tools-test.el=
+- Modify: none yet (tests call APIs that do not exist — intentional fail)
+
+**Interfaces:**
+- Consumes: nothing yet
+- Produces: ERT suite expecting:
+  - ~(scs/org-append-zwsp-markers &optional start)~
+  - Marker string form ~\zwsp{}_N~
+
+- [ ] **Step 1: Create the test file with three failing tests**
+
+Create =test/scs-org-tools-test.el~ with this exact content:
+
+#+begin_src emacs-lisp
+;;; scs-org-tools-test.el --- Tests for scs-org-tools  -*- lexical-binding: t; -*-
+
+(require 'ert)
+(require 'org)
+(require 'scs-org-tools)
+
+(defun scs-org-tools-test--with-org (text point-marker fn)
+  "Insert TEXT in a temp Org buffer, move to POINT-MARKER, call FN.
+POINT-MARKER is a substring that must appear once; point is placed at
+its beginning, then the marker text is left in the buffer."
+  (with-temp-buffer
+    (org-mode)
+    (insert text)
+    (goto-char (point-min))
+    (search-forward point-marker)
+    (goto-char (match-beginning 0))
+    (funcall fn)))
+
+(ert-deftest scs/org-append-zwsp-markers-sequences-from-point ()
+  "Number Org paragraphs from point; leave earlier ones alone."
+  (scs-org-tools-test--with-org
+   (concat "Before.\n\n"
+           "First tagged.\n\n"
+           "* Heading\n"
+           "Under heading.\n\n"
+           "- list item\n\n"
+           "Last tagged.\n")
+   "First tagged."
+   (lambda ()
+     (scs/org-append-zwsp-markers 1)
+     (let ((s (buffer-string)))
+       (should (string-search "Before.\n\n" s))
+       (should-not (string-match-p "Before\\.\\\\zwsp{}_" s))
+       (should (string-match-p "First tagged\\.\\\\zwsp{}_1\n" s))
+       (should (string-match-p "Under heading\\.\\\\zwsp{}_2\n" s))
+       (should (string-match-p "- list item\n" s))
+       (should-not (string-match-p "list item\\\\zwsp{}" s))
+       (should (string-match-p "Last tagged\\.\\\\zwsp{}_3\n" s))))))
+
+(ert-deftest scs/org-append-zwsp-markers-overwrites-existing ()
+  "Replace an existing trailing marker instead of stacking."
+  (scs-org-tools-test--with-org
+   "Hello.\\zwsp{}_99\n\nWorld.\\zwsp{}_7\n"
+   "Hello."
+   (lambda ()
+     (scs/org-append-zwsp-markers 5)
+     (let ((s (buffer-string)))
+       (should (string-match-p "Hello\\.\\\\zwsp{}_5\n" s))
+       (should (string-match-p "World\\.\\\\zwsp{}_6\n" s))
+       (should-not (string-match-p "\\\\zwsp{}_99" s))
+       (should-not (string-match-p "\\\\zwsp{}_5\\\\zwsp{}" s))))))
+
+(ert-deftest scs/org-append-zwsp-markers-optional-start-and-guard ()
+  "Default start is 1; non-Org buffers signal user-error."
+  (scs-org-tools-test--with-org
+   "Only one.\n"
+   "Only one."
+   (lambda ()
+     (scs/org-append-zwsp-markers)
+     (should (string-match-p "Only one\\.\\\\zwsp{}_1\n" (buffer-string)))))
+  (with-temp-buffer
+    (fundamental-mode)
+    (insert "x\n")
+    (should-error (scs/org-append-zwsp-markers 1) :type 'user-error)))
+
+(provide 'scs-org-tools-test)
+
+;;; scs-org-tools-test.el ends here
+#+end_src
+
+- [ ] **Step 2: Run tests — expect failure (command missing)**
+
+Run the test runner command from *Test runner* above.
+
+Expected: load or void-function failure mentioning ~scs/org-append-zwsp-markers~, or ERT failures. Do not implement yet.
+
+- [ ] **Step 3: Commit the failing tests**
+
+#+begin_src shell
+git add test/scs-org-tools-test.el
+git commit -m "$(cat <<'EOF'
+Add failing ERT coverage for Org zwsp paragraph markers.
+
+EOF
+)"
+#+end_src
+
+* Task 2: Implement ~scs/org-append-zwsp-markers~
+
+**Files:**
+- Modify: =lisp/scs-org-tools.el=
+- Test: =test/scs-org-tools-test.el= (unchanged)
+
+**Interfaces:**
+- Consumes: Org element API; ERT expectations from Task 1
+- Produces:
+  - ~scs/org-zwsp-marker-re~ — regexp string matching ~\zwsp{}_[0-9]+~
+  - ~(scs/org--set-zwsp-marker-at contents-end n)~ — replace/insert marker before ~CONTENTS-END~
+  - ~(scs/org-append-zwsp-markers &optional start)~ — interactive command
+
+- [ ] **Step 1: Extend the file commentary**
+
+In =lisp/scs-org-tools.el=, update the Commentary block so it mentions both
+~scs/org-insert-creation-date~ and ~scs/org-append-zwsp-markers~ (one short
+paragraph for the new command: paragraphs from point get ~\zwsp{}_N~).
+
+- [ ] **Step 2: Add the helper and command after ~scs/org-insert-creation-date~**
+
+Insert the following before ~(provide 'scs-org-tools)~:
+
+#+begin_src emacs-lisp
+(defconst scs/org-zwsp-marker-re "\\\\zwsp{}_[0-9]+"
+  "Regexp matching a trailing Org paragraph \\\\zwsp{}_N marker.")
+
+(defun scs/org--set-zwsp-marker-at (contents-end n)
+  "At paragraph CONTENTS-END, set trailing marker to N.
+Removes an existing match of `scs/org-zwsp-marker-re' immediately before
+CONTENTS-END, then inserts \\\\zwsp{}_N.  CONTENTS-END is an Org
+`:contents-end' position (text end, not `:end' which includes blank
+lines)."
+  (save-excursion
+    (goto-char contents-end)
+    (when (looking-back scs/org-zwsp-marker-re
+                        (max (point-min) (- (point) 80)))
+      (delete-region (match-beginning 0) (match-end 0)))
+    (insert (format "\\zwsp{}_%d" n))))
+
+;;;###autoload
+(defun scs/org-append-zwsp-markers (&optional start)
+  "Append sequential \\\\zwsp{}_N markers to Org paragraphs from point.
+START (prefix arg; default 1) is the first number used.  Only Org
+elements of type `paragraph' whose `:end' is at or after point are
+updated.  An existing trailing \\\\zwsp{}_[0-9]+ is replaced.  Sentence
+punctuation is left unchanged.
+
+Signals `user-error' if called outside Org mode."
+  (interactive "p")
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Not in Org mode"))
+  (let* ((start (or start 1))
+         (origin (point))
+         (paragraphs
+          (org-element-map (org-element-parse-buffer) 'paragraph
+            (lambda (p)
+              (when (>= (org-element-property :end p) origin)
+                p))))
+         (n start)
+         (jobs nil))
+    (dolist (p paragraphs)
+      (push (cons (org-element-property :contents-end p) n) jobs)
+      (setq n (1+ n)))
+    ;; `push' built jobs last→first already; edit in that order.
+    (dolist (job jobs)
+      (scs/org--set-zwsp-marker-at (car job) (cdr job)))
+    (message "Updated %d paragraph%s"
+             (length jobs)
+             (if (= (length jobs) 1) "" "s"))))
+#+end_src
+
+Note on numbering: ~org-element-map~ walks in buffer order. Each matching
+paragraph gets ~n~, then ~n~ increments. ~push~ reverses into last→first
+for safe edits. The ~cdr~ of each job is still the correct sequential
+number assigned in buffer order.
+
+- [ ] **Step 3: Run ERT — expect all pass**
+
+Run the test runner from *Test runner*.
+
+Expected: all three tests pass (~0 failed~).
+
+If ~list item~ is incorrectly treated as a ~paragraph~ on your Org
+version, adjust the fixture only after confirming with
+~(org-element-parse-buffer)~ in a scratch Org buffer — do not broaden
+the command to skip list items ad hoc; type ~paragraph~ alone is the
+spec filter.
+
+If ~looking-back~ fails to see markers because ~:contents-end~ sits after
+a newline, change the helper only: before ~looking-back~, add
+~(skip-chars-backward " \t\n")~ then after insert leave structure
+otherwise unchanged, and re-run ERT.
+
+- [ ] **Step 4: Commit implementation**
+
+#+begin_src shell
+git add lisp/scs-org-tools.el
+git commit -m "$(cat <<'EOF'
+Add scs/org-append-zwsp-markers for sequential paragraph tags.
+
+EOF
+)"
+#+end_src
+
+* Task 3: Autoload wiring (no keybinding)
+
+**Files:**
+- Modify: =init.el= (near the existing ~scs/org-insert-creation-date~ autoload, ~L803~ region)
+- Test: manual / batch load check
+
+**Interfaces:**
+- Consumes: ~scs/org-append-zwsp-markers~ from Task 2
+- Produces: autoload so ~M-x scs/org-append-zwsp-markers~ works before Org is loaded
+
+- [ ] **Step 1: Add autoload next to creation-date**
+
+In =init.el=, immediately after:
+
+#+begin_src emacs-lisp
+  (autoload 'scs/org-insert-creation-date "scs-org-tools" nil t)
+#+end_src
+
+add:
+
+#+begin_src emacs-lisp
+  (autoload 'scs/org-append-zwsp-markers "scs-org-tools" nil t)
+#+end_src
+
+Do **not** add a ~define-key~ for it.
+
+- [ ] **Step 2: Verify autoload resolves**
+
+#+begin_src shell
+emacs -batch -L lisp --eval "(progn (autoload 'scs/org-append-zwsp-markers \"scs-org-tools\" nil t) (unless (fboundp 'scs/org-append-zwsp-markers) (error \"missing autoload\")) (autoload-do-load (symbol-function 'scs/org-append-zwsp-markers)) (unless (commandp 'scs/org-append-zwsp-markers) (error \"not a command\")) (message \"OK\"))"
+#+end_src
+
+Expected stdout contains ~OK~.
+
+- [ ] **Step 3: Commit autoload**
+
+#+begin_src shell
+git add init.el
+git commit -m "$(cat <<'EOF'
+Autoload scs/org-append-zwsp-markers from init.
+
+EOF
+)"
+#+end_src
+
+* Spec coverage checklist
+
+| Spec requirement | Task |
+|------------------+------|
+| Command name / file / signature | 2 |
+| Prefix start, default 1 | 2 (+ test 1) |
+| Org-only ~user-error~ | 2 (+ test 1) |
+| ~paragraph~ only from point | 2 (+ test 1) |
+| Append ~\zwsp{}_N~, no forced ~.~ | 2 (+ test 1) |
+| Overwrite existing marker | 2 (+ test 1) |
+| Edit order safe for positions | 2 |
+| Message count | 2 |
+| No keybinding | 3 (autoload only) |
+| Autoload like creation-date | 3 |
+
+* Self-review
+
+- No TBD/placeholder steps; full Elisp included.
+- Tests assert list items and pre-point paragraphs stay unmarked.
+- Helper uses ~:contents-end~; filter uses ~:end ≥ point~ per design.
+- Interactive ~"p"~ matches default start ~1~.

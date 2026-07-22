@@ -1,0 +1,46 @@
+# Filename: msmtprc.mail-lab
+# Description: Template for ~/.msmtprc (mailcow SMTPS :465)
+# Author: SCS
+# Copyright: Copyright (C) 2026, SCS, all rights reserved.
+# Created: 2026-07-20 Mon 18:47
+# Version: 0.1.1
+# Last-Updated: 2026-07-20 Mon 19:06
+# Update #: 1
+#
+# Install:
+#   cp docs/msmtprc.mail-lab ~/.msmtprc
+#   chmod 600 ~/.msmtprc
+#
+# Requires ~/.authinfo lines with port 465 for each address.
+# Account ids match From addresses so Emacs can pass: msmtp -a ADDR -t
+
+defaults
+auth           on
+tls            on
+tls_starttls   off
+tls_trust_file /etc/ssl/cert.pem
+logfile        ~/.msmtp.log
+syslog         off
+
+account        scs@scs.re
+host           mail.dp.gy
+port           465
+from           scs@scs.re
+user           scs@scs.re
+passwordeval   "~/.config/emacs/bin/authinfo-pass mail.dp.gy scs@scs.re 465"
+
+account        priyadarshan@goldenboat.in
+host           mail.ck.gy
+port           465
+from           priyadarshan@goldenboat.in
+user           priyadarshan@goldenboat.in
+passwordeval   "~/.config/emacs/bin/authinfo-pass mail.ck.gy priyadarshan@goldenboat.in 465"
+
+account        mail@vsm.in
+host           mail.eb.gy
+port           465
+from           mail@vsm.in
+user           mail@vsm.in
+passwordeval   "~/.config/emacs/bin/authinfo-pass mail.eb.gy mail@vsm.in 465"
+
+account default : scs@scs.re

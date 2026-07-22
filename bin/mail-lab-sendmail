@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+"""sendmail-compatible SMTP sender for the Emacs mail lab (OpenSSL/ssl).
+
+Filename: mail-lab-sendmail
+Description: Avoid GnuTLS push errors from Emacs smtpmail and brew msmtp
+Author: SCS
+Copyright: Copyright (C) 2026, SCS, all rights reserved.
+Created: 2026-07-20 Mon 18:56
+Version: 0.2.1
+Last-Updated: 2026-07-20 Mon 19:05
+Update #: 2
+
+Why: Homebrew msmtp and Emacs smtpmail both use GnuTLS and fail against
+mailcow SMTPS with "Error in the push function" (msmtp exit 76).  MailMate
+works on the same port 465.  This shim uses Python's ssl (OpenSSL/LibreSSL).
+
+Usage (Emacs): set sendmail-program to this script; it understands -t and
+ignores common sendmail flags.  Reads the RFC822 message from stdin.
+
+Account map (From address -> host):
+  scs@scs.re                    -> mail.dp.gy:465
+  priyadarshan@goldenboat.in    -> mail.ck.gy:465
+  mail@vsm.in                   -> mail.eb.gy:465
+
+Password via: ~/.config/emacs/bin/authinfo-pass HOST USER 465
+"""
+from __future__ import annotations
+
+import email.policy
+import smtplib
+import subprocess
+import sys
+from email.message import Message
+from email.parser import BytesParser
+from email.utils import getaddresses, parseaddr
+from pathlib import Path
+
+SMTP_PORT = 465
+
+SMTP_BY_ADDRESS = {
+    "scs@scs.re": ("mail.dp.gy", "scs@scs.re"),
+    "priyadarshan@goldenboat.in": ("mail.ck.gy", "priyadarshan@goldenboat.in"),
+    "mail@vsm.in": ("mail.eb.gy", "mail@vsm.in"),
+}
+
+AUTHINFO_PASS = Path.home() / ".config/emacs/bin/authinfo-pass"
+
+
+def usage() -> None:
+    print(__doc__, file=sys.stderr)
+
+
+def get_password(host: str, user: str) -> str:
+    proc = subprocess.run(
+        [str(AUTHINFO_PASS), host, user, str(SMTP_PORT)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0 or not proc.stdout:
+        raise SystemExit(
+            f"authinfo-pass failed for {user}@{host}:{SMTP_PORT} "
+            f"(rc={proc.returncode}, stderr={proc.stderr.strip()})"
+        )
+    return proc.stdout
+
+
+def recipients_from_message(msg: Message) -> list[str]:
+    addrs: list[str] = []
+    for header in ("To", "Cc", "Bcc"):
+        if msg[header]:
+            addrs.extend(a for _, a in getaddresses([msg[header]]) if a)
+    # Drop Bcc from the on-wire copy after collecting recipients.
+    if "Bcc" in msg:
+        del msg["Bcc"]
+    return addrs
+
+
+def main(argv: list[str]) -> int:
+    # Emacs/sendmail pass assorted flags; we only care about reading stdin.
+    if any(a in ("-h", "--help") for a in argv):
+        usage()
+        return 0
+
+    raw = sys.stdin.buffer.read()
+    if not raw.strip():
+        print("mail-lab-sendmail: empty message on stdin", file=sys.stderr)
+        return 65  # EX_DATAERR
+
+    msg = BytesParser(policy=email.policy.SMTP).parsebytes(raw)
+    _name, from_addr = parseaddr(msg.get("From", ""))
+    from_addr = from_addr.lower()
+    if from_addr not in SMTP_BY_ADDRESS:
+        print(
+            f"mail-lab-sendmail: no SMTP map for From={from_addr!r}",
+            file=sys.stderr,
+        )
+        return 78  # EX_CONFIG
+
+    host, user = SMTP_BY_ADDRESS[from_addr]
+    rcpts = recipients_from_message(msg)
+    if not rcpts:
+        print("mail-lab-sendmail: no To/Cc/Bcc recipients", file=sys.stderr)
+        return 65
+
+    password = get_password(host, user)
+    envelope_from = from_addr
+
+    try:
+        with smtplib.SMTP_SSL(host, SMTP_PORT, timeout=30) as smtp:
+            smtp.login(user, password)
+            smtp.sendmail(
+                envelope_from, rcpts, msg.as_bytes(policy=email.policy.SMTP)
+            )
+    except Exception as exc:
+        print(f"mail-lab-sendmail: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 75  # EX_TEMPFAIL
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

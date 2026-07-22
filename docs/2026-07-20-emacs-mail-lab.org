@@ -1,0 +1,145 @@
+#+TITLE: Emacs mail lab (mu4e / notmuch)
+#+FILENAME: 2026-07-20-emacs-mail-lab.org
+#+DESCRIPTION: Shared Maildir vault and mu4e vs notmuch comparison
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-07-20 Mon 17:44
+#+VERSION: 0.3.0
+#+LAST-UPDATED: 2026-07-20 Mon 19:19
+#+UPDATE: 10
+
+* Goal
+
+Compare two Emacs mail UIs on one local vault:
+
+- mu4e (=mu= index)
+- notmuch.el (=notmuch= index)
+
+Shared extras: BBDB contacts (from =mu cfind=) and =org-msg= compose.
+
+(Gnus was tried and dropped -- too much bookkeeping for this lab.)
+
+* Shared store
+
+| Item | Value |
+|---+---|
+| Vault root | =~/mail/= |
+| Account dirs | =~/mail/scs@scs.re/=, =~/mail/priyadarshan@goldenboat.in/=, =~/mail/mail@vsm.in/= |
+| Why full address | Many accounts on one domain stay distinct |
+| Format | Maildir (RFC822 files) |
+| Sync | =mbsync= (isync 1.5.x), channels below |
+| IMAP/SMTP | mailcow ports 993 / 465 |
+| Credentials | =~/.authinfo= (mode 600), filled by hand |
+| Pass helper | =~/.config/emacs/bin/authinfo-pass= |
+| Sync config | =~/.mbsyncrc= |
+| Contacts | BBDB (=var/bbdb/bbdb.el= via no-littering) |
+
+*** mbsync channels
+
+| Channel | Address | IMAP host (MX) |
+|---+---|---|
+| =scs-at-scs-re= | =scs@scs.re= | =mail.dp.gy= |
+| =priyadarshan-at-goldenboat-in= | =priyadarshan@goldenboat.in= | =mail.ck.gy= |
+| =mail-at-vsm-in= | =mail@vsm.in= | =mail.eb.gy= |
+
+* Phase checklist
+
+** Phase 0 -- tools
+- [X] Install =isync=, =mu=, =notmuch=, =msmtp=
+
+** Phase 1 -- pilot sync
+- [X] Create =~/mail/scs@scs.re/INBOX/{cur,new,tmp}=
+- [X] Write =~/.mbsyncrc=
+- [X] Put real password in =~/.authinfo=
+- [X] Run: =mbsync scs-at-scs-re= (done by SCS in terminal)
+- [X] Confirm vault: 6 folders, 2 messages, RFC822 Maildir files
+- [X] =mu init= / =mu index= and =notmuch setup= / =notmuch new=
+
+** Phase 2 -- UIs
+- [X] Minimal mu4e (=lisp/scs-mail-lab.el=, =C-c m m=)
+- [X] Minimal notmuch.el (=C-c m n=)
+- [X] Dropped Gnus lab UI
+- [X] BBDB contacts + =mu cfind --format=json= export (=C-c m e=)
+- [X] =org-msg= HTML-friendly compose (shared)
+
+** Phase 3 -- scorecard
+- [ ] Same tasks on mu4e vs notmuch (search, thread, reply, offline, HTML later)
+
+* Try in Emacs (after reload)
+
+Reload config (=C-c r=) or restart Emacs, then:
+
+| UI | Start | First moves |
+|---+---|---|
+| mu4e | =C-c m m= | =j g= global INBOX; list top / body bottom; =c= compose; =C-c C-c= send |
+| notmuch | =C-c m n= or =C-c m s= | =RET= thread (opens below); =m= compose; =C-c C-c= send |
+| compose (any) | =C-c m c= | pick From; Org body via =org-msg=; =C-c C-c= send |
+| BBDB | =C-c m b= | browse / search contacts |
+| export contacts | =C-c m e= | harvest from mu into BBDB file |
+
+*** Layout and threads
+
+- mu4e :: =mu4e-split-view= horizontal; related messages on (=mu4e-search-include-related=)
+- notmuch :: search stays on top; show opens in lower window; search lines are threads
+
+*** Contacts (BBDB)
+
+Mental model:
+
+1. Harvest addresses already seen in mail (=mu cfind=)
+2. Store in the BBDB file (Lisp data; inspectable)
+3. Complete on To/Cc with =M-TAB= (=bbdb-complete-mail=) in compose
+
+Shell preview:
+
+#+begin_src shell
+mu cfind --format=json -n 5 ''
+mu cfind --format=plain -n 5 ''
+#+end_src
+
+In Emacs: =C-c m e= harvests via JSON into the BBDB file (backs up with
+=.bak=, creates format-9 records).  Prefer this over raw
+=mu cfind --format=bbdb= (that dump can break on names with quotes).
+Then =C-c m b= (or =M-x bbdb=) to browse.
+
+=org-msg= compose still uses the same BBDB completion hooks (message-mode).
+
+*** Sending
+
+Lab send path: *=msmtp=* + =~/.msmtprc= (SMTPS *=465=*), passwords via
+=authinfo-pass= / =~/.authinfo=.  Template: =docs/msmtprc.mail-lab=.
+
+Emacs picks the msmtp account with =-a <From-address>= (hook in
+=scs/mail-lab-configure-send=).
+
+Compose body: *=org-msg=* (Org -> multipart text/html).  Toggle off with
+=M-x org-msg-mode= if you want plain message-mode temporarily.
+
+If msmtp exits *76* (GnuTLS push error), fall back to
+=bin/mail-lab-sendmail= (Python =ssl= on =:465=).
+
+Shell smoke test:
+
+#+begin_src shell
+printf 'From: SCS <scs@scs.re>\nTo: YOU@example.com\nSubject: lab send test\n\nhello\n' \
+  | msmtp -a scs@scs.re -t
+#+end_src
+
+Then in Emacs reload lab code and =C-c m c= -> =C-c C-c=.
+
+After a terminal =mbsync -a=:
+
+#+begin_src shell
+mu index
+notmuch new
+#+end_src
+
+In mu4e, =U= also runs =mbsync -a= (then mu reindexes via its server).
+
+* Commands (after password is set)
+
+#+begin_src shell
+~/.config/emacs/bin/authinfo-pass --list
+mbsync -a && mu index && notmuch new
+mu cfind --format=plain -n 5 ''
+#+end_src
