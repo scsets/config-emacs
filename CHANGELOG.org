@@ -7,6 +7,23 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 
+* 2026-07-24 Fri org-tools autoload hygiene
+
+- lisp/org-tools.el: keep ;;;###autoload only on interactive entry
+  points; drop cookies from export hook callbacks.
+- init.el: declare all org-tools interactive autoloads under Local
+  libraries (export + buffer); Hyper map keeps bindings only.
+
+* 2026-07-24 Fri Merge Org helpers into org-tools
+
+- lisp/org-tools.el: absorb buffer helpers from scs-org-tools (header,
+  creation-date, zwsp, rename); Commentary covers export + buffers.
+- lisp/scs-org-tools.el: deleted (no shim); callers retargeted.
+- test/org-tools-test.el: renamed from scs-org-tools-test; requires
+  org-tools.
+- init.el: Hyper autoloads and Org ~require~ use org-tools only.
+- readme.org / status.org / insights.org: one library home documented.
+
 * 2026-07-24 Fri In-file Change Log sections
 
 - early-init.el, init.el, lisp/*.el, lisp/scs-convert/, test/*.el,

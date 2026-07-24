@@ -1,0 +1,124 @@
+#+TITLE: Merge scs-org-tools into org-tools -- design
+#+FILENAME: 2026-07-24-org-tools-merge-design.org
+#+DESCRIPTION: Consolidate Org helpers into lisp/org-tools.el; delete scs-org-tools
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-07-24 Fri 09:25
+#+VERSION: 0.1.0
+#+LAST-UPDATED: 2026-07-24 Fri 09:25
+#+UPDATE: 0
+
+* Summary
+
+Make ~lisp/org-tools.el~ the single home for team Org helpers: export
+(line-prefix, stationery, PDF/X) plus buffer tools currently in
+~lisp/scs-org-tools.el~ (header ensure, creation-date, zwsp markers,
+rename-at-point).  Delete ~scs-org-tools.el~.  Retarget every live load,
+autoload, test, and ops doc so old ~require~/~autoload~ paths keep
+working by pointing at ~org-tools~, not via a shim file.
+
+* Goals
+
+- One library: ~org-tools.el~ hosts all reusable Org tools in this tree.
+- Keep existing ~scs/~ interactive command and helper names (no rename).
+- Hard cutover: delete ~lisp/scs-org-tools.el~ (no ~provide~ shim).
+- Fix callers: ~init.el~ autoloads and ~require~, ERT harness, operator
+  docs (~readme.org~, ~status.org~, ~changelog.org~, ~insights.org~
+  load tables).
+- Teachable file header and Commentary for the merged module.
+
+* Non-goals
+
+- Do not move howm, org-id, capture-finalize, or S-f9 helpers out of
+  ~init.el~.
+- Do not rename ~scs/org-*~ symbols to ~org-tools-*~.
+- Do not rewrite historical ~docs/2026-07-*-*.org~ plan/design files
+  beyond this new design/plan pair (they remain historical records).
+- Do not change ~scs_org-buffer-template.org~ content or location
+  (still beside the library under ~lisp/~).
+
+* Current state
+
+| Piece | Role today |
+|-------+------------|
+| ~lisp/org-tools.el~ | Export hooks only; ~provide 'org-tools~ |
+| ~lisp/scs-org-tools.el~ | Header / creation-date / zwsp / rename |
+| ~test/scs-org-tools-test.el~ | ERT for the scs-org-tools commands |
+| ~init.el~ | Autoloads from ~"scs-org-tools"~; ~(require 'scs-org-tools)~ and ~(require 'org-tools)~ after Org |
+| Ops docs | Split table rows for the two libraries |
+
+* Target state
+
+| Piece | Role after merge |
+|-------+------------------|
+| ~lisp/org-tools.el~ | Export + buffer helpers; ~provide 'org-tools~ only |
+| ~lisp/scs-org-tools.el~ | Deleted |
+| ~test/org-tools-test.el~ | Same ERT coverage; ~(require 'org-tools)~ |
+| ~init.el~ | Autoloads from ~"org-tools"~; single ~(require 'org-tools)~ |
+| Ops docs | One ~org-tools.el~ row covering both concerns |
+
+* Architecture
+
+** Module layout (~org-tools.el~)
+
+1. File header + Commentary describing both export and buffer helpers.
+2. Shared requires: ~org~, ~scs-cl~, ~subr-x~, ~thingatpt~ (thingatpt
+   needed for rename-at-point).
+3. Existing export sections unchanged in behavior (line-prefix,
+   stationery, PDF/X).
+4. New sections appended (or clearly marked) for buffer helpers moved
+   from ~scs-org-tools.el~, preserving symbol names and docstrings
+   (edit only load-path / verify commands that still mention
+   ~scs-org-tools~).
+5. ~(provide 'org-tools)~ once at the end.
+
+** Load path cutover
+
+- Autoload file name string ~"scs-org-tools"~ -> ~"org-tools"~ for:
+  ~scs/org-insert-creation-date~, ~scs/org-append-zwsp-markers~,
+  ~scs/org-ensure-buffer-header~, ~scs/rename-visited-file-to-name-at-point~.
+- Drop ~(require 'scs-org-tools)~; keep ~(require 'org-tools)~ under
+  ~with-eval-after-load 'org~.
+
+** Tests
+
+- Rename ~test/scs-org-tools-test.el~ to ~test/org-tools-test.el~
+  (git mv or equivalent).
+- Update Filename / Description / Commentary batch command to load
+  ~lisp/org-tools.el~.
+- Keep ERT test symbol names that mirror commands (~scs/org-...~).
+- Optional: leave a short note in Change Log that the suite moved from
+  ~scs-org-tools-test~.
+
+** Docs
+
+Update live references in ~readme.org~, ~status.org~, ~changelog.org~
+(and ~CHANGELOG.org~ if still mirrored), and the ~insights.org~ library
+table / load examples.  Record the merge in ~changelog.org~ (GreyBeard
+style).
+
+* Risks and mitigations
+
+| Risk | Mitigation |
+|------|------------|
+| Stale ~autoload~ still points at deleted file | Grep for ~scs-org-tools~ after edit; fix every live caller |
+| Byte-compiled ~scs-org-tools.elc~ left behind | Delete ~.elc~ if present; gitignore already covers ~.elc~ |
+| Template path breaks | ~scs/org-buffer-header-template-file~ still resolves relative to ~org-tools.el~ directory; keep ~scs_org-buffer-template.org~ in ~lisp/~ |
+| ERT fails after move | Run batch ERT before claiming done |
+
+* Verification
+
+#+begin_example
+emacs -batch -L lisp -l ert -l lisp/org-tools.el \
+  -l test/org-tools-test.el -f ert-run-tests-batch-and-exit
+#+end_example
+
+Also confirm ~rg scs-org-tools~ under the repo (excluding historical
+~docs/~ and ~CHANGELOG~ history sections if desired) shows no live
+load paths remaining.
+
+* Approval
+
+Approved verbally 2026-07-24 Fri: approach 1, delete file, fix callers
+(no shim).  Scope: merge ~scs-org-tools~ only; leave ~init.el~ howm /
+org-id helpers alone.

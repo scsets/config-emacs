@@ -226,6 +226,14 @@ Intentionally not *scratch*; new frames land on persistent notes."
   "Export mu contacts into the BBDB file." t)
 (autoload 'scs/mail-lab-install-keys "scs-mail-lab"
   "Bind C-c m for the mail lab." t)
+;; org-tools: interactive entry points (hooks load via require after Org)
+(autoload 'org-tools-line-prefixes-mode "org-tools" nil t)
+(autoload 'org-tools-line-prefixes-status "org-tools" nil t)
+(autoload 'org-tools-regenerate-stationery "org-tools" nil t)
+(autoload 'scs/org-insert-creation-date "org-tools" nil t)
+(autoload 'scs/org-append-zwsp-markers "org-tools" nil t)
+(autoload 'scs/org-ensure-buffer-header "org-tools" nil t)
+(autoload 'scs/rename-visited-file-to-name-at-point "org-tools" nil t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -929,10 +937,7 @@ was nil during daemon startup, so font must be applied per frame."
   (define-prefix-command 'scs/hyper-c-prefix-map)
   (global-set-key (kbd "H-c") 'scs/hyper-c-prefix-map)
   (define-key scs/hyper-c-prefix-map (kbd "c") 'org-capture) ;; Capture
-  (autoload 'scs/org-insert-creation-date "scs-org-tools" nil t)
-  (autoload 'scs/org-append-zwsp-markers "scs-org-tools" nil t)
-  (autoload 'scs/org-ensure-buffer-header "scs-org-tools" nil t)
-  (autoload 'scs/rename-visited-file-to-name-at-point "scs-org-tools" nil t)
+  ;; org-tools autoloads live under Local libraries (lisp/) above.
   (define-key scs/hyper-c-prefix-map (kbd "d") #'scs/org-insert-creation-date)
   (define-key scs/hyper-c-prefix-map (kbd "H-d") #'scs/org-insert-creation-date)
   (define-key scs/hyper-c-prefix-map (kbd "h") #'scs/org-ensure-buffer-header) ;; Header
@@ -2047,7 +2052,6 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
   :defer t)
 
 (with-eval-after-load 'org
-  (require 'scs-org-tools)
   (require 'org-tools))
 
 ;; org-protocol needed for macOS scrim -- load after server starts

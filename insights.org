@@ -744,26 +744,27 @@ subdirectories, so ~init.el~ registers the folder once:
 
 Each library file ~NAME.el~ must end with ~(provide 'NAME)~. Load it
 with ~(require 'NAME)~. The feature name and basename must match:
-~lisp/scs-org-tools.el~ → ~(require 'scs-org-tools)~.
+~lisp/org-tools.el~ → ~(require 'org-tools)~.
 
 Current libraries:
 
 | File | Loaded from ~init.el~ | Role |
 |------+----------------------+------|
-| ~scs-org-tools.el~ | ~with-eval-after-load 'org~; Hyper prefix ~autoload~ at init | Org helpers (~scs/org-insert-creation-date~) |
+| ~org-tools.el~ | Local-libraries ~autoload~; ~with-eval-after-load 'org~ ~require~ | Org buffer + export helpers (~scs/org-insert-creation-date~, line-prefix, …) |
 | ~flycheck-org-lint-workaround.el~ | ~flycheck~ ~:config~ | Flycheck/org-lint line-cell advice |
 
 Defer loading until dependencies exist. Org helpers use:
 
 #+begin_example
 (with-eval-after-load 'org
-  (require 'scs-org-tools))
+  (require 'org-tools))
 #+end_example
 
-because ~org~ is ~:defer t~ in this config. The creation-date command
-is also ~autoload~ed and bound on ~scs/hyper-c-prefix-map~ at init so
-~H-c d~ works before ~org~ is loaded; the first keypress loads
-~scs-org-tools~ (and ~org~ via ~require~).
+because ~org~ is ~:defer t~ in this config. Interactive org-tools
+commands are also ~autoload~ed under Local libraries so ~M-x~ and
+~H-c d~ work before ~org~ is loaded; the first use loads ~org-tools~
+(and ~org~ via ~require~).  Only those interactive entry points carry
+~;;;###autoload~ cookies; export hook callbacks do not.
 
 Flycheck helpers load
 inside the flycheck ~use-package~ ~:config~ block:
@@ -778,7 +779,9 @@ inside the flycheck ~use-package~ ~:config~ block:
 #+end_example
 
 Mark interactive commands with ~;;;###autoload~ so ~M-x~ and future
-byte-compiled autoloads can see them before the file is loaded.
+byte-compiled autoloads can see them before the file is loaded.  In this
+profile, pair those cookies with explicit ~(autoload ...)~ forms under
+Local libraries in ~init.el~ (cookies alone do not register at runtime).
 
 Byte-compiled =~.elc~= files may appear after local byte-compilation but
 must not be committed; =~/.gitignore~= lists ~*.elc~.
@@ -825,7 +828,7 @@ The command signals ~user-error~ outside Org mode.
 (define-prefix-command 'scs/hyper-c-prefix-map)
 (global-set-key (kbd "H-c") 'scs/hyper-c-prefix-map)
 (define-key scs/hyper-c-prefix-map (kbd "c") 'org-capture)
-(autoload 'scs/org-insert-creation-date "scs-org-tools" nil t)
+;; (autoload ... "org-tools" ...) lives under Local libraries in init.el
 (define-key scs/hyper-c-prefix-map (kbd "d") #'scs/org-insert-creation-date)
 (define-key scs/hyper-c-prefix-map (kbd "H-d") #'scs/org-insert-creation-date)
 #+end_example

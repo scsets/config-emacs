@@ -76,7 +76,7 @@ Last-Updated.  Prefix for related symbols: `scs/file-header-'."
   "Return the SCS header timestamp string (local time with weekday).
 
 Format is `YYYY-MM-DD Day HH:MM', e.g. `2026-07-24 Fri 06:43'.
-Same shape as Org header stamps in `scs-org-tools.el'.  Local zone,
+Same shape as Org header stamps in `org-tools.el'.  Local zone,
 24-hour clock, English weekday abbreviation from `format-time-string'."
   (format-time-string "%Y-%m-%d %a %H:%M"))
 

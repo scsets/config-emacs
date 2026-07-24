@@ -1,26 +1,27 @@
-;;; scs-org-tools-test.el --- Tests for scs-org-tools  -*- lexical-binding: t; -*-
+;;; org-tools-test.el --- Tests for org-tools buffer helpers  -*- lexical-binding: t; -*-
 
-;; Filename: scs-org-tools-test.el
-;; Description: ERT tests for lisp/scs-org-tools.el
+;; Filename: org-tools-test.el
+;; Description: ERT tests for lisp/org-tools.el buffer helpers
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-07-22 Wed 12:00
-;; Version: 0.1.0
-;; Last-Updated: 2026-07-24 Fri 06:49
-;; Update #: 1
+;; Version: 0.1.1
+;; Last-Updated: 2026-07-24 Fri 09:28
+;; Update #: 2
 
 ;;; Commentary:
 ;;
 ;; Batch run (from repo root):
 ;;
-;;   emacs -batch -L lisp -l ert -l lisp/scs-org-tools.el \
-;;     -l test/scs-org-tools-test.el -f ert-run-tests-batch-and-exit
+;;   emacs -batch -L lisp -l ert -l lisp/org-tools.el \
+;;     -l test/org-tools-test.el -f ert-run-tests-batch-and-exit
 ;;
 ;; Helpers build temp Org buffers with point on a known substring so tests
 ;; read like small user scenarios rather than opaque fixture strings.
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-07-24 -- retarget suite from scs-org-tools to org-tools
 ;; fix: 2026-07-24 -- teachable Commentary for SCS team
 ;; add: 2026-07-23 -- rename-at-point ERT
 ;; add: 2026-07-22 -- ensure-buffer-header ERT
@@ -30,7 +31,7 @@
 (require 'ert)
 (require 'cl-lib)
 (require 'org)
-(require 'scs-org-tools)
+(require 'org-tools)
 
 (defun scs-org-tools-test--with-org (text point-marker fn)
   "Insert TEXT in a temp Org buffer, move to POINT-MARKER, call FN.
@@ -289,6 +290,6 @@ parsing the whole buffer."
       (when (file-directory-p dir)
         (delete-directory dir t)))))
 
-(provide 'scs-org-tools-test)
+(provide 'org-tools-test)
 
-;;; scs-org-tools-test.el ends here
+;;; org-tools-test.el ends here

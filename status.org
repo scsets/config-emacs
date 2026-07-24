@@ -19,10 +19,9 @@ Current verified health and known limitations.  Not a changelog or roadmap.
 | custom.el          | GONE   | Settings in init.el; custom-file disposable + never loaded |
 | org                | OK     | el-get builtin recipe; trusted-Org documented |
 | org-contrib        | OK     | el-get git (sr.ht); org-expiry              |
-| scs-org-tools      | OK     | lisp/scs-org-tools.el; H-c d creation-date  |
 | scs-frame-state    | OK     | lisp/scs-frame-state.el; save/restore geometry |
 | scs-tramp          | OK     | lisp/scs-tramp.el; C-c t prefix             |
-| org-tools          | OK     | lisp/org-tools.el; export helpers           |
+| org-tools          | OK     | lisp/org-tools.el; buffer + export helpers; H-c d |
 | ob-ly              | GONE   | Removed from org-contrib 0.8                |
 | eshell             | OK     | eshell-toggle, eshell-z, eshell-up, eat     |
 | psvn               | GONE   | GitHub repo deleted; using vc-svn           |
@@ -31,7 +30,7 @@ Current verified health and known limitations.  Not a changelog or roadmap.
 | corfu              | GONE   | Removed; company is the active backend      |
 | flycheck           | OK     | Deferred 3s; org-lint via lisp/ workaround  |
 | framemove          | OK     | Via el-get local recipe                     |
-| lisp/ libraries    | OK     | scs-org-tools, scs-frame-state, scs-tramp, org-tools, flycheck workaround |
+| lisp/ libraries    | OK     | org-tools, scs-frame-state, scs-tramp, flycheck workaround |
 | SLIME/SLY paths    | CHECK  | Verify ~/lisp/lispworks/lw-console (tasks)  |
 | howm               | OK     | Org notes in ~/notes; howm only under notes |
 | org-id             | OK     | Load persisted locations; ~scs/org-id-rebuild~ / ~report-duplicates~ |

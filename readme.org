@@ -64,10 +64,9 @@ material.
 
 | Library | Loaded from | Purpose |
 |---------+-------------+---------|
-| =scs-org-tools.el= | ~org~ hook; Hyper prefix autoload | ~scs/org-insert-creation-date~ (lowercase ~:creation-date:~) |
+| =org-tools.el= | ~require~ after Org; Hyper prefix autoload | Buffer helpers (header, creation-date, zwsp, rename) + export (line-prefix, stationery, PDF/X) |
 | =scs-frame-state.el= | autoload | Frame geometry save/restore |
 | =scs-tramp.el= | TRAMP ~:config~ + autoload | Known hosts, cleanup, no-trace policy |
-| =org-tools.el= | ~require~ after Org | Export helpers (PDF/X, Ghostscript, ImageMagick when used) |
 | =flycheck-org-lint-workaround.el= | ~flycheck~ block | Advice for broken Flycheck/org-lint line-cell handling |
 
 ** Frame Geometry Save/Restore

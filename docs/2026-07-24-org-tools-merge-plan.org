@@ -1,0 +1,261 @@
+#+TITLE: Merge scs-org-tools into org-tools -- implementation plan
+#+FILENAME: 2026-07-24-org-tools-merge-plan.org
+#+DESCRIPTION: Step plan for consolidating Org helpers into org-tools.el
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-07-24 Fri 09:26
+#+VERSION: 0.1.0
+#+LAST-UPDATED: 2026-07-24 Fri 09:26
+#+UPDATE: 0
+
+* For agentic workers
+
+Spec: =docs/2026-07-24-org-tools-merge-design.org=.
+Execute task-by-task inline in one session.  Do not ~git commit~
+unless SCS explicitly asks.  Do not leave a ~scs-org-tools~ shim;
+fix callers instead.
+
+* Goal
+
+Move all code from ~lisp/scs-org-tools.el~ into ~lisp/org-tools.el~,
+delete the old library, retarget loads/tests/docs, keep ~scs/~ command
+names, leave ~init.el~ howm/org-id helpers alone.
+
+* Architecture
+
+Append buffer-helper sections to ~org-tools.el~ (headers, creation-date,
+zwsp, rename).  Rewrite Commentary so the file is the Org tools home.
+Hard cutover of ~autoload~ / ~require~ / ERT / ops docs to ~org-tools~.
+
+* Global constraints
+
+- Emacs 29.1+, Org 9+ (existing Package-Requires).
+- Keep symbol names (~scs/org-ensure-buffer-header~, etc.).
+- ASCII only in edits.
+- Prefer Org for docs; update ~changelog.org~ (hardlink of ~CHANGELOG.org~).
+- Historical ~docs/2026-07-*-*.org~ plans stay as historical records.
+
+* File map
+
+| Path | Action |
+|------|--------|
+| ~lisp/org-tools.el~ | Modify: header, Commentary, ~require 'thingatpt~, append helpers |
+| ~lisp/scs-org-tools.el~ | Delete (and ~.elc~ if present) |
+| ~test/org-tools-test.el~ | Create via rename from ~test/scs-org-tools-test.el~; retarget |
+| ~test/scs-org-tools-test.el~ | Remove after rename |
+| ~init.el~ | Autoload file string + single ~require~ |
+| ~readme.org~, ~status.org~, ~insights.org~, ~changelog.org~ | Live doc cutover |
+
+* Tasks
+
+** Task 1: Merge code into org-tools.el
+
+- [ ] Step 1: Read ~lisp/scs-org-tools.el~ body from ~(defcustom
+  scs/org-buffer-header-template-file~ through the last command
+  (before ~(provide 'scs-org-tools)~).
+
+- [ ] Step 2: Update ~lisp/org-tools.el~ file header:
+
+#+begin_example
+;;; org-tools.el --- Org export and buffer helpers  -*- lexical-binding: t; -*-
+
+;; Filename: org-tools.el
+;; Description: Org helpers: headers, zwsp, rename; line-prefix/stationery/PDFX export
+;; Author: SCS
+;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
+;; Created: 2026-07-15 Tue 10:00
+;; Version: 0.2.0
+;; Last-Updated: 2026-07-24 Fri <HH:MM>
+;; Update #: 2
+;; Keywords: org, export, convenience
+;; Package-Requires: ((emacs "29.1") (org "9.0"))
+#+end_example
+
+(Use real local HH:MM at edit time.)
+
+- [ ] Step 3: Rewrite Commentary so Problem/Solution/Verify cover both
+  export and buffer helpers.  Include:
+
+#+begin_example
+;; Enable once in your init file:
+;;
+;;   (with-eval-after-load 'org
+;;     (require 'org-tools))
+;;
+;; How to verify (buffer helpers):
+;;
+;;   emacs -batch -L lisp -l ert -l lisp/org-tools.el \
+;;     -l test/org-tools-test.el -f ert-run-tests-batch-and-exit
+#+end_example
+
+Keep the existing export syntax docs (line-prefix, stationery, PDF/X).
+
+- [ ] Step 4: In Change Log (newest first), add:
+
+#+begin_example
+;; fix: 2026-07-24 -- merge scs-org-tools buffer helpers into this file
+#+end_example
+
+- [ ] Step 5: After existing ~(require 'subr-x)~, add:
+
+#+begin_src emacs-lisp
+(require 'thingatpt)
+#+end_src
+
+(~org~ and ~scs-cl~ already required.)
+
+- [ ] Step 6: Before ~(provide 'org-tools)~, insert a section banner
+  and the full moved body from ~scs-org-tools.el~ (defcustom through
+  rename command).  Do not include ~(provide 'scs-org-tools)~.
+  Update any docstring/Commentary line inside that body that still
+  says to load ~scs-org-tools~ so it says ~org-tools~ instead.
+  Keep ~;;;###autoload~ cookies on the four interactive commands.
+
+- [ ] Step 7: Leave ~(provide 'org-tools)~ as the sole provide.
+
+** Task 2: Retarget tests
+
+- [ ] Step 1: ~git mv test/scs-org-tools-test.el test/org-tools-test.el~
+
+- [ ] Step 2: Update the new file header:
+
+#+begin_example
+;;; org-tools-test.el --- Tests for org-tools buffer helpers  -*- lexical-binding: t; -*-
+
+;; Filename: org-tools-test.el
+;; Description: ERT tests for lisp/org-tools.el buffer helpers
+;; ...
+;; Version: 0.1.1
+;; Last-Updated: 2026-07-24 Fri <HH:MM>
+;; Update #: 2
+#+end_example
+
+- [ ] Step 3: Commentary batch command becomes:
+
+#+begin_example
+;;   emacs -batch -L lisp -l ert -l lisp/org-tools.el \
+;;     -l test/org-tools-test.el -f ert-run-tests-batch-and-exit
+#+end_example
+
+- [ ] Step 4: Replace ~(require 'scs-org-tools)~ with ~(require 'org-tools)~.
+
+- [ ] Step 5: Keep ERT names (~scs/org-append-zwsp-markers-...~, etc.)
+  and helper ~scs-org-tools-test--with-org~ (optional rename of the
+  helper to ~org-tools-test--with-org~ is allowed if all call sites
+  update; either choice is fine).
+
+- [ ] Step 6: Add Change Log line:
+
+#+begin_example
+;; fix: 2026-07-24 -- retarget suite from scs-org-tools to org-tools
+#+end_example
+
+- [ ] Step 7: Run:
+
+#+begin_src shell
+emacs -batch -L lisp -l ert -l lisp/org-tools.el \
+  -l test/org-tools-test.el -f ert-run-tests-batch-and-exit
+#+end_src
+
+Expected: all tests passed (same count as before the merge).
+
+** Task 3: Fix init.el loads
+
+- [ ] Step 1: Change Hyper-prefix autoloads (around lines 932-935) from
+  ~"scs-org-tools"~ to ~"org-tools"~:
+
+#+begin_src emacs-lisp
+  (autoload 'scs/org-insert-creation-date "org-tools" nil t)
+  (autoload 'scs/org-append-zwsp-markers "org-tools" nil t)
+  (autoload 'scs/org-ensure-buffer-header "org-tools" nil t)
+  (autoload 'scs/rename-visited-file-to-name-at-point "org-tools" nil t)
+#+end_src
+
+- [ ] Step 2: Replace the Org load hook with a single require:
+
+#+begin_src emacs-lisp
+(with-eval-after-load 'org
+  (require 'org-tools))
+#+end_src
+
+- [ ] Step 3: If init.el Change Log / top comments mention
+  ~scs-org-tools~ as the library home for these commands, update to
+  ~org-tools~.
+
+** Task 4: Delete scs-org-tools and stale bytecode
+
+- [ ] Step 1: ~rm -f lisp/scs-org-tools.el lisp/scs-org-tools.elc~
+  (or ~git rm lisp/scs-org-tools.el~ if tracked).
+
+- [ ] Step 2: Confirm ~lisp/scs_org-buffer-template.org~ remains.
+
+** Task 5: Fix live docs
+
+- [ ] Step 1: ~readme.org~ Local libraries table: remove the
+  ~scs-org-tools.el~ row; expand the ~org-tools.el~ row, e.g.:
+
+#+begin_example
+| =org-tools.el= | ~require~ after Org; Hyper prefix autoload | Buffer helpers (header, creation-date, zwsp, rename) + export (line-prefix, stationery, PDF/X) |
+#+end_example
+
+- [ ] Step 2: ~status.org~ Health table: remove ~scs-org-tools~ row;
+  update ~org-tools~ notes and the ~lisp/ libraries~ cell so they no
+  longer list ~scs-org-tools~.
+
+- [ ] Step 3: ~insights.org~: wherever live guidance says
+  ~(require 'scs-org-tools)~ or autoload from ~"scs-org-tools"~, change
+  to ~org-tools~.  Update the library purpose table the same way.
+
+- [ ] Step 4: ~changelog.org~ newest entry (GreyBeard / dated SCS style
+  if that file uses it, else match surrounding dated headings):
+
+#+begin_example
+* 2026-07-24 Fri Merge Org helpers into org-tools
+
+- lisp/org-tools.el: absorb buffer helpers from scs-org-tools (header,
+  creation-date, zwsp, rename); Commentary covers export + buffers.
+- lisp/scs-org-tools.el: deleted (no shim); callers retargeted.
+- test/org-tools-test.el: renamed from scs-org-tools-test; requires
+  org-tools.
+- init.el: Hyper autoloads and Org ~require~ use org-tools only.
+- readme.org / status.org / insights.org: one library home documented.
+#+end_example
+
+** Task 6: Grep gate and ERT re-run
+
+- [ ] Step 1: From repo root:
+
+#+begin_src shell
+rg -n 'scs-org-tools' --glob '!docs/2026-07-1*.org' --glob '!docs/2026-07-2[0-3]*.org' \
+  --glob '!*.elc' --glob '!el-get/**' --glob '!var/**'
+#+end_src
+
+Expected: no remaining live load paths.  Mentions inside the new
+changelog entry and this plan/design pair are fine.  Historical docs
+under older dates may still name ~scs-org-tools~ (allowed).
+
+- [ ] Step 2: Re-run the ERT command from Task 2 Step 7; all green.
+
+- [ ] Step 3: Stop.  Suggest a commit message; do not commit unless
+  SCS asks.
+
+Suggested commit message:
+
+#+begin_example
+Merge scs-org-tools into org-tools and retarget loads.
+
+One Org helpers library; delete scs-org-tools and fix autoload/require/tests/docs.
+#+end_example
+
+* Spec coverage check
+
+| Spec requirement | Task |
+|------------------|------|
+| Merge buffer helpers into org-tools | 1 |
+| Keep ~scs/~ names | 1 (no renames) |
+| Delete scs-org-tools, no shim | 4 |
+| Fix autoload/require | 3 |
+| Retarget ERT | 2 |
+| Update ops docs + changelog | 5 |
+| Leave howm/org-id in init | (no task; out of scope) |
+| Verify ERT + grep | 6 |
