@@ -5,9 +5,9 @@
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-07-15 Tue 10:00
-;; Version: 0.2.2
-;; Last-Updated: 2026-07-24 Fri 09:47
-;; Update #: 4
+;; Version: 0.2.3
+;; Last-Updated: 2026-07-24 Fri 09:57
+;; Update #: 5
 ;; Keywords: org, export, convenience
 ;; Package-Requires: ((emacs "29.1") (org "9.0"))
 
@@ -52,8 +52,17 @@
 ;; How to verify (export)
 ;; ----------------------
 ;; Export a small .org test file with `! ` and `> ` lines; toggle
-;; `M-x org-tools-line-prefixes-mode RET' and re-export to see the hook
+;; `M-x scs/org-line-prefixes-mode RET' and re-export to see the hook
 ;; register or unregister.
+;;
+;; Naming
+;; ------
+;; Interactive commands use `scs/org-...' so M-x scs/org filters them
+;; with the rest of the personal palette.  Library machinery (hooks,
+;; enable/disable, `--' helpers, defcustom / defgroup) keeps the
+;; `org-tools-...' prefix tied to (provide 'org-tools).
+;; `scs/rename-visited-file-to-name-at-point' stays under `scs/' (not
+;; Org-only).
 ;;
 ;; Autoload cookies
 ;; ----------------
@@ -141,7 +150,7 @@
 ;;
 ;; Toggle without reloading:
 ;;
-;;   M-x org-tools-line-prefixes-mode RET
+;;   M-x scs/org-line-prefixes-mode RET
 ;;
 ;; ---------------------------------------------------------------------------
 ;; Faded letterhead (stationery)
@@ -161,7 +170,7 @@
 ;; in the final .tex output.  FADE is the percentage of original colour kept
 ;; (lower values look fainter).  Requires gs and magick on PATH.
 ;;
-;;   M-x org-tools-regenerate-stationery RET   ; rebuild from current buffer
+;;   M-x scs/org-regenerate-stationery RET   ; rebuild from current buffer
 ;;
 ;; If #+SCS_STATIONERY_FADE: is absent, the stationery hook does nothing.
 ;;
@@ -180,6 +189,7 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-07-24 -- interactive export commands use scs/org- prefix
 ;; fix: 2026-07-24 -- autoload cookies only on interactive entry points
 ;; fix: 2026-07-24 -- restore export clarifying text as its own Commentary section
 ;; fix: 2026-07-24 -- merge scs-org-tools buffer helpers into this file
@@ -223,11 +233,11 @@ Your Org file must define this command, e.g. in #+LATEX_HEADER."
   :type 'string)
 
 ;;;###autoload
-(define-minor-mode org-tools-line-prefixes-mode
+(define-minor-mode scs/org-line-prefixes-mode
   "Toggle Org line-prefix expansion before export."
   :lighter " OrgLP"
   :group 'org-tools
-  (if org-tools-line-prefixes-mode
+  (if scs/org-line-prefixes-mode
       (org-tools-enable-line-prefixes)
     (org-tools-disable-line-prefixes)))
 
@@ -425,7 +435,7 @@ line numbers stay valid while regions are deleted and replaced."
   nil)
 
 ;;;###autoload
-(defun org-tools-line-prefixes-status ()
+(defun scs/org-line-prefixes-status ()
   "Show whether line-prefix expansion is active."
   (interactive)
   (message "Org line-prefix expansion is %s"
@@ -576,7 +586,7 @@ Signal `error' on missing binary or non-zero exit."
     contents))
 
 ;;;###autoload
-(defun org-tools-regenerate-stationery ()
+(defun scs/org-regenerate-stationery ()
   "Rebuild the faded stationery PDF for the current Org file."
   (interactive)
   (unless (derived-mode-p 'org-mode)

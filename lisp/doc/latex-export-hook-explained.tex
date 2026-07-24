@@ -85,7 +85,7 @@ Implemented in \texttt{/Users/scs/.config/emacs/lisp/org-tools.el}.
 \textbf{\textbf{When it runs:}} \texttt{org-export-before-parsing-functions} →
 \texttt{org-tools-expand-line-prefixes}, \textbf{before} Org parses the export buffer.
 
-\textbf{\textbf{Toggle:}} \texttt{M-x org-tools-line-prefixes-mode} / \texttt{M-x org-tools-line-prefixes-status}
+\textbf{\textbf{Toggle:}} \texttt{M-x scs/org-line-prefixes-mode} / \texttt{M-x scs/org-line-prefixes-status}
 \subsection*{Centered lines (\texttt{!})}
 \label{sec:orgb53b462}
 
@@ -312,7 +312,7 @@ Function & Purpose\\
 \texttt{org-tools-ensure-stationery-faded} & Read keywords, cache logic, maybe rebuild\\
 \texttt{org-tools-{}-{}regenerate-stationery-faded} & Run gs + magick pipeline\\
 \texttt{org-tools-filter-stationery-output} & Replace placeholder in final \texttt{.tex} string\\
-\texttt{org-tools-regenerate-stationery} & \texttt{M-x} — rebuild without exporting\\
+\texttt{scs/org-regenerate-stationery} & \texttt{M-x} — rebuild without exporting\\
 \end{tabular}
 \end{center}
 
@@ -397,7 +397,7 @@ No small caps & Old \texttt{scs-fontspec.tex} & Reload; check \texttt{Letters=Sm
 Line with \texttt{[} missing & fontspec ate \texttt{[} as options & Ensure \texttt{\{\#1\}} wrapper in \texttt{scs-fontspec.tex}\\
 \texttt{-{}-{}} not an en-dash in \texttt{!sc} & Missing \texttt{Ligatures=TeX} & Update \texttt{scs-fontspec.tex}\\
 Header brackets missing & Fragile \texttt{\textbackslash{}textsc} in \texttt{\textbackslash{}fancyhead} & Use \texttt{\textbackslash{}runheadertext\{...\}}\\
-Wrong stationery in PDF & Stale cache & Touch source PDF or \texttt{M-x org-tools-regenerate-stationery}\\
+Wrong stationery in PDF & Stale cache & Touch source PDF or \texttt{M-x scs/org-regenerate-stationery}\\
 Export error “gs not found” & Ghostscript missing & Install Ghostscript\\
 Path all UPPERCASE in \texttt{.tex} & Old substitution bug & Update \texttt{org-tools.el} (use \texttt{replace-match})\\
 \end{tabular}
@@ -411,8 +411,8 @@ Command & Action\\
 \hline
 \texttt{C-c C-e l l} & Export to \LaTeX{} file\\
 \texttt{C-c C-e l p} & Export to PDF (export + compile)\\
-\texttt{M-x org-tools-line-prefixes-status} & Check \texttt{!} / => hook\\
-\texttt{M-x org-tools-regenerate-stationery} & Rebuild faded letterhead from buffer keywords\\
+\texttt{M-x scs/org-line-prefixes-status} & Check \texttt{!} / => hook\\
+\texttt{M-x scs/org-regenerate-stationery} & Rebuild faded letterhead from buffer keywords\\
 \end{tabular}
 \end{center}
 \section*{File index}

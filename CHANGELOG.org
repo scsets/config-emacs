@@ -7,6 +7,15 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 
+* 2026-07-24 Fri scs/org- interactive prefix for export commands
+
+- lisp/org-tools.el: rename interactive export entry points to
+  ~scs/org-line-prefixes-mode~, ~scs/org-line-prefixes-status~,
+  ~scs/org-regenerate-stationery~; library ~org-tools-*~ unchanged.
+  ~scs/rename-visited-file-to-name-at-point~ left as-is (not Org-only).
+- init.el: matching autoloads; lisp/doc/latex-export-hook-explained.*
+  updated.
+
 * 2026-07-24 Fri org-tools autoload hygiene
 
 - lisp/org-tools.el: keep ;;;###autoload only on interactive entry

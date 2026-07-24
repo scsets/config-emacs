@@ -227,9 +227,9 @@ Intentionally not *scratch*; new frames land on persistent notes."
 (autoload 'scs/mail-lab-install-keys "scs-mail-lab"
   "Bind C-c m for the mail lab." t)
 ;; org-tools: interactive entry points (hooks load via require after Org)
-(autoload 'org-tools-line-prefixes-mode "org-tools" nil t)
-(autoload 'org-tools-line-prefixes-status "org-tools" nil t)
-(autoload 'org-tools-regenerate-stationery "org-tools" nil t)
+(autoload 'scs/org-line-prefixes-mode "org-tools" nil t)
+(autoload 'scs/org-line-prefixes-status "org-tools" nil t)
+(autoload 'scs/org-regenerate-stationery "org-tools" nil t)
 (autoload 'scs/org-insert-creation-date "org-tools" nil t)
 (autoload 'scs/org-append-zwsp-markers "org-tools" nil t)
 (autoload 'scs/org-ensure-buffer-header "org-tools" nil t)

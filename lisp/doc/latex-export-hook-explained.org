@@ -84,7 +84,7 @@ Implemented in =/Users/scs/.config/emacs/lisp/org-tools.el=.
 **When it runs:** =org-export-before-parsing-functions= →
 =org-tools-expand-line-prefixes=, *before* Org parses the export buffer.
 
-**Toggle:** =M-x org-tools-line-prefixes-mode= / =M-x org-tools-line-prefixes-status=
+**Toggle:** =M-x scs/org-line-prefixes-mode= / =M-x scs/org-line-prefixes-status=
 
 ** Centered lines (=!=)
 
@@ -283,7 +283,7 @@ Elisp entry points:
 | =org-tools-ensure-stationery-faded=      | Read keywords, cache logic, maybe rebuild  |
 | =org-tools--regenerate-stationery-faded= | Run gs + magick pipeline                   |
 | =org-tools-filter-stationery-output=     | Replace placeholder in final =.tex= string |
-| =org-tools-regenerate-stationery=        | =M-x= — rebuild without exporting          |
+| =scs/org-regenerate-stationery=        | =M-x= — rebuild without exporting          |
 
 **Regeneration decision**
 
@@ -415,7 +415,7 @@ pdf2pdfx1a --man                           # full manual
 | Line with =[= missing        | fontspec ate =[= as options       | Ensure ={#1}= wrapper in =scs-fontspec.tex=               |
 | =--= not an en-dash in =!sc= | Missing =Ligatures=TeX=           | Update =scs-fontspec.tex=                                 |
 | Header brackets missing      | Fragile =\textsc= in =\fancyhead= | Use =\runheadertext{...}=                                 |
-| Wrong stationery in PDF      | Stale cache                       | Touch source PDF or =M-x org-tools-regenerate-stationery= |
+| Wrong stationery in PDF      | Stale cache                       | Touch source PDF or =M-x scs/org-regenerate-stationery= |
 | Export error “gs not found”  | Ghostscript missing               | Install Ghostscript                                       |
 | PDF/X step skipped           | No =#+SCS_PDFX:= or value =off=   | Add =#+SCS_PDFX: yes= for print PDFs                      |
 | PDF/X fails on ICC profile   | Adobe SWOP profile missing        | Install Creative Cloud / check =SWOP_ICC_PROFILE=          |
@@ -427,8 +427,8 @@ pdf2pdfx1a --man                           # full manual
 |---------------------------------------+-----------------------------------------------|
 | =C-c C-e l l=                         | Export to LaTeX file                          |
 | =C-c C-e l p=                         | Export to PDF (export + compile)              |
-| =M-x org-tools-line-prefixes-status=  | Check =!= / => hook                           |
-| =M-x org-tools-regenerate-stationery= | Rebuild faded letterhead from buffer keywords |
+| =M-x scs/org-line-prefixes-status=  | Check =!= / => hook                           |
+| =M-x scs/org-regenerate-stationery= | Rebuild faded letterhead from buffer keywords |
 
 * File index
 
