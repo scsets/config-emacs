@@ -1,11 +1,28 @@
-;;; early-init.el --- Early initialization  -*- lexical-binding: t; no-byte-compile: t; -*-
+;;; early-init.el --- Early Emacs initialization  -*- lexical-binding: t; no-byte-compile: t; -*-
 ;;
 ;; $Id: early-init.el,v 1.1 2026/03/23 07:36:04 scs Exp $
 ;;
+;; Filename: early-init.el
+;; Description: Performance, UI, packages, and macOS native-comp setup before init.el.
+;; Author: SCS
+;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
+;;
 ;;; Commentary:
-;;  Startup performance tweaks, UI defaults, and package setup.
-;;  Loaded before init.el by Emacs 27+.
-;;  fix: 2026-07-10 — no-byte-compile cookie; do not leave early-init.elc around
+;;
+;; Emacs 27 and later load this file automatically *before* init.el.  Think of
+;; it as the "bootstrap" phase: things here run while Emacs is still waking up,
+;; so we can defer expensive work and set environment variables that must exist
+;; before libraries like libgccjit load.
+;;
+;; What lives here (in order):
+;;   - Temporary GC and handler tweaks for faster startup, restored on
+;;     emacs-startup-hook
+;;   - Homebrew paths for native compilation on macOS (LIBRARY_PATH, CC)
+;;   - Quiet warnings during normal startup (use bin/emacs-diagnostic to debug)
+;;   - Frame defaults, macOS modifier remapping, package.el archives
+;;
+;; The no-byte-compile cookie is intentional: do not leave early-init.elc in
+;; the tree; stale bytecode here is painful to diagnose.
 ;;
 ;;; Code:
 
@@ -14,17 +31,18 @@
 ;; Startup performance
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Temporarily increase the garbage collection threshold.  These
-;; changes help shave off about half a second of startup time.  The
-;; `most-positive-fixnum' is DANGEROUS AS A PERMANENT VALUE.  See the
-;; `emacs-startup-hook' a few lines below for what I actually use.
+;; During init, Emacs allocates and throws away a lot of short-lived Lisp
+;; objects.  Raising gc-cons-threshold briefly reduces how often GC runs in
+;; that window (often shaving noticeable time off startup).  We restore sane
+;; values on emacs-startup-hook below -- leaving most-positive-fixnum in place
+;; forever would let heap growth get out of hand.
 (setq gc-cons-threshold most-positive-fixnum
       gc-cons-percentage 0.5)
 
-;; Same idea as above for the `file-name-handler-alist' and the
-;; `vc-handled-backends' with regard to startup speed optimisation.
-;; Here I am storing the default value with the intent of restoring it
-;; via the `emacs-startup-hook'.
+;; file-name-handler-alist and vc-handled-backends add hooks around file I/O
+;; and version control.  Disabling them for init avoids extra work on every
+;; path operation while packages load.  Save the defaults first so we can put
+;; them back once startup finishes.
 
 ;; Saved default value of file-name-handler-alist for post-init restore.
 (defvar scs--file-name-handler-alist file-name-handler-alist)
@@ -47,31 +65,40 @@
 ;; Warnings and compilation
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Full CL toolkit (cl-lib, cl-macs, cl-seq, cl-extra, …); see lisp/scs-cl.el
+;; Portable Common Lisp helpers (cl-lib and friends) live in lisp/scs-cl.el.
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
 (require 'scs-cl)
 
-;; add: 2026-07-10
 (defun scs/brew-executable ()
-  "Return a usable Homebrew `brew' executable, or nil."
+  "Return a usable Homebrew `brew' executable, or nil.
+
+Homebrew installs to /opt/homebrew on Apple Silicon and /usr/local on Intel.
+`executable-find' respects PATH; the fallback list covers GUI Emacs launches
+where PATH is often minimal."
   (or (executable-find "brew")
       (cl-loop for candidate in '("/opt/homebrew/bin/brew"
                                   "/usr/local/bin/brew")
                when (file-executable-p candidate)
                return candidate)))
 
-;; add: 2026-07-10
 (defun scs/brew-prefix (package &optional brew)
-  "Return Homebrew prefix for PACKAGE using BREW, or nil."
+  "Return Homebrew installation prefix for PACKAGE, or nil.
+
+Uses BREW when given; otherwise `scs/brew-executable'.  Prefix paths feed
+native-comp library discovery (gcc, libgccjit)."
   (when-let* ((brew (or brew (scs/brew-executable)))
               (out (string-trim
                     (shell-command-to-string
                      (format "%s --prefix %s" brew package)))))
     (and (file-directory-p out) out)))
 
-;; fix: 2026-07-10 — portable brew; fewer subprocesses
 (defun scs/native-comp-library-paths ()
-  "Library dirs Homebrew GCC/libgccjit need for native compilation."
+  "Return list of directories for LIBRARY_PATH before libgccjit runs.
+
+Emacs native compilation on macOS expects Homebrew GCC and libgccjit layout:
+lib/gcc/current, plus the newest arch-specific gcc/*-apple-darwin* subtree.
+Returns nil when Homebrew or those packages are absent (native comp may still
+work with system tools, or fail with a clear error)."
   (let ((brew (scs/brew-executable))
         paths)
     (when brew
@@ -87,23 +114,28 @@
                              (expand-file-name "gcc/*-apple-darwin*/*"
                                                gcc-current))))
             (when arch-dirs
+              ;; Prefer the lexicographically greatest dir name (newest gcc-N).
               (push (expand-file-name (car (sort arch-dirs #'string>))
                                       gcc-current)
                     paths))))))
     (delete-dups (nreverse paths))))
 
-;; add: 2026-07-10
 (defun scs/homebrew-gcc-driver (&optional brew)
-  "Return the newest Homebrew GCC driver executable, or nil."
+  "Return the newest Homebrew `gcc-N' driver executable, or nil.
+
+Picks gcc-[0-9]* under the gcc formula prefix so we do not hard-code a major
+version that Homebrew may rename on upgrade."
   (when-let* ((prefix (scs/brew-prefix "gcc" brew))
               (drivers (file-expand-wildcards
                         (expand-file-name "bin/gcc-[0-9]*" prefix)))
               (drivers (cl-remove-if-not #'file-executable-p drivers)))
     (car (sort drivers #'string>))))
 
-;; fix: 2026-07-10 — dynamic gcc-* instead of hard-coded gcc-16
 (defun scs/setup-macos-native-comp ()
-  "Set env vars Emacs needs before libgccjit runs (macOS GUI)."
+  "Set LIBRARY_PATH and CC for Emacs native compilation on macOS.
+
+Called once during early-init, before `package-native-compile' or any code
+path loads libgccjit.  No-op on non-Darwin systems."
   (when (eq system-type 'darwin)
     (let* ((brew (scs/brew-executable))
            (paths (scs/native-comp-library-paths))
@@ -116,12 +148,11 @@
 ;; Must run before package-native-compile / libgccjit is invoked.
 (scs/setup-macos-native-comp)
 
+;; Normal interactive sessions stay quiet; bin/emacs-diagnostic lowers this to
+;; :warning when you need to see compile or init warnings.
 (setq warning-minimum-level :emergency)
 (setq byte-compile-warnings '(not free-vars obsolete cl-functions lexical))
-;; Set this early so every subsequent `load' during startup prefers edited
-;; source over stale local bytecode when both are present.  This matters after
-;; changing files under lisp/: an old ignored .elc should never shadow a fixed
-;; .el during init.
+;; Prefer newer source over stale .elc during init (especially under lisp/).
 (setq load-prefer-newer t)
 
 
@@ -133,19 +164,19 @@
       frame-inhibit-implied-resize t
       frame-title-format '("%b")
       ring-bell-function 'ignore
-      use-dialog-box t ; only for mouse events, which I seldom use
+      use-dialog-box t ; file dialogs only when invoked by mouse (rare here)
       use-file-dialog nil
       use-short-answers t
       inhibit-splash-screen t
       inhibit-startup-screen t
       inhibit-x-resources t
-      inhibit-startup-echo-area-message user-login-name ; read the docstring
+      ;; Emacs can show a startup message in the echo area; this silences it.
+      inhibit-startup-echo-area-message user-login-name
       inhibit-startup-buffer-menu t)
 
-;; I do not use those graphical elements by default, but I do enable
-;; them from time-to-time for testing purposes or to demonstrate
-;; something.  NEVER tell a beginner to disable any of these.  They
-;; are helpful.
+;; menu-bar and scroll-bar stay available for demos; toolbar is off on GUI
+;; frames because this config is keyboard-first.  Beginners should keep those
+;; elements until they know they do not need them.
 
 ;(menu-bar-mode -1)
 ;(scroll-bar-mode -1)
@@ -154,7 +185,8 @@
 (when (eq system-type 'darwin)
   (add-to-list 'default-frame-alist '(undecorated-round . t))
   (add-to-list 'default-frame-alist '(font . "Menlo-18"))
-  ;; Must be set before window-system init (daemon/emacsclient too).
+  ;; Modifier remapping must be set before the NS window system initializes
+  ;; (including daemon / emacsclient first frame).
   (setq mac-command-modifier 'control) ; Command sends Control
   (setq mac-option-modifier 'meta)     ; Option sends Meta
   (setq mac-control-modifier 'super)   ; Control sends Super
@@ -168,10 +200,11 @@
 ;; Package setup
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; When early-init is loaded by file, anchor user-emacs-directory to this tree.
 (setq user-emacs-directory (file-name-directory (or load-file-name buffer-file-name)))
 
 (require 'package)
-;; Allow archive packages to upgrade bundled dependencies.
+;; MELPA packages may replace Emacs-bundled versions when upgrades require it.
 (setq package-install-upgrade-built-in t)
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (when (string-match "NATIVE_COMP" system-configuration-features)

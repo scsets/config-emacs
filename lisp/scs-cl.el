@@ -6,18 +6,30 @@
 
 ;;; Commentary:
 ;;
-;; Load the full Emacs Common Lisp extension stack from
-;; lisp/emacs-lisp/cl-*.el so owned config can rely on CL idioms
-;; without per-call autoloads.
+;; Problem:
+;;   Much of this config uses Common Lisp-style helpers (loop, destructuring,
+;;   generic functions, pretty-printing).  Emacs ships those in separate
+;;   cl-* libraries that are normally loaded on demand via autoloads.
+;;   Scattered (require 'cl-lib) calls are easy to forget and produce
+;;   confusing "void function" errors at runtime.
 ;;
-;; Features required (see emacs-mirror emacs/lisp/emacs-lisp):
+;; Solution:
+;;   One place, early in init, loads the full Emacs CL extension stack from
+;;   lisp/emacs-lisp/cl-*.el so owned code can assume CL idioms are present.
+;;
+;; Modules pulled in (see emacs-mirror emacs/lisp/emacs-lisp):
 ;;   cl-lib, cl-macs, cl-seq, cl-extra, cl-generic, cl-print, cl-indent,
-;;   plus cl-preloaded and cl-loaddefs when present.
+;;   plus cl-preloaded and cl-loaddefs when your Emacs build includes them.
 ;;
-;; Prefer (require 'scs-cl) over bare (require 'cl-lib) in this repo.
+;; How to check:
+;;   M-x eval-expression RET (featurep 'cl-lib) RET  should return t after
+;;   init.  In this repo, prefer (require 'scs-cl) over bare (require 'cl-lib)
+;;   so the stack stays consistent everywhere.
 
 ;;; Code:
 
+;; Load order matches upstream dependencies: cl-lib first, then macros and
+;; data-structure helpers, then generics, printing, and indentation support.
 (require 'cl-lib)
 (require 'cl-macs)
 (require 'cl-seq)

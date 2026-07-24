@@ -1,13 +1,27 @@
 #!/bin/sh
-# add: 2026-07-10
-# Launch this profile with ordinary warnings visible for troubleshooting.
-# Normal interactive startup keeps warning-minimum-level at :emergency.
+# emacs-diagnostic --- Start this Emacs profile with warnings visible.
+#
+# Filename: emacs-diagnostic
+# Description: Same early-init + init.el as daily use, but not silenced.
+# Author: SCS
+# Copyright: Copyright (C) 2026, SCS, all rights reserved.
+#
+# Normal interactive startup sets warning-minimum-level to :emergency in
+# early-init.el so init stays quiet.  Use this wrapper when something fails
+# during load, byte-compilation looks wrong, or you want compile warnings back.
 #
 # Usage:
 #   bin/emacs-diagnostic
 #   bin/emacs-diagnostic --batch --eval '(message "%s" (emacs-init-time))'
+#
+# -Q skips site-init and default init files; we explicitly load this tree.
+# --debug-init stops on the first error inside a loaded init file.
+# Extra arguments after the script name are passed through to emacs (see ${1+"$@"}).
 set -e
+
+# Override with USER_EMACS_DIRECTORY when testing a non-default config path.
 user_emacs_directory="${USER_EMACS_DIRECTORY:-$HOME/.config/emacs}"
+
 exec emacs -Q --debug-init \
   -l "$user_emacs_directory/early-init.el" \
   --eval "(setq warning-minimum-level :warning)" \

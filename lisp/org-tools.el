@@ -1,19 +1,42 @@
 ;;; org-tools.el --- Org export helpers: line-prefix blocks  -*- lexical-binding: t; -*-
 
+;; Filename: org-tools.el
+;; Description: Line-prefix blocks, stationery fade, PDF/X export hooks
 ;; Author: SCS
+;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
+;; Created: 2026-07-15 Tue 10:00
+;; Version: 0.1.0
+;; Last-Updated: 2026-07-24 Fri 06:49
+;; Update #: 1
 ;; Keywords: org, export, convenience
 ;; Package-Requires: ((emacs "29.1") (org "9.0"))
+;; fix: 2026-07-24 -- teachable Commentary and docstrings for SCS team
 
 ;;; Commentary:
 ;;
-;; org-tools.el adds a succinct line-prefix syntax for Org files.
-;; Lines are expanded *before Org parses the export buffer*, via
-;; `org-export-before-parsing-functions'.
+;; Problem
+;; -------
+;; Org export is powerful but verbose for small layout habits: centered
+;; lines, quote blocks, faded letterhead PDFs, and print-shop PDF/X-1a.
+;; Authors should write short prefixes at column 0 and let export expand
+;; them safely (skipping src/example blocks).
+;;
+;; Solution
+;; --------
+;; org-tools.el registers hooks on `org-export-before-parsing-functions'
+;; and related filters.  Line-prefix syntax runs first; optional stationery
+;; and PDF/X steps run when #+SCS_* keywords request them.
 ;;
 ;; Enable once in your init file:
 ;;
 ;;   (with-eval-after-load 'org
 ;;     (require 'org-tools))
+;;
+;; How to verify
+;; -------------
+;; Export a small .org test file with `! ` and `> ` lines; toggle
+;; `M-x org-tools-line-prefixes-mode RET' and re-export to see the hook
+;; register or unregister.
 ;;
 ;; ---------------------------------------------------------------------------
 ;; Syntax
@@ -27,14 +50,14 @@
 ;; only.
 ;;
 ;;   !sc large Packing checklist
-;;   ! (summer — warm season)
+;;   ! (summer -- warm season)
 ;;
 ;; becomes on LaTeX export:
 ;;
 ;;   #+begin_center
 ;;   @@latex:{\large\textsc{Packing checklist}}@@
 ;;
-;;   (summer — warm season)
+;;   (summer -- warm season)
 ;;   #+end_center
 ;;
 ;; Quote lines
@@ -112,7 +135,7 @@
 ;; colorises it to the requested strength (ImageMagick), caches the result as
 ;; e.g. scs-stationary-faded-27pct.pdf, and substitutes SCS_STATIONERY_FADED_PDF
 ;; in the final .tex output.  FADE is the percentage of original colour kept
-;; means quite faint).  Requires gs and magick on PATH.
+;; (lower values look fainter).  Requires gs and magick on PATH.
 ;;
 ;;   M-x org-tools-regenerate-stationery RET   ; rebuild from current buffer
 ;;
@@ -191,7 +214,9 @@ Your Org file must define this command, e.g. in #+LATEX_HEADER."
   (string= "" (string-trim line)))
 
 (defun org-tools--protected-regions ()
-  "Return (START . END) positions of Org blocks to skip."
+  "Return (START . END) positions of Org blocks to skip during expansion.
+Src, export, example, and verse blocks are left untouched so prefixed
+lines inside code or poetry are not rewritten."
   (let (regions)
     (save-excursion
       (goto-char (point-min))
@@ -355,7 +380,9 @@ Return (MODIFIERS TEXT)."
 
 ;;;###autoload
 (defun org-tools-expand-line-prefixes (backend)
-  "Expand ! and > line prefixes before Org export parsing."
+  "Expand ! and > line prefixes before Org export parsing.
+Groups are applied from the bottom of the buffer upward so earlier
+line numbers stay valid while regions are deleted and replaced."
   (dolist (group (reverse (org-tools--collect-line-prefix-groups)))
     (pcase group
       (`(,type ,start ,end ,lines)
@@ -391,7 +418,8 @@ Return (MODIFIERS TEXT)."
   "Placeholder substituted with the faded stationery PDF path on export.")
 
 (defvar org-tools--stationery-faded-path nil
-  "Faded stationery path used during the current export.")
+  "Faded stationery path used during the current export.
+Set by `org-tools-prepare-stationery' and read by the final-output filter.")
 
 (defun org-tools--stationery-keyword (name)
   "Read #+NAME: value from the current buffer, or nil."
@@ -405,7 +433,8 @@ Return (MODIFIERS TEXT)."
         (string-trim (match-string 1))))))
 
 (defun org-tools--stationery-fade-percent ()
-  "Return colour strength 1–100 from #+SCS_STATIONERY_FADE:, or nil."
+  "Return colour strength 1-100 from #+SCS_STATIONERY_FADE:, or nil.
+Values outside 1..100 are ignored so a typo does not build nonsense PDFs."
   (when-let* ((raw (org-tools--stationery-keyword "SCS_STATIONERY_FADE"))
               (n (string-to-number (string-trim raw)))
               (_ (and (numberp n) (> n 0) (<= n 100))))
@@ -456,6 +485,7 @@ Signal `error' on missing binary or non-zero exit."
          (png-pattern (expand-file-name "page-%03d.png" tmpdir))
          (png-page (expand-file-name "page-001.png" tmpdir))
          (png-out (expand-file-name "faded.png" tmpdir))
+         ;; ImageMagick colorize: 100-percent means white; we keep PERCENT colour.
          (colorize (format "%d%%" (- 100 percent))))
     (unwind-protect
         (progn
@@ -485,7 +515,7 @@ Signal `error' on missing binary or non-zero exit."
     (unless (file-readable-p source)
       (user-error "Stationery source not found: %s" source))
     (when (org-tools--stationery-needs-regenerate-p source faded)
-      (message "org-tools: regenerating faded stationery (%d%%) → %s"
+      (message "org-tools: regenerating faded stationery (%d%%) -> %s"
                percent faded)
       (org-tools--regenerate-stationery-faded source faded percent))
     faded))
@@ -538,12 +568,6 @@ Signal `error' on missing binary or non-zero exit."
   (remove-hook 'org-export-filter-final-output-functions
                #'org-tools-filter-stationery-output))
 
-(when org-tools-line-prefixes-enabled
-  (org-tools-enable-line-prefixes))
-
-(when org-tools-stationery-enabled
-  (org-tools-enable-stationery))
-
 ;;; PDF/X-1a post-processing
 
 (defcustom org-tools-pdfx-enabled t
@@ -558,7 +582,8 @@ Signal `error' on missing binary or non-zero exit."
   :type 'file)
 
 (defvar org-tools--pdfx-disabled-values '("no" "false" "0" "off")
-  "Values for #+SCS_PDFX: that disable post-processing.")
+  "Values for #+SCS_PDFX: that disable post-processing.
+Any other non-empty value enables PDF/X-1a when `org-tools-pdfx-enabled' is t.")
 
 (defun org-tools--pdfx-requested-p ()
   "Return non-nil when #+SCS_PDFX: requests PDF/X-1a post-processing."
@@ -571,12 +596,14 @@ Signal `error' on missing binary or non-zero exit."
   (let ((script (expand-file-name org-tools-pdfx-script)))
     (unless (file-readable-p script)
       (error "pdf2pdfx1a script not found: %s" script))
-    (message "org-tools: converting to PDF/X-1a → %s" pdf)
+    (message "org-tools: converting to PDF/X-1a -> %s" pdf)
     (org-tools--run-silent script (list "--in-place" pdf))
     pdf))
 
 (defun org-tools--around-latex-export-to-pdf (orig &rest args)
-  "Run PDF/X-1a conversion after Org LaTeX PDF export when requested."
+  "Run PDF/X-1a conversion after Org LaTeX PDF export when requested.
+Advice wraps `org-latex-export-to-pdf' so normal export still returns the
+PDF path; conversion runs only when #+SCS_PDFX: is set and enabled."
   (let ((pdf (apply orig args)))
     (when (and org-tools-pdfx-enabled
                (org-tools--pdfx-requested-p)
@@ -593,6 +620,12 @@ Signal `error' on missing binary or non-zero exit."
   "Unregister PDF/X-1a post-processing from `org-latex-export-to-pdf'."
   (advice-remove 'org-latex-export-to-pdf
                  #'org-tools--around-latex-export-to-pdf))
+
+(when org-tools-line-prefixes-enabled
+  (org-tools-enable-line-prefixes))
+
+(when org-tools-stationery-enabled
+  (org-tools-enable-stationery))
 
 (when org-tools-pdfx-enabled
   (org-tools-enable-pdfx))

@@ -1,16 +1,41 @@
-;;; init.el --- Personal configuration  -*- lexical-binding: t; no-byte-compile: t; -*-
+;;; init.el --- SCS team Emacs configuration  -*- lexical-binding: t; no-byte-compile: t; -*-
 ;;
 ;; $Id: init.el,v 1.19 2026/03/23 08:27:13 scs Exp $
 ;;
 ;;; Commentary:
-;;  Main Emacs configuration.  Requires Emacs 29+.
-;;  Reusable Elisp libraries live in lisp/ (see readme.org).
-;;  fix: 2026-07-10 — no-byte-compile cookie; source is authoritative
+;;
+;; SCS team Emacs configuration: editor policy, packages, and keybindings
+;; for daily work.  Shared, reusable Elisp lives under lisp/ (see readme.org
+;; in this directory).  Requires Emacs 29+.
+;;
+;; Load order:
+;;   early-init.el runs once at process startup (GC tuning, frame defaults,
+;;   package archives, macOS modifier remaps, native-comp environment).
+;;   init.el (this file) loads next and holds everything else.
+;;
+;; Sections (top to bottom):
+;;   Custom functions -- small helpers and hook targets defined here.
+;;   Local libraries -- autoloads pointing at lisp/*.el.
+;;   Package managers -- el-get bootstrap and use-package :el-get glue.
+;;   General settings -- server, encoding, save hygiene, dired, input method.
+;;   Custom file -- where Customize would write (we keep config in Git instead).
+;;   Settings formerly in custom.el -- theme, desktop, migrated Customize values.
+;;   Keybindings -- Hyper chords (macOS), C-c prefixes, safety remaps.
+;;   Packages -- use-package blocks, mostly alphabetical (see in-file notes).
+;;   Finalization -- (provide 'init).
+;;
+;; How to find things in this file:
+;;   Search for semicolon banner lines or for `(use-package PACKAGE'.
+;;   Team-specific symbols usually start with scs/ or scs--.
+;;   C-h f and apropos still work once Emacs is running.
+;;
+;; The no-byte-compile cookie is intentional: init.el is the authoritative
+;; source; stale init.elc in the tree is painful to debug.
 ;;
 ;;; Code:
 
-;; lisp/ may already be on load-path from early-init; keep this for
-;; batch shapes that load init.el without early-init.el.
+;; lisp/ may already be on load-path from early-init; repeat here so batch
+;; loads of init.el alone (tests, emacs -Q -l init.el) still find scs-cl.el.
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "lisp/scs-convert" user-emacs-directory))
 (require 'scs-cl)
@@ -19,12 +44,20 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Custom functions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Helpers that are small enough to keep inline rather than in lisp/.
+;; Most are bound to keys or registered on hooks later in this file.
+;; When debugging init load order, `scs/exit-loading' jumps to end-of-load
+;; so you can bisect which section causes trouble (see stackexchange link below).
 
 ;; https://emacs.stackexchange.com/a/28927
 ;; Call this anywhere to end loading init file, good to debug.
 ;; fix: 2026-07-10 — rename my-exit → scs/exit-loading
 (defun scs/exit-loading ()
-  "Abort loading the current file by jumping to its end."
+  "Abort loading the current file by jumping to its end.
+
+Use while bisecting init.el: place a call just after the section you want
+to test; everything below is skipped until you remove the call."
   (with-current-buffer " *load*"
     (goto-char (point-max))))
 (defalias 'my-exit #'scs/exit-loading)
@@ -56,9 +89,8 @@ Emacs after large structural changes."
 
 (global-set-key (kbd "C-c r") #'scs/reload-config)
 
+;; Parenthesis jump helper (vi-style `%').  Point may sit inside or on the bracket.
 ;; http://www.emacswiki.org/emacs/ParenthesisMatching#toc4
-;; bind C-% to goto-match-paren
-;; note, cursor must right before/on/after paren/brace/bracket
 (defun goto-match-paren (_arg)
   "Jump to the matching bracket when point is on (), {}, or [].
 Mimics the vi `%' motion.  Works from inside or just outside the
@@ -116,6 +148,8 @@ The DWIM behaviour of this command is as follows:
     (keyboard-quit))))
 
 ;; https://baty.net/posts/2026/02/global-org-capture-shortcut-in-kde/
+;; After org-capture finishes, close the extra frame emacsclient opened so
+;; you are not left with a stray window (common with global capture shortcuts).
 ;; fix: 2026-07-10 — rename my/org-capture-finalize-hook → scs/
 (defun scs/org-capture-finalize-hook ()
   "Close frame after org-capture if it was opened for capture."
@@ -125,6 +159,8 @@ The DWIM behaviour of this command is as follows:
 
 (add-hook 'org-capture-after-finalize-hook #'scs/org-capture-finalize-hook)
 
+;; New GUI frames land on persistent Remember notes instead of *scratch*,
+;; so a fresh frame is ready for jotting without losing scratch buffer policy.
 ;; fix: 2026-07-10 — rename; docstring matched *scratch* but opened Remember
 (defun scs/switch-to-remember-notes (frame)
   "Open the Remember notes buffer in newly created FRAME.
@@ -138,6 +174,9 @@ Intentionally not *scratch*; new frames land on persistent notes."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Local libraries (lisp/)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Autoloads defer loading until a command runs.  Heavier tools (TRAMP helpers,
+;; frame state, Pandoc convert, mail lab) stay in lisp/ so init.el stays readable.
 
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "lisp/scs-convert" user-emacs-directory))
@@ -176,16 +215,20 @@ Intentionally not *scratch*; new frames land on persistent notes."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Package managers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; el-get installs third-party packages from Git and similar sources.
+;; use-package (below) declares what we want; :el-get ensures recipes exist
+;; and packages are synced before config runs.
 
 ;; ----------------------------------------------------------
 ;; el-get
 ;; ----------------------------------------------------------
 
-;; Repository used to bootstrap el-get when it is not already present.
-(defvar scs/el-get-repository-url "https://github.com/dimitri/el-get.git")
+(defvar scs/el-get-repository-url "https://github.com/dimitri/el-get.git"
+  "Git URL used to clone el-get when no checkout exists under user-emacs-directory.")
 
-;; Configuration-owned el-get recipes for packages this init file needs.
-(defvar scs/el-get-local-sources nil)
+(defvar scs/el-get-local-sources nil
+  "El-get recipe plists owned by init.el; populated by the setq form below.")
 
 (setq scs/el-get-local-sources
       '(        (:name cl-lib
@@ -444,6 +487,7 @@ package \\\"nil\\\"\"."
 ;; Register load-paths and autoloads for installed packages once,
 ;; without requiring their features.  Per-package :el-get sync below
 ;; only runs for packages that are not yet installed.
+;; el-get-is-lazy avoids loading every package feature during this pass.
 (let ((el-get-is-lazy t))
   (el-get 'sync))
 
@@ -452,7 +496,8 @@ package \\\"nil\\\"\"."
 ;; ----------------------------------------------------------
 
 ;; use-package is built-in since Emacs 29
-(defvar use-package-enable-imenu-support t)
+(defvar use-package-enable-imenu-support t
+  "Non-nil lets use-package contribute entries to imenu in this init file.")
 (setq use-package-always-ensure nil)
 (require 'bind-key)
 (require 'use-package)
@@ -526,6 +571,7 @@ Side effects: may install packages while byte-compiling."
     body))
 
 (unless (memq :el-get use-package-keywords)
+  ;; Teach use-package about :el-get so declarations can install via el-get.
   (setq use-package-keywords
         (use-package-list-insert :el-get use-package-keywords :vc)))
 
@@ -533,10 +579,16 @@ Side effects: may install packages while byte-compiling."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; General settings
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Emacs-wide defaults that are not tied to a single third-party package:
+;; server and frames, encoding, what runs before save, dired, and spelling tools.
 
 ;; ----------------------------------------------------------
 ;; Server
 ;; ----------------------------------------------------------
+;;
+;; server-start lets emacsclient attach to this session.  On macOS we also
+;; start a named TCP server for tools (e.g. Scrim) that expect that convention.
 
 (require 'server)
 (unless (server-running-p) (server-start))
@@ -602,7 +654,10 @@ Side effects: may install packages while byte-compiling."
 (setq require-final-newline t)
 ;; fix: 2026-07-10 — predicate instead of global delete-trailing-whitespace
 (defun scs/delete-trailing-whitespace-maybe ()
-  "Delete trailing whitespace unless the buffer should be left alone."
+  "Delete trailing whitespace on save for ordinary local text buffers.
+
+Skips TRAMP paths, buffers over 1 MiB, diff/change-log/comint, and
+git-commit buffers so we do not fight tools or mangle huge logs."
   (unless (or (and buffer-file-name (file-remote-p buffer-file-name))
               (> (buffer-size) (* 1024 1024))
               (derived-mode-p 'diff-mode 'change-log-mode 'comint-mode)
@@ -610,8 +665,9 @@ Side effects: may install packages while byte-compiling."
     (delete-trailing-whitespace)))
 (add-hook 'before-save-hook #'scs/delete-trailing-whitespace-maybe)
 
-;; Refresh existing #+LAST-UPDATED: / ;; Last-Updated: on save for
-;; Org, Emacs Lisp, and Common Lisp buffers (no insert if missing).
+;; Team file headers (Org, Elisp, Lisp) may carry LAST-UPDATED / Last-Updated.
+;; On save we refresh that field only when it already exists; we never invent
+;; a new header line from whole cloth (logic lives in lisp/scs-file-header.el).
 (autoload 'scs/update-last-updated-on-save "scs-file-header"
   "Refresh an existing LAST-UPDATED / Last-Updated field in the preamble."
   nil)
@@ -719,19 +775,26 @@ Side effects: may install packages while byte-compiling."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Custom file
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Configuration-as-code: we do not let Customize write into the Git tree.
+;; Setting custom-file to a temp path satisfies packages that expect the
+;; variable to be set; the file is disposable and is never loaded on purpose.
+;; Copy any wanted values from Customize into init.el or lisp/ by hand.
 
-;; Configuration-as-code: Customize must not write into the Git tree.
-;; The target under temporary-file-directory is intentionally disposable
-;; and is never loaded — copy any wanted values into init.el / lisp/.
-;; fix: 2026-07-10 — document non-persistence (behaviour unchanged)
 (setq custom-file (expand-file-name "custom.el" temporary-file-directory))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Settings formerly in custom.el
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Values that once lived in a persisted custom.el file, kept here so the
+;; repo remains the single source of truth.  Desktop save/load and theme choice
+;; are part of daily session restore on this machine.
 
 (blink-cursor-mode -1)
 (with-eval-after-load 'desktop
+  ;; Stale desktop lock files after a crash can block session restore; remove
+  ;; them when the recorded PID is not a live Emacs process.
   (defun scs/desktop-clear-stale-lock ()
     "Remove a stale `.emacs.desktop.lock' left by a crashed session."
     (when-let* ((_dir (and (boundp 'desktop-dirname) (stringp desktop-dirname)))
@@ -748,6 +811,8 @@ Side effects: may install packages while byte-compiling."
                                       (number-to-string pid)))))
           (delete-file lock)))))
   (scs/desktop-clear-stale-lock)
+  ;; EWW buffers with nil history position break desktop save on quit; normalize
+  ;; before desktop writes buffer metadata.
   (defun scs/desktop-sanitize-before-save ()
     "Repair buffer state that breaks `desktop-buffer-info' during desktop save.
 
@@ -792,6 +857,7 @@ was nil during daemon startup, so font must be applied per frame."
                           :width 'normal))))
 
 (add-hook 'after-make-frame-functions
+          ;; emacsclient frames may miss the startup-time font set in early-init.
           (lambda (frame) (scs/apply-default-font frame)))
 
 (when (display-graphic-p)
@@ -804,6 +870,9 @@ was nil during daemon startup, so font must be applied per frame."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Keybindings
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Chords that should feel the same in every buffer.  macOS Hyper bindings
+;; depend on Karabiner and early-init modifier remaps; see comments in each block.
 
 ;; ----------------------------------------------------------
 ;; macOS modifier keys
@@ -907,7 +976,8 @@ was nil during daemon startup, so font must be applied per frame."
   (let ((map (make-sparse-keymap "Quit Emacs")))
     (define-key map (kbd "C-c") 'save-buffers-kill-terminal)
     (define-key map (kbd "q") 'keyboard-escape-quit)
-    map))
+    map)
+  "Transient keymap confirming quit after the initial C-x C-c press.")
 
 (defun scs/quit-hint ()
   "Show how to quit or cancel after C-x C-c."
@@ -950,9 +1020,7 @@ was nil during daemon startup, so font must be applied per frame."
 
 (global-set-key [remap keyboard-quit] #'prot/keyboard-quit-dwim)
 
-;; ----------------------------------------------------------
-;; Timestamp -- S-f9 (rebind from f9, conflicts with howm)
-;; ----------------------------------------------------------
+;; S-f9 inserts an inactive Org timestamp in org-mode buffers (howm uses f9).
 
 (define-key global-map (kbd "<S-f9>")
   (lambda () (interactive)
@@ -966,6 +1034,10 @@ was nil during daemon startup, so font must be applied per frame."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Packages (alphabetical, with dependency exceptions noted)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Each block uses use-package.  :el-get pulls from el-get recipes above.
+;; no-littering must run first so var/ paths exist before other packages write
+;; state under ~/.emacs.d or equivalent.
 
 ;; ----------------------------------------------------------
 ;; no-littering
@@ -1452,6 +1524,8 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
               :buffer "*helm fd*"
               :ff-transformer-show-only-basename nil))))
 
+  ;; Replace built-in helm-fd-1 with our synchronous cache + Helm fuzzy matcher
+  ;; so C-/ inside find-files can match space-separated tokens on a fixed root.
   (advice-add 'helm-fd-1 :override #'scs/helm-fuzzy-fd-1)
 
   (defun scs/helm-multi-files--fd-present-p ()
@@ -1766,9 +1840,13 @@ With prefix arg, treat the pattern as a fixed string."
 ;; ----------------------------------------------------------
 ;; org-id (find howm notes by ID)
 ;; ----------------------------------------------------------
+;;
+;; howm notes get stable Org IDs at creation time.  We persist id -> file
+;; mappings under no-littering var/ and update incrementally on save rather
+;; than rescanning the whole notes tree at every startup.
 
 (defun scs/howm-add-org-id ()
-  "Add an Org ID to the current howm note heading."
+  "Assign an Org ID to the current howm note (runs from `howm-create-hook')."
   (org-id-get-create))
 
 ;; add: 2026-07-10
@@ -1781,14 +1859,17 @@ With prefix arg, treat the pattern as a fixed string."
 
 ;; add: 2026-07-10
 (defun scs/org-id--configure-locations-file ()
-  "Point `org-id-locations-file' at the no-littering var path."
+  "Set `org-id-locations-file' under no-littering var/ (team persistence path)."
   (require 'org-id)
   (setq org-id-locations-file
         (no-littering-expand-var-file-name "org/id-locations.el")))
 
 ;; add: 2026-07-10
 (defun scs/org-id-update-current-file ()
-  "Refresh org-id locations for the current buffer's file only."
+  "Merge this buffer's Org IDs into the persisted locations table.
+
+No-op outside `howm-directory'.  Invalidates the Helm fd cache for notes
+when IDs change so filename search stays consistent."
   (when (and buffer-file-name
              (string-match-p "\\.org\\'" buffer-file-name)
              (boundp 'howm-directory)
@@ -1882,11 +1963,13 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
                  (hash-table-count org-id-locations)
                0))))
 
+;; New notes get IDs at creation; startup loads the persisted table; each save
+;; updates only the current file's entries and refreshes Helm's fd cache.
 (add-hook 'howm-create-hook #'scs/howm-add-org-id)
 (add-hook 'emacs-startup-hook #'scs/org-id-init 100)
 ;; add: 2026-07-10
 (defun scs/howm-setup-id-on-save ()
-  "Update org-id for this howm note after save; invalidate fd cache."
+  "Buffer-local after-save hook: sync org-id and fd cache for this note."
   (add-hook 'after-save-hook #'scs/org-id-update-current-file nil t))
 (add-hook 'howm-mode-hook #'scs/howm-setup-id-on-save)
 
@@ -2078,6 +2161,7 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
     string)
 
   (advice-add 'org-babel-edit-prep:emacs-lisp :after
+              ;; Run normal emacs-lisp-mode hooks in the Babel edit buffer (indent, etc.).
               (lambda (&rest _) (run-hooks 'emacs-lisp-mode-hook)))
 
   (setq org-babel-default-header-args:sh    '((:results . "output replace"))
@@ -2127,6 +2211,7 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
   (recentf-max-saved-items 2000)
   ;;  (recentf-save-file (user-data "recentf"))
   :preface
+  ;; Advice: tolerate truncated recentf-save.el after a crash without breaking startup.
   (defun scs/recentf-load-list--safe (orig &rest args)
     "Load `recentf-save-file' quietly, recovering from truncated state."
     (condition-case err
@@ -2466,6 +2551,9 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Finalization
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Mark this file as a feature so `require 'init' succeeds in batch checks.
+;; End-of-init hooks belong in the sections above, not here.
 
 (provide 'init)
 

@@ -7,6 +7,15 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 
+* 2026-07-24 Fri Teachable comments across first-party sources
+
+- early-init.el, init.el, lisp/*.el, lisp/scs-convert/scs-convert.el,
+  test/*.el, bin/*: expand Commentary, docstrings, and why-comments so
+  SCS team readers can follow the config without tribal knowledge.
+- Soft welcoming tone; behavior unchanged. Vendored trees (el-get, elpa,
+  var, attic) left alone. etc/abbrev.el skipped (generated abbrev data).
+- ERT: scs-org-tools and scs-file-header suites still green.
+
 * 2026-07-24 Fri Teachable docs for LAST-UPDATED save hook
 
 - lisp/scs-file-header.el: expand Commentary (problem/solution/policy),

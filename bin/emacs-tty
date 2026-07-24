@@ -1,4 +1,17 @@
 #!/bin/sh
-# Launch Emacs in the current terminal via the server; start the daemon on first use.
-# For SmartOS, FreeBSD, and other CLI sessions (SSH, tmux, etc.).
+# emacs-tty --- Open Emacs in the current terminal via the server.
+#
+# Filename: emacs-tty
+# Description: emacsclient entry point for SSH, tmux, SmartOS, FreeBSD CLI.
+# Author: SCS
+# Copyright: Copyright (C) 2026, SCS, all rights reserved.
+#
+# Same daemon model as emacs-gui, but -t opens a terminal (TTY) frame in the
+# session you run this from.  Useful when no graphical display is available or
+# when you prefer terminal Emacs in remote shells.
+#
+#   -a ""  start the daemon on first connect if it is not already running
+#   -t     use the current terminal instead of creating a GUI window
+#
+# Extra arguments are passed through to emacsclient.
 exec emacsclient -a "" -t ${1+"$@"}

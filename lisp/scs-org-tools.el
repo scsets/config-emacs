@@ -1,35 +1,50 @@
 ;;; scs-org-tools.el --- Reusable Org helpers for SCS  -*- lexical-binding: t; -*-
 
+;; Filename: scs-org-tools.el
+;; Description: Org helpers for headers, properties, zwsp markers, rename
 ;; Author: SCS
+;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
+;; Created: 2026-07-20 Sun 10:00
+;; Version: 0.1.0
+;; Last-Updated: 2026-07-24 Fri 06:49
+;; Update #: 1
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "29.1") (org "9.0"))
+;; fix: 2026-07-24 -- teachable Commentary and docstrings for SCS team
 
 ;;; Commentary:
 ;;
-;; Reusable Org-mode helpers for howm notes and other Org files in this
-;; config.  Provides `scs/org-insert-creation-date',
-;; `scs/org-append-zwsp-markers', `scs/org-ensure-buffer-header', and
-;; `scs/rename-visited-file-to-name-at-point'; additional commands can be
-;; added here over time.
+;; Team-owned Org helpers (not personal snippets).  Howm notes and other
+;; Org files in this config share the same conventions; this file holds
+;; the reusable commands.
 ;;
-;; `scs/org-insert-creation-date' sets the :creation-date: property on the
-;; current Org headline to today's date in ISO 8601 format (YYYY-MM-DD).  If
-;; the headline has no property drawer, one is created.  The entire drawer
-;; is then normalized to lowercase -- :properties:, :end:, and every
-;; property key -- so the new key always lands in a clean, consistent drawer
-;; regardless of what was there before.
+;; Problem
+;; -------
+;; Org buffers drift: headers miss keywords or sit in random order,
+;; property drawers mix UPPERCASE and lowercase keys, and file renames
+;; from a filename at point need a safe, confirm-first path.  Juniors
+;; should read one module rather than copy-paste from old notes.
 ;;
-;; `scs/org-append-zwsp-markers' appends sequential \zwsp{}_N markers to
-;; Org paragraphs from point onward, replacing any existing trailing marker.
+;; Solution
+;; --------
+;; - `scs/org-ensure-buffer-header' -- canonical SCS preamble from
+;;   `scs/org-buffer-header-template-file' (keep values, fill gaps,
+;;   reorder; unknown #+ keys stay after the block).
+;; - `scs/org-insert-creation-date' -- :creation-date: as YYYY-MM-DD,
+;;   then normalize the whole property drawer to lowercase keys.
+;; - `scs/org-append-zwsp-markers' -- sequential \\zwsp{}_N on paragraphs
+;;   from point (skips list items; replaces an existing trailing marker).
+;; - `scs/rename-visited-file-to-name-at-point' -- basename from link,
+;;   filename thing, or quoted string; double confirm before overwrite.
 ;;
-;; `scs/org-ensure-buffer-header' inserts or completes the SCS Org file
-;; header from `scs/org-buffer-header-template-file', keeping existing
-;; values, filling defaults for missing keywords, and reordering to match
-;; the template.
+;; How to verify
+;; -------------
+;;   emacs -batch -L lisp -l ert -l lisp/scs-org-tools.el \
+;;     -l test/scs-org-tools-test.el -f ert-run-tests-batch-and-exit
 ;;
-;; `scs/rename-visited-file-to-name-at-point' renames the visited file to
-;; the basename at point (Org link, filename thing, or quoted string),
-;; after confirmation; overwrite requires a second confirm.
+;; Design notes for `scs/org-ensure-buffer-header' live under
+;; docs/ when present; rename behavior is documented in
+;; docs/2026-07-23-rename-visited-to-name-at-point-design.org.
 
 ;;; Code:
 
@@ -42,10 +57,13 @@
   (expand-file-name "scs_org-buffer-template.org"
                     (file-name-directory
                      (or load-file-name
+                         ;; byte-compile and interactive load resolve differently.
                          (bound-and-true-p byte-compile-current-file)
                          (buffer-file-name))))
   "Org file that defines the SCS buffer-header keyword order.
-Each non-blank `#+KEYWORD:' line contributes one keyword, in order."
+Each non-blank `#+KEYWORD:' line contributes one keyword, in file order.
+Change the template file, not hard-coded lists in Elisp, when the team
+adds or reorders header fields."
   :type 'file
   :group 'org)
 
@@ -144,11 +162,13 @@ wins).  UNKNOWN is a list of full keyword lines not in the template."
                    (value (match-string-no-properties 2))
                    (line (buffer-substring-no-properties
                           (line-beginning-position) (line-end-position))))
+              ;; First occurrence wins for template keys (duplicates ignored).
               (if (member key template-set)
                   (unless (assoc key known)
                     (push (cons key value) known))
                 (push line unknown)))
             (forward-line 1))
+           ;; First non-comment, non-keyword, non-blank line ends the preamble.
            (t
             (cl-return-from done)))))
       (list (point)
@@ -211,6 +231,7 @@ block.  Signals `user-error' outside Org mode."
         (when (or (null existing)
                   (string-empty-p (string-trim existing)))
           (setq added (1+ added)))))
+    ;; String compare avoids touching the buffer when nothing would change.
     (if (string-equal old new)
         (message "Org buffer header already complete")
       (save-excursion
@@ -301,6 +322,7 @@ lines)."
   (save-excursion
     (goto-char contents-end)
     (skip-chars-backward " \t\n")
+    ;; Look back only a short distance; markers sit at paragraph end.
     (when (looking-back scs/org-zwsp-marker-re
                         (max (point-min) (- (point) 80)))
       (delete-region (match-beginning 0) (match-end 0)))
@@ -390,6 +412,7 @@ the same directory.  Typical binding: `H-c R'."
         (message "Already named %s" old-base)
       (unless (yes-or-no-p (format "%s: rename to: %s " old-base new-base))
         (user-error "Rename aborted"))
+      ;; rename-file needs ok-if-exists when target exists; we still confirm first.
       (let ((ok-if-exists nil))
         (when (file-exists-p new)
           (if (file-equal-p old new)

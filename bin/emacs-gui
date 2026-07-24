@@ -1,4 +1,17 @@
 #!/bin/sh
-# Launch Emacs through the server; start the daemon on first use.
-# Point Dock, Spotlight, or Karabiner at this script instead of Emacs.app.
+# emacs-gui --- Open a GUI Emacs frame via the server.
+#
+# Filename: emacs-gui
+# Description: emacsclient entry point for Dock, Spotlight, Karabiner, etc.
+# Author: SCS
+# Copyright: Copyright (C) 2026, SCS, all rights reserved.
+#
+# This config expects a long-lived Emacs daemon.  emacsclient attaches to it
+# instead of paying full startup cost for every launch.  On first use, -a ""
+# starts the daemon with an empty alternate editor (see emacsclient(1)).
+#
+#   -c  create a new GUI frame (even if one already exists)
+#   -n  do not wait for the client frame to finish; return immediately
+#
+# Any extra arguments are forwarded to emacsclient (files to visit, -e, etc.).
 exec emacsclient -a "" -cn ${1+"$@"}

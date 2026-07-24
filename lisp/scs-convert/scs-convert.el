@@ -6,24 +6,32 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-07-22 Wed 14:09
 ;; Version: 0.1.0
-;; Last-Updated: 2026-07-22 Wed 14:09
-;; Update #: 0
+;; Last-Updated: 2026-07-24 Fri 06:49
+;; Update #: 1
 ;; Keywords: convenience, pandoc, org, markdown
 ;; Package-Requires: ((emacs "29.1"))
 ;; add: 2026-07-22 -- scs/convert markdown->org with tidy Lua filter
 
 ;;; Commentary:
 ;;
-;; See docs/2026-07-22-scs-convert-design.org
+;; Problem:
+;;   Pandoc converts markup well, but Emacs has no built-in "turn this snippet
+;;   into Org" command.  Guessing format from major-mode fails when Markdown
+;;   lives inside an Org buffer or the visited file extension does not match
+;;   what you selected.
 ;;
-;; `scs/convert' replaces the active region, or the whole buffer when no
-;; region is active, using Pandoc.  From/to formats come from
-;; `scs/convert-formats', never from `major-mode' -- so a Markdown
-;; selection inside an Org buffer converts correctly.
+;; Solution:
+;;   `scs/convert' runs Pandoc on the region or whole buffer.  From/to formats
+;;   come only from `scs/convert-formats', never from major-mode.  v1 ships
+;;   markdown -> org with tidy-org.lua so Pandoc does not emit CUSTOM_ID
+;;   property drawers.  Add more alist entries for new pairs without new
+;;   commands.  Design notes: docs/2026-07-22-scs-convert-design.org
 ;;
-;; v1 ships markdown -> org with lisp/scs-convert/tidy-org.lua so Pandoc
-;; does not emit CUSTOM_ID property drawers.  More pairs can be added to
-;; the alist later without new commands.
+;; How to check:
+;;   Mark a Markdown region in any buffer, M-x scs/convert RET; the region
+;;   should become Org in place.  Whole-buffer conversion switches to org-mode
+;;   and can offer to rename .md to .org.  Requires `pandoc' on PATH (or set
+;;   `scs/convert-pandoc-program').
 
 ;;; Code:
 
@@ -57,7 +65,10 @@ FILES are Lua filter basenames resolved under `scs/convert--directory'."
 
 (defconst scs/convert--directory
   (file-name-directory (or load-file-name buffer-file-name))
-  "Directory containing scs-convert.el and its Lua filters.")
+  "Directory containing scs-convert.el and sibling Lua filter files.
+
+load-file-name is set when the file is loaded; buffer-file-name covers eval
+in a visiting buffer during development.")
 
 (defun scs/convert--format-plist (from to)
   "Return the plist for convert pair FROM -> TO, or signal `user-error'."
@@ -80,6 +91,7 @@ FILES are Lua filter basenames resolved under `scs/convert--directory'."
         args)
     (unless (and from to)
       (user-error "Convert pair missing :from or :to"))
+    ;; Pandoc reads stdin when no input file appears in ARGS; we use call-process-region.
     (setq args (list "-f" from "-t" to))
     (dolist (arg extra)
       (setq args (append args (list arg))))
@@ -97,6 +109,7 @@ modify the caller's buffer."
                       (user-error "Pandoc not found: %s"
                                   scs/convert-pandoc-program)))
          (args (scs/convert--pandoc-args plist))
+         ;; Separate stderr file: call-process-region merges stdout into the temp buffer only.
          (err-file (make-temp-file "scs-convert-err-")))
     (unwind-protect
         (with-temp-buffer
@@ -164,6 +177,7 @@ Never infers FROM/TO from `major-mode'."
     (when (string-empty-p (string-trim input))
       (user-error "Nothing to convert"))
     (let ((output (scs/convert--run input plist)))
+      ;; atomic-change-group keeps undo as one step for the replace (and mode switch).
       (atomic-change-group
         (delete-region start end)
         (goto-char start)

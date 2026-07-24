@@ -1,5 +1,25 @@
 ;;; scs-org-tools-test.el --- Tests for scs-org-tools  -*- lexical-binding: t; -*-
 
+;; Filename: scs-org-tools-test.el
+;; Description: ERT tests for lisp/scs-org-tools.el
+;; Author: SCS
+;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
+;; Created: 2026-07-22 Wed 12:00
+;; Version: 0.1.0
+;; Last-Updated: 2026-07-24 Fri 06:49
+;; Update #: 1
+;; fix: 2026-07-24 -- teachable Commentary for SCS team
+
+;;; Commentary:
+;;
+;; Batch run (from repo root):
+;;
+;;   emacs -batch -L lisp -l ert -l lisp/scs-org-tools.el \
+;;     -l test/scs-org-tools-test.el -f ert-run-tests-batch-and-exit
+;;
+;; Helpers build temp Org buffers with point on a known substring so tests
+;; read like small user scenarios rather than opaque fixture strings.
+
 (require 'ert)
 (require 'cl-lib)
 (require 'org)
@@ -8,7 +28,8 @@
 (defun scs-org-tools-test--with-org (text point-marker fn)
   "Insert TEXT in a temp Org buffer, move to POINT-MARKER, call FN.
 POINT-MARKER is a substring that must appear once; point is placed at
-its beginning, then the marker text is left in the buffer."
+its beginning.  The marker text stays in the buffer so link and filename
+tests see realistic surrounding context."
   (with-temp-buffer
     (org-mode)
     (insert text)
@@ -79,7 +100,9 @@ its beginning, then the marker text is left in the buffer."
     (should-error (scs/org-append-zwsp-markers 1) :type 'user-error)))
 
 (defun scs-org-tools-test--header-lines (text)
-  "Return non-blank lines of TEXT before the first blank line."
+  "Return non-blank lines of TEXT before the first blank line.
+Used to assert keyword order after `scs/org-ensure-buffer-header' without
+parsing the whole buffer."
   (let ((lines (split-string text "\n"))
         (out nil)
         (done nil))
@@ -234,6 +257,7 @@ its beginning, then the marker text is left in the buffer."
             (goto-char (point-min))
             (search-forward "new-name.org")
             (goto-char (match-beginning 0))
+            ;; Stub yes-or-no-p so ERT does not block on interactive prompts.
             (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
               (scs/rename-visited-file-to-name-at-point))
             (should (equal (file-name-nondirectory buffer-file-name)

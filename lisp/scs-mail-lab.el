@@ -1,23 +1,45 @@
 ;;; scs-mail-lab.el --- mu4e and notmuch on ~/mail  -*- lexical-binding: t; -*-
 
+;; Filename: scs-mail-lab.el
+;; Description: Shared Maildir lab -- mu4e, notmuch, msmtp, BBDB, org-msg
 ;; Author: SCS
+;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
+;; Created: 2026-07-20 Sun 10:00
+;; Version: 0.1.0
+;; Last-Updated: 2026-07-24 Fri 06:49
+;; Update #: 1
 ;; Keywords: mail, mu4e, notmuch, bbdb
 ;; Package-Requires: ((emacs "29.1"))
 ;; add: 2026-07-20 -- shared Maildir vault UI comparison
 ;; fix: 2026-07-20 -- matched split layouts, threading, multi-account send
 ;; fix: 2026-07-20 -- drop Gnus lab UI (keep mu4e + notmuch)
 ;; add: 2026-07-20 -- BBDB contacts (mu cfind) + org-msg compose
+;; fix: 2026-07-24 -- teachable Commentary and docstrings for SCS team
 
 ;;; Commentary:
 ;;
-;; See docs/2026-07-20-emacs-mail-lab.org
+;; Operator guide: docs/2026-07-20-emacs-mail-lab.org
 ;;
-;; Data:
-;;   ~/mail/                 shared Maildir vault (mbsync)
-;;   mu / notmuch indexes    built in the terminal
-;;   BBDB file               contacts (default via no-littering)
+;; Problem
+;; -------
+;; Two mail UIs (mu4e and notmuch) should read the same ~/mail vault,
+;; share compose/send settings, and feel similar (list on top, message
+;; below).  Sync and indexing stay in the shell; Emacs only configures
+;; paths, hooks, and keybindings.
 ;;
-;; Sync stays in the shell:
+;; Solution
+;; --------
+;; One Maildir root (`scs/mail-lab-root`), three account dirs, msmtp
+;; selected from the message From: header, BBDB for completion, org-msg
+;; for HTML-friendly bodies.  Entry point: `C-c m' -> `scs/mail-lab-prefix-map'.
+;;
+;; Data (inspectable on disk)
+;; --------------------------
+;;   ~/mail/           shared Maildir (mbsync)
+;;   mu / notmuch      indexes built in the terminal
+;;   BBDB file         contacts (default via no-littering)
+;;
+;; Sync stays in the shell (Emacs does not run these automatically):
 ;;   mbsync -a
 ;;   mu index
 ;;   notmuch new
@@ -32,6 +54,11 @@
 ;;
 ;; Send path: message-mode -> msmtp (-a From) via ~/.msmtprc (mailcow :465).
 ;; Compose embellishment: org-msg (HTML-friendly Org body).
+;;
+;; How to check
+;; ------------
+;; From Emacs: `M-x scs/mail-lab-install-keys RET', then `C-c m m' or `C-c m n'
+;; after a successful `mbsync -a' and index update in ~/mail.
 
 ;;; Code:
 
@@ -39,16 +66,19 @@
 (require 'cl-lib)
 
 (defconst scs/mail-lab-root (expand-file-name "~/mail")
-  "Shared Maildir vault root used by mbsync, mu, and notmuch.")
+  "Shared Maildir vault root used by mbsync, mu, and notmuch.
+All account paths and Fcc folders are under this directory.")
 
 (defconst scs/mail-lab-account-dir "scs@scs.re"
-  "Default / compose account directory under `scs/mail-lab-root'.")
+  "Default account directory name under `scs/mail-lab-root'.
+Used for compose defaults and mu4e folder paths when no context matches.")
 
 (defconst scs/mail-lab-accounts
   '(("scs" . "scs@scs.re")
     ("priya" . "priyadarshan@goldenboat.in")
     ("vsm" . "mail@vsm.in"))
-  "Alist of (SHORT-LABEL . ACCOUNT-DIR) under `scs/mail-lab-root'.")
+  "Alist of (SHORT-LABEL . ACCOUNT-DIR) under `scs/mail-lab-root'.
+Labels are for humans; ACCOUNT-DIR is the Maildir folder name on disk.")
 
 (defconst scs/mail-lab-smtp-by-address
   '(("scs@scs.re" . ("mail.dp.gy" "scs@scs.re" "SCS"))
@@ -56,17 +86,20 @@
      . ("mail.ck.gy" "priyadarshan@goldenboat.in" "Priyadarshan"))
     ("mail@vsm.in" . ("mail.eb.gy" "mail@vsm.in" "VSM")))
   "Alist of (ADDRESS . (SMTP-HOST SMTP-USER FULL-NAME)).
-
-SMTP is mailcow SMTPS :465; password comes from ~/.authinfo.")
+SMTP is mailcow SMTPS on port 465; passwords come from ~/.authinfo
+via msmtprc passwordeval, not from this file.")
 
 (defun scs/mail-lab--account-path (&optional account-dir)
-  "Return absolute Maildir path for ACCOUNT-DIR (default pilot)."
+  "Return absolute Maildir path for ACCOUNT-DIR.
+When ACCOUNT-DIR is nil, use `scs/mail-lab-account-dir'."
   (file-name-as-directory
    (expand-file-name (or account-dir scs/mail-lab-account-dir)
                      scs/mail-lab-root)))
 
 (defun scs/mail-lab--brew-site-lisp (binary relative)
-  "Return site-lisp directory for Homebrew BINARY with RELATIVE path."
+  "Return site-lisp directory for Homebrew BINARY with RELATIVE path.
+Tries the real path of the installed binary first, then /opt/homebrew
+and /usr/local opt layouts.  Returns nil when no directory exists."
   (or
    (when-let* ((exe (executable-find binary))
                (real (file-chase-links exe))
@@ -136,6 +169,7 @@ Also ensures BBDB completion and org-msg compose are ready."
      message-kill-buffer-on-exit t
      mail-user-agent 'message-user-agent))
   (add-hook 'message-send-mail-hook #'scs/mail-lab--set-msmtp-account)
+  ;; Older configs used smtpmail From: hook; remove so msmtp -a wins.
   (remove-hook 'message-send-hook #'scs/mail-lab--apply-smtp-from-header)
   (scs/mail-lab-configure-bbdb)
   (scs/mail-lab-configure-org-msg))
@@ -324,7 +358,9 @@ Does not contact SMTP until `C-c C-c' (send)."
   (advice-add #'notmuch-show :around #'scs/mail-lab--notmuch-show-split))
 
 (defun scs/mail-lab--notmuch-show-split (orig &rest args)
-  "Open notmuch-show below the search/tree list (list top, body bottom)."
+  "Open notmuch-show below the search/tree list (list top, body bottom).
+When not in search or tree mode, delegate unchanged.  When the frame
+has only one window, split below first so the advice stays predictable."
   (if (not (derived-mode-p 'notmuch-search-mode 'notmuch-tree-mode))
       (apply orig args)
     (when (one-window-p t)
@@ -495,7 +531,8 @@ Does not contact SMTP until `C-c C-c' (send)."
 
 (defvar scs/mail-lab-prefix-map
   (scs/mail-lab--make-prefix-map)
-  "Prefix map for mail-lab entry points.")
+  "Prefix map bound to `C-c m' by `scs/mail-lab-install-keys'.
+Keys: m mu4e, n notmuch, s search, c compose, b BBDB, e export contacts.")
 
 ;;;###autoload
 (defun scs/mail-lab-install-keys ()

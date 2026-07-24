@@ -1,11 +1,33 @@
 ;;; scs-file-header-test.el --- Tests for scs-file-header  -*- lexical-binding: t; -*-
 
+;; Filename: scs-file-header-test.el
+;; Description: ERT tests for lisp/scs-file-header.el
+;; Author: SCS
+;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
+;; Created: 2026-07-23 Thu 14:00
+;; Version: 0.1.0
+;; Last-Updated: 2026-07-24 Fri 06:49
+;; Update #: 1
+;; fix: 2026-07-24 -- teachable Commentary for SCS team
+
+;;; Commentary:
+;;
+;; Batch run (from repo root):
+;;
+;;   emacs -batch -L lisp -l ert -l lisp/scs-file-header.el \
+;;     -l test/scs-file-header-test.el -f ert-run-tests-batch-and-exit
+;;
+;; Tests call `scs/update-last-updated-on-save' directly with a fixed
+;; stamp function so results do not depend on the clock or on saving to disk.
+
 (require 'ert)
 (require 'org)
 (require 'scs-file-header)
 
 (defun scs-file-header-test--call (stamp)
-  "Call the save hook with STAMP forced via stamp-function."
+  "Invoke the save hook as if STAMP were the current local time.
+Binds `scs/file-header-stamp-function' so each test gets a predictable
+LAST-UPDATED / Last-Updated string."
   (let ((scs/file-header-stamp-function (lambda () stamp)))
     (scs/update-last-updated-on-save)))
 

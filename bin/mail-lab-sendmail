@@ -6,9 +6,9 @@ Description: Avoid GnuTLS push errors from Emacs smtpmail and brew msmtp
 Author: SCS
 Copyright: Copyright (C) 2026, SCS, all rights reserved.
 Created: 2026-07-20 Mon 18:56
-Version: 0.2.1
-Last-Updated: 2026-07-20 Mon 19:05
-Update #: 2
+Version: 0.2.2
+Last-Updated: 2026-07-24 Fri 06:49
+Update #: 3
 
 Why: Homebrew msmtp and Emacs smtpmail both use GnuTLS and fail against
 mailcow SMTPS with "Error in the push function" (msmtp exit 76).  MailMate
@@ -35,22 +35,27 @@ from email.parser import BytesParser
 from email.utils import getaddresses, parseaddr
 from pathlib import Path
 
+# Implicit SMTPS port for all mapped accounts (direct SSL, not STARTTLS).
 SMTP_PORT = 465
 
+# From header address (lowercased at runtime) -> (smtp_host, smtp_auth_user).
 SMTP_BY_ADDRESS = {
     "scs@scs.re": ("mail.dp.gy", "scs@scs.re"),
     "priyadarshan@goldenboat.in": ("mail.ck.gy", "priyadarshan@goldenboat.in"),
     "mail@vsm.in": ("mail.eb.gy", "mail@vsm.in"),
 }
 
+# Shared helper with mbsync/msmtp PassCmd; keeps secrets out of this file.
 AUTHINFO_PASS = Path.home() / ".config/emacs/bin/authinfo-pass"
 
 
 def usage() -> None:
+    """Print module docstring to stderr (--help)."""
     print(__doc__, file=sys.stderr)
 
 
 def get_password(host: str, user: str) -> str:
+    """Run authinfo-pass for HOST/USER/SMTP_PORT; exit on failure."""
     proc = subprocess.run(
         [str(AUTHINFO_PASS), host, user, str(SMTP_PORT)],
         check=False,
@@ -66,17 +71,19 @@ def get_password(host: str, user: str) -> str:
 
 
 def recipients_from_message(msg: Message) -> list[str]:
+    """Collect To/Cc/Bcc addresses; strip Bcc header from the sent message."""
     addrs: list[str] = []
     for header in ("To", "Cc", "Bcc"):
         if msg[header]:
             addrs.extend(a for _, a in getaddresses([msg[header]]) if a)
-    # Drop Bcc from the on-wire copy after collecting recipients.
+    # Bcc must not appear in the on-wire copy after we have the RCPT list.
     if "Bcc" in msg:
         del msg["Bcc"]
     return addrs
 
 
 def main(argv: list[str]) -> int:
+    """Read RFC822 from stdin and submit via SMTPS; sendmail-compatible exit codes."""
     # Emacs/sendmail pass assorted flags; we only care about reading stdin.
     if any(a in ("-h", "--help") for a in argv):
         usage()
