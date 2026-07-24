@@ -36,6 +36,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-07-24 -- gitea.el local client (~/src/gitea.el, no fedi/tp)
 ;; fix: 2026-07-24 -- teachable Commentary and section policy notes for SCS team
 ;; add: 2026-07-24 -- before-save LAST-UPDATED hook; rename-at-point autoload
 ;; add: 2026-07-22 -- org-ensure-buffer-header; scs/convert autoloads
@@ -335,6 +336,11 @@ Intentionally not *scratch*; new frames land on persistent notes."
          :type github
          :pkgname "magnars/dash.el"
          :features dash)
+        ;; add: 2026-07-24 -- markdown rendering dependency for gitea.el
+        (:name markdown-mode
+         :type github
+         :pkgname "jrblevin/markdown-mode"
+         :features markdown-mode)
         (:name s
          :type github
          :pkgname "magnars/s.el"
@@ -385,7 +391,7 @@ Intentionally not *scratch*; new frames land on persistent notes."
          :branch "main"
          :load-path ("lisp")
          :features magit-section
-         :depends (compat cond-let llama seq transient))
+         :depends (compat cond-let llama seq transient with-editor))
         (:name minions
          :type github
          :pkgname "tarsius/minions"
@@ -432,6 +438,13 @@ Intentionally not *scratch*; new frames land on persistent notes."
          :pkgname "thierryvolpiatto/wfnames"
          :branch "main"
          :features wfnames)
+        ;; add: 2026-07-24 -- Magit process editor helper for gitea.el / magit
+        (:name with-editor
+         :type github
+         :pkgname "magit/with-editor"
+         :branch "main"
+         :load-path ("lisp")
+         :features with-editor)
         ;; add: 2026-07-24 -- explicit Transient for command hub spine
         (:name transient
          :type github
@@ -1388,6 +1401,59 @@ was nil during daemon startup, so font must be applied per frame."
   :init
   (windmove-default-keybindings)
   (setq framemove-hook-into-windmove t))
+
+;; ----------------------------------------------------------
+;; gitea (local checkout; talks to local Gitea /api/v1)
+;; ----------------------------------------------------------
+;; Package lives at ~/src/gitea.el (public fork of fj.el).
+;; HTTP/util/compose are in-tree (no fedi.el / tp.el).  Remaining deps:
+;; markdown-mode, magit-section, with-editor, transient via el-get.
+;; Token is read from ~/.config/gitea/access-token when present -- not
+;; hardcoded in this file.
+
+(use-package markdown-mode
+  :el-get t
+  :defer t)
+
+;; Magit files live under the magit-section recipe checkout (lisp/).
+(use-package magit-section
+  :el-get t
+  :defer t)
+
+(use-package with-editor
+  :el-get t
+  :defer t)
+
+(defun scs/gitea-token-from-config ()
+  "Return the Gitea API token from ~/.config/gitea/access-token, or nil.
+
+Reads the first line of that file when it is readable.  Used so init.el
+never embeds a secret, while still letting `gitea.el' authenticate to
+the local instance."
+  (let ((file (expand-file-name "~/.config/gitea/access-token")))
+    (when (file-readable-p file)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (string-trim (buffer-substring-no-properties
+                      (point-min)
+                      (line-end-position)))))))
+
+(use-package gitea
+  :load-path "/Users/scs/src/gitea.el"
+  :after (markdown-mode magit-section with-editor transient)
+  :commands (gitea-list-own-repos gitea-list-issues gitea-list-pulls
+                                  gitea-notifications gitea-token
+                                  gitea-create-token)
+  :init
+  ;; Local Homebrew / workstation Gitea (see MCP get_me: login scs).
+  (setq gitea-host "http://127.0.0.1:3000"
+        gitea-user "scs"
+        ;; Prefer the workstation token file over auth-source for this lab.
+        gitea-token-use-auth-source nil)
+  :config
+  (setq gitea-token (or gitea-token (scs/gitea-token-from-config)))
+  (unless gitea-token
+    (message "gitea.el: no token in ~/.config/gitea/access-token; call gitea-create-token")))
 
 ;; ----------------------------------------------------------
 ;; haproxy-mode

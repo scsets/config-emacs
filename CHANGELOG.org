@@ -7,6 +7,14 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 
+* 2026-07-24 Fri Local gitea.el against workstation Gitea
+
+- init.el: =use-package= =gitea= from =~/src/gitea.el= with host
+  =http://127.0.0.1:3000= and user =scs=; token from
+  =~/.config/gitea/access-token= (not inlined).
+- Deps: =markdown-mode=, =magit-section=, =with-editor=, =transient=
+  (no =fedi.el= / =tp.el=; HTTP and compose are in-tree in gitea.el).
+
 * 2026-07-24 Fri Nice Helm catalog UI on trunk
 
 - lisp/scs-command-hub-helm.el: section headers, aligned title/keys/
