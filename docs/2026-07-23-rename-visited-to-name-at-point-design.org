@@ -1,0 +1,102 @@
+#+TITLE: Rename visited file to name at point -- design
+#+FILENAME: 2026-07-23-rename-visited-to-name-at-point-design.org
+#+DESCRIPTION: Design for scs/rename-visited-file-to-name-at-point
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-07-23 Thu 08:12
+#+VERSION: 0.1.2
+#+LAST-UPDATED: 2026-07-23 Thu 08:16
+#+UPDATE: 2
+
+* Summary
+
+Add interactive command ~scs/rename-visited-file-to-name-at-point~ that
+renames the file the current buffer is visiting to the basename at
+point, after an explicit confirmation prompt.
+
+* Goals
+
+- One interactive command.
+- Name at point works for bare filenames, quoted strings, and Org links.
+- Same directory only (basename of the candidate; directory from
+  ~buffer-file-name~).
+- Confirm first: ~OLD: rename to: NEW~
+- If the target path already exists, confirm overwrite before renaming.
+- Keep the buffer visiting the new path and rename the buffer
+  accordingly without marking the buffer modified for the rename alone.
+
+* Non-goals
+
+- No directory moves or path creation.
+- No automatic update of Org header keywords (~#+FILENAME:~, ~#+TITLE:~);
+  use ~scs/org-ensure-buffer-header~ afterward if needed.
+- Binding: ~H-c R~ (autoload + ~scs/hyper-c-prefix-map~).
+
+* Data model
+
+** Inputs
+
+| Source | Role |
+|--------+------|
+| ~buffer-file-name~ | Absolute path of the file being renamed |
+| Name at point | Candidate new basename (see extraction order) |
+
+** Extraction order (first non-empty wins)
+
+1. If Org is available and ~org-element-context~ is a link, take the
+   link path (strip ~file:~ if present).
+2. Else ~(thing-at-point 'filename t)~.
+3. Else ~(thing-at-point 'string t)~, then strip surrounding quotes.
+
+Normalize with ~file-name-nondirectory~ and ~string-trim~. Empty result
+is a ~user-error~.
+
+** Derived paths
+
+- ~old~ = ~buffer-file-name~
+- ~new~ = ~(expand-file-name NEW-BASENAME (file-name-directory old))~
+
+* Behavior
+
+1. Require a visited file; else ~user-error~.
+2. Resolve NEW-BASENAME via extraction order; else ~user-error~.
+3. If ~old~ and ~new~ are the same directory entry, message and return.
+4. Prompt: ~OLD-BASENAME: rename to: NEW-BASENAME~ via ~yes-or-no-p~.
+   Abort on no.
+5. If ~new~ exists and is not the same file as ~old~, ask a second
+   ~yes-or-no-p~ to overwrite. Abort on no.
+6. ~(rename-file old new OK)~ where ~OK~ is ~t~ after overwrite was
+   confirmed (replace without a third prompt), else ~nil~ when the
+   target does not exist.
+7. ~(set-visited-file-name new nil t)~ -- ~along-with-file~ non-nil so
+   the buffer is not marked modified and modtime tracking stays
+   consistent with the renamed file.
+8. Message success with the new basename.
+
+* Placement
+
+- Implement in ~lisp/scs-org-tools.el~ (note workflow home; bare/quoted
+  names still work outside Org).
+- Autoload from ~init.el~. Binding: ~H-c R~.
+
+* APIs (Emacs Lisp Reference)
+
+- ~thing-at-point~ -- Buffer Contents
+- ~rename-file~ -- Changing Files (~ok-if-already-exists~: nil errors;
+  number confirms; other non-nil replaces)
+- ~set-visited-file-name~ -- Buffer File Name (~along-with-file~)
+- ~file-name-nondirectory~, ~file-name-directory~, ~expand-file-name~
+- ~org-element-context~ when Org is loaded (optional path for links)
+
+* Testing notes
+
+- Manual: point on bare name, quoted name, and ~[[file:...]]~ link;
+  confirm abort; overwrite confirm when target exists; same-name no-op.
+- Optional ERT later for the name-extraction helper only (no filesystem
+  rename in unit tests unless using a temp dir).
+
+* Open decisions (resolved)
+
+- Approach: same-dir rename + fallback name-at-point.
+- Existing target: confirm-and-overwrite (not silent refuse, not silent
+  replace).

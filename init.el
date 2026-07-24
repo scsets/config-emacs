@@ -610,6 +610,13 @@ Side effects: may install packages while byte-compiling."
     (delete-trailing-whitespace)))
 (add-hook 'before-save-hook #'scs/delete-trailing-whitespace-maybe)
 
+;; Refresh existing #+LAST-UPDATED: / ;; Last-Updated: on save for
+;; Org, Emacs Lisp, and Common Lisp buffers (no insert if missing).
+(autoload 'scs/update-last-updated-on-save "scs-file-header"
+  "Refresh an existing LAST-UPDATED / Last-Updated field in the preamble."
+  nil)
+(add-hook 'before-save-hook #'scs/update-last-updated-on-save)
+
 ;; ----------------------------------------------------------
 ;; Show-paren, indent tabs, sentence double-space
 ;; ----------------------------------------------------------
@@ -840,9 +847,11 @@ was nil during daemon startup, so font must be applied per frame."
   (autoload 'scs/org-insert-creation-date "scs-org-tools" nil t)
   (autoload 'scs/org-append-zwsp-markers "scs-org-tools" nil t)
   (autoload 'scs/org-ensure-buffer-header "scs-org-tools" nil t)
+  (autoload 'scs/rename-visited-file-to-name-at-point "scs-org-tools" nil t)
   (define-key scs/hyper-c-prefix-map (kbd "d") #'scs/org-insert-creation-date)
   (define-key scs/hyper-c-prefix-map (kbd "H-d") #'scs/org-insert-creation-date)
   (define-key scs/hyper-c-prefix-map (kbd "h") #'scs/org-ensure-buffer-header) ;; Header
+  (define-key scs/hyper-c-prefix-map (kbd "R") #'scs/rename-visited-file-to-name-at-point) ;; Rename
   (define-key scs/hyper-c-prefix-map (kbd "v") #'scs/convert) ;; conVert
   (global-set-key (kbd "H-a") 'org-agenda)               ;; Agenda
   (global-set-key (kbd "H-l") 'org-store-link)           ;; Link

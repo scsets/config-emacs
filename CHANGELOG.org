@@ -7,6 +7,38 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 
+* 2026-07-24 Fri Teachable docs for LAST-UPDATED save hook
+
+- lisp/scs-file-header.el: expand Commentary (problem/solution/policy),
+  docstrings, and why-comments for SCS team readers; TODO note about
+  possible future ~header2~ evaluation.
+- docs/2026-07-23-update-last-updated-on-save-design.org: TODO section
+  to consider MELPA ~header2~ later, although we do not like the
+  author's posture.
+
+* 2026-07-23 Thu Update LAST-UPDATED on save
+
+- lisp/scs-file-header.el: ~scs/update-last-updated-on-save~ refreshes
+  an existing Org ~#+LAST-UPDATED:~ or Lisp ~;; Last-Updated:~ field in
+  the file preamble on ~before-save-hook~; never inserts; never bumps
+  VERSION or UPDATE.
+- init.el: autoload and hook next to trailing-whitespace save hook.
+- test/scs-file-header-test.el: ERT for Org/Elisp/Lisp and no-op cases.
+- docs/2026-07-23-update-last-updated-on-save-design.org,
+  docs/2026-07-23-update-last-updated-on-save-plan.org.
+
+* 2026-07-23 Thu Rename visited file to name at point
+
+- lisp/scs-org-tools.el: ~scs/rename-visited-file-to-name-at-point~
+  renames the visited file to the basename at point (Org link, filename,
+  or quoted string); confirms ~OLD: rename to: NEW~, then confirm-and-
+  replace if the target exists.
+- init.el: autoload; ~H-c R~.
+- test/scs-org-tools-test.el: ERT for basename extraction and temp-dir
+  rename/overwrite.
+- docs/2026-07-23-rename-visited-to-name-at-point-design.org,
+  docs/2026-07-23-rename-visited-to-name-at-point-plan.org.
+
 * 2026-07-22 Wed Org buffer header ensure
 
 - lisp/scs_org-buffer-template.org: canonical #+KEYWORD order for SCS

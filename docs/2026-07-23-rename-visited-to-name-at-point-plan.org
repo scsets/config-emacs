@@ -1,0 +1,70 @@
+#+TITLE: Rename visited file to name at point -- plan
+#+FILENAME: 2026-07-23-rename-visited-to-name-at-point-plan.org
+#+DESCRIPTION: Implementation plan for scs/rename-visited-file-to-name-at-point
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-07-23 Thu 08:14
+#+VERSION: 0.1.0
+#+LAST-UPDATED: 2026-07-23 Thu 08:14
+#+UPDATE: 0
+
+* For agentic workers
+
+REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or
+superpowers:executing-plans task-by-task. Steps use checkbox syntax.
+
+* Goal
+
+Ship ~scs/rename-visited-file-to-name-at-point~ per
+~docs/2026-07-23-rename-visited-to-name-at-point-design.org~, with
+binding ~H-c R~.
+
+* Architecture
+
+Helpers in ~lisp/scs-org-tools.el~ extract a basename at point, then the
+interactive command confirms, optionally confirms overwrite, renames on
+disk, and updates the visited file name. Autoload and bind from
+~init.el~. ERT covers name extraction only (temp buffers; no live
+rename required for extraction tests). Optional temp-dir ERT for the
+full rename path if cheap.
+
+* Tech stack
+
+Emacs Lisp 29+, Org element API when available, ~thingatpt~.
+
+* Global constraints
+
+- ASCII only.
+- Confirm then replace (no silent overwrite; no backup).
+- Same directory only.
+- No auto header keyword updates.
+
+* File map
+
+| File | Role |
+|------+------|
+| ~lisp/scs-org-tools.el~ | Helpers + interactive command |
+| ~init.el~ | Autoload + ~H-c R~ |
+| ~test/scs-org-tools-test.el~ | ERT for name-at-point helper |
+| ~CHANGELOG.org~ | User-visible entry |
+| design org | Note binding (was non-goal) |
+
+* Task 1: Name-at-point helper + ERT
+
+- [ ] Add ~scs/org--basename-at-point~ (extraction order from design).
+- [ ] ERT: bare, quoted, Org ~file:~ link, empty -> nil/error path.
+- [ ] Run tests; fix until green.
+
+* Task 2: Interactive rename command
+
+- [ ] Add ~scs/rename-visited-file-to-name-at-point~.
+- [ ] Confirm ~OLD: rename to: NEW~; overwrite confirm if needed;
+  ~rename-file~ with ~t~ after overwrite yes; ~set-visited-file-name~
+  with ~along-with-file~.
+- [ ] Optional temp-dir ERT for happy path + overwrite abort.
+
+* Task 3: Wire + docs
+
+- [ ] Autoload + ~(define-key scs/hyper-c-prefix-map (kbd "R") ...)~.
+- [ ] Update design non-goals (binding is ~H-c R~).
+- [ ] ~CHANGELOG.org~ entry.

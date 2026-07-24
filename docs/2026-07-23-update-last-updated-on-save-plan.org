@@ -1,0 +1,66 @@
+#+TITLE: Update LAST-UPDATED on save -- implementation plan
+#+FILENAME: 2026-07-23-update-last-updated-on-save-plan.org
+#+DESCRIPTION: Implementation plan for scs/update-last-updated-on-save
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-07-23 Thu 13:44
+#+VERSION: 0.1.1
+#+LAST-UPDATED: 2026-07-23 Thu 13:45
+#+UPDATE: 1
+
+* Goal
+
+Implement ~scs/update-last-updated-on-save~ per
+=docs/2026-07-23-update-last-updated-on-save-design.org=.
+
+* Architecture
+
+Dedicated module =lisp/scs-file-header.el= with a silent ~before-save-hook~
+function. Org and Lisp families each have a preamble-end finder and a
+field rewrite for the first matching timestamp line. Stamp format is
+local ~YYYY-MM-DD Day HH:MM~. Tests let-bind
+~scs/file-header-stamp-function~ for a fixed stamp.
+
+* Global constraints
+
+- Timestamp field only; never UPDATE / VERSION.
+- No insert if missing; first preamble match only.
+- Never signal an error that aborts save.
+- Do not commit unless SCS asks (repo rule overrides plan commit steps).
+
+* File map
+
+| File | Role |
+|---+---|
+| ~lisp/scs-file-header.el~ | Hook + helpers |
+| ~test/scs-file-header-test.el~ | ERT |
+| ~init.el~ | autoload + ~before-save-hook~ |
+| ~CHANGELOG.org~ | dated entry |
+
+* Tasks
+
+** Task 1: Failing ERT
+
+- [X] Create ~test/scs-file-header-test.el~ covering design test list
+  (Org update / Org missing / Elisp update / Elisp after Code / Lisp
+  update / non-target mode / no file name).
+- [X] Run batch ERT; expect load or missing-symbol failures.
+
+** Task 2: Implement module
+
+- [X] Create ~lisp/scs-file-header.el~ with public
+  ~scs/update-last-updated-on-save~ and private helpers.
+- [X] Run ERT green.
+
+** Task 3: Wire and changelog
+
+- [X] ~init.el~: autoload + ~add-hook~ near trailing-whitespace save hook.
+- [X] ~CHANGELOG.org~ entry for 2026-07-23.
+- [X] Re-run ERT.
+
+* Test runner
+
+#+begin_src shell
+emacs -batch -L lisp -l ert -l lisp/scs-file-header.el \
+  -l test/scs-file-header-test.el -f ert-run-tests-batch-and-exit
+#+end_src

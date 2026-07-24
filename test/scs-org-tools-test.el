@@ -1,6 +1,7 @@
 ;;; scs-org-tools-test.el --- Tests for scs-org-tools  -*- lexical-binding: t; -*-
 
 (require 'ert)
+(require 'cl-lib)
 (require 'org)
 (require 'scs-org-tools)
 
@@ -191,6 +192,71 @@ its beginning, then the marker text is left in the buffer."
   (with-temp-buffer
     (fundamental-mode)
     (should-error (scs/org-ensure-buffer-header) :type 'user-error)))
+
+(ert-deftest scs/org--basename-at-point-bare-quoted-link ()
+  "Basename from bare name, quoted string, and Org file link."
+  (scs-org-tools-test--with-org
+   "See spiritual-life-is-not-democracy.org here.\n"
+   "spiritual-life"
+   (lambda ()
+     (should (equal (scs/org--basename-at-point)
+                    "spiritual-life-is-not-democracy.org"))))
+  (scs-org-tools-test--with-org
+   "See \"spiritual-life-is-not-democracy.org\" here.\n"
+   "spiritual-life"
+   (lambda ()
+     (should (equal (scs/org--basename-at-point)
+                    "spiritual-life-is-not-democracy.org"))))
+  (scs-org-tools-test--with-org
+   "See [[file:spiritual-life-is-not-democracy.org][note]] here.\n"
+   "spiritual-life"
+   (lambda ()
+     (should (equal (scs/org--basename-at-point)
+                    "spiritual-life-is-not-democracy.org"))))
+  (with-temp-buffer
+    (fundamental-mode)
+    (insert "???\n")
+    (goto-char (point-min))
+    (should-not (scs/org--basename-at-point))))
+
+(ert-deftest scs/rename-visited-file-to-name-at-point-tempdir ()
+  "Rename visited file in a temp dir; overwrite asks then replaces."
+  (let* ((dir (make-temp-file "scs-rename-" t))
+         (old (expand-file-name "old-name.org" dir))
+         (new (expand-file-name "new-name.org" dir))
+         (other (expand-file-name "new-name.org" dir)))
+    (unwind-protect
+        (progn
+          (with-temp-file old (insert "body\n"))
+          (with-temp-buffer
+            (insert "Rename to new-name.org please.\n")
+            (setq buffer-file-name old)
+            (goto-char (point-min))
+            (search-forward "new-name.org")
+            (goto-char (match-beginning 0))
+            (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
+              (scs/rename-visited-file-to-name-at-point))
+            (should (equal (file-name-nondirectory buffer-file-name)
+                           "new-name.org"))
+            (should (file-exists-p new))
+            (should-not (file-exists-p old)))
+          (with-temp-file old (insert "old again\n"))
+          (with-temp-file other (insert "victim\n"))
+          (with-temp-buffer
+            (insert "Target new-name.org\n")
+            (setq buffer-file-name old)
+            (goto-char (point-min))
+            (search-forward "new-name.org")
+            (goto-char (match-beginning 0))
+            (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
+              (scs/rename-visited-file-to-name-at-point))
+            (should (file-exists-p new))
+            (should-not (file-exists-p old))
+            (with-temp-buffer
+              (insert-file-contents new)
+              (should (equal (buffer-string) "old again\n")))))
+      (when (file-directory-p dir)
+        (delete-directory dir t)))))
 
 (provide 'scs-org-tools-test)
 

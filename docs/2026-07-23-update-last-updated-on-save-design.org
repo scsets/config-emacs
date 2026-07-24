@@ -1,0 +1,152 @@
+#+TITLE: Update LAST-UPDATED on save -- design
+#+FILENAME: 2026-07-23-update-last-updated-on-save-design.org
+#+DESCRIPTION: Design for before-save-hook that refreshes LAST-UPDATED / Last-Updated
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-07-23 Thu 08:24
+#+VERSION: 0.1.2
+#+LAST-UPDATED: 2026-07-24 Fri 06:43
+#+UPDATE: 2
+
+* Summary
+
+Add ~scs/update-last-updated-on-save~ on ~before-save-hook~ so Org, Emacs
+Lisp, and Common Lisp buffers refresh an existing file-header timestamp
+field when saved. Missing fields are left alone. ~VERSION~ and
+~UPDATE~ / ~Update #~ are never touched.
+
+* Goals
+
+- One hook function safe to run on every save.
+- Only Org, Emacs Lisp, and Lisp modes (including derived).
+- Only rewrite the first matching field inside the file preamble.
+- Stamp format: local ~YYYY-MM-DD Day HH:MM~ (same idea as
+  ~scs/org--header-stamp~).
+- Teachable helpers in a dedicated file, covered by ERT.
+
+* Non-goals
+
+- Do not insert a missing ~LAST-UPDATED~ / ~Last-Updated~ field.
+- Do not bump ~VERSION~, ~UPDATE~, or ~Update #~.
+- Do not use Emacs ~time-stamp~ cookies.
+- Do not ensure or reorder a full header (that remains
+  ~scs/org-ensure-buffer-header~ for Org).
+- Do not refactor ~scs-org-tools.el~ to share the stamp helper in v1.
+
+* Decisions (from brainstorm)
+
+| Topic | Choice |
+|---+---|
+| Fields updated | Timestamp only (not UPDATE / VERSION) |
+| Missing field | No-op |
+| Lisp header form | ~;; Last-Updated: ...~ (same as Elisp documented-code) |
+| Match scope | First match in preamble only |
+| Approach | Custom ~before-save-hook~, new ~lisp/scs-file-header.el~ |
+
+* Data model
+
+** Org
+
+Line pattern (case-insensitive keyword):
+
+#+begin_example
+#+LAST-UPDATED: <stamp>
+#+end_example
+
+Preserve the keyword spelling as it appears on the matched line (do not
+force uppercase rewrite of the key). Replace only the value after the
+colon; normalize to a single space after the colon before the new
+stamp.
+
+** Emacs Lisp and Common Lisp
+
+Line pattern in a Lisp comment that starts with at least two semicolons
+(so ~;;~ and ~;;;~ both match). Case-insensitive label:
+
+#+begin_example
+;; Last-Updated: <stamp>
+#+end_example
+
+Preserve the leading semicolons and label spelling as written. Replace
+only the value after the colon; normalize to a single space after the
+colon before the new stamp.
+
+** Stamp
+
+Local time with weekday, 24-hour clock:
+
+#+begin_example
+YYYY-MM-DD Day HH:MM
+#+end_example
+
+Example: ~2026-07-23 Thu 08:24~.
+
+* Preamble bounds
+
+** Org
+
+From ~point-min~, accept blank lines, ~#+KEYWORD:~ lines, and leading
+~#~ comments that are not ~#+~ keywords. Stop at the first Org headline
+or any other non-blank body line.
+
+** Lisp / Elisp
+
+From ~point-min~, accept blank lines and leading ~;;;~ / ~;;~ comment
+lines. Stop at ~;;; Code:~ or at the first non-comment, non-blank
+line.
+
+* Algorithm
+
+1. If ~buffer-file-name~ is nil, return.
+2. If major mode is not derived from ~org-mode~, ~emacs-lisp-mode~, or
+   ~lisp-mode~, return.
+3. Compute preamble end for the mode family.
+4. Search from ~point-min~ to preamble end for the first matching field
+   line.
+5. If none, return.
+6. Replace the value after the colon with a fresh stamp. Keep keyword /
+   label text as-is.
+7. Never signal an error that would abort the save.
+
+* Placement
+
+| Piece | Location |
+|---+---|
+| Hook + helpers | ~lisp/scs-file-header.el~ |
+| Tests | ~test/scs-file-header-test.el~ |
+| Autoload + hook | ~init.el~ |
+| Changelog | ~CHANGELOG.org~ on implement |
+
+Public name: ~scs/update-last-updated-on-save~.
+
+* Tests (ERT)
+
+- Org header with ~#+LAST-UPDATED:~: value updates; later body text that
+  looks like the field is untouched.
+- Org buffer with no such field: buffer unchanged.
+- Elisp header with ~;; Last-Updated:~: value updates.
+- Elisp with the field only after ~;;; Code:~: no change (outside
+  preamble).
+- Lisp-mode buffer with ~;; Last-Updated:~ in the header: value updates.
+- Non-target major mode: no-op.
+- No ~buffer-file-name~: no-op.
+
+* Open points (resolved)
+
+- Field set: timestamp only
+- Missing field: no-op
+- Lisp form: ~;; Last-Updated:~
+- Scope: first preamble match
+- Module: ~scs-file-header.el~ (not folded into ~scs-org-tools.el~)
+- Built-in ~time-stamp~: not used
+
+* TODO -- consider header2 later
+
+Keep the small SCS hook for now. Later, the team may evaluate MELPA
+~header2~ (EmacsWiki: Automatic File Headers) for broader insert/update
+of Lisp-style headers, although we do not like the author's posture.
+
+If that review happens, compare against this module's policy: timestamp
+only, preamble only, never insert, never bump VERSION / UPDATE, never
+abort save. Built-in ~time-stamp~ remains a second alternative that needs
+cookies or local patterns and was rejected for v1.

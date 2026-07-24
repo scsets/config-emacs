@@ -8,8 +8,9 @@
 ;;
 ;; Reusable Org-mode helpers for howm notes and other Org files in this
 ;; config.  Provides `scs/org-insert-creation-date',
-;; `scs/org-append-zwsp-markers', and `scs/org-ensure-buffer-header';
-;; additional commands can be added here over time.
+;; `scs/org-append-zwsp-markers', `scs/org-ensure-buffer-header', and
+;; `scs/rename-visited-file-to-name-at-point'; additional commands can be
+;; added here over time.
 ;;
 ;; `scs/org-insert-creation-date' sets the :creation-date: property on the
 ;; current Org headline to today's date in ISO 8601 format (YYYY-MM-DD).  If
@@ -25,12 +26,17 @@
 ;; header from `scs/org-buffer-header-template-file', keeping existing
 ;; values, filling defaults for missing keywords, and reordering to match
 ;; the template.
+;;
+;; `scs/rename-visited-file-to-name-at-point' renames the visited file to
+;; the basename at point (Org link, filename thing, or quoted string),
+;; after confirmation; overwrite requires a second confirm.
 
 ;;; Code:
 
 (require 'org)
 (require 'scs-cl)
 (require 'subr-x)
+(require 'thingatpt)
 
 (defcustom scs/org-buffer-header-template-file
   (expand-file-name "scs_org-buffer-template.org"
@@ -334,6 +340,67 @@ Signals `user-error' if called outside Org mode."
     (message "Updated %d paragraph%s"
              (length jobs)
              (if (= (length jobs) 1) "" "s"))))
+
+(defun scs/org--strip-surrounding-quotes (s)
+  "Return S without one layer of surrounding double or single quotes."
+  (if (and s
+           (>= (length s) 2)
+           (let ((first (aref s 0))
+                 (last (aref s (1- (length s)))))
+             (or (and (eq first ?\") (eq last ?\"))
+                 (and (eq first ?') (eq last ?')))))
+      (substring s 1 -1)
+    s))
+
+(defun scs/org--basename-candidate-at-point ()
+  "Return a raw filename candidate at point, or nil.
+Prefer an Org link path, then `thing-at-point' filename, then a quoted
+string.  The result may still contain a directory component."
+  (or (when (derived-mode-p 'org-mode)
+        (let ((ctx (org-element-context)))
+          (when (eq (org-element-type ctx) 'link)
+            (org-element-property :path ctx))))
+      (thing-at-point 'filename t)
+      (scs/org--strip-surrounding-quotes (thing-at-point 'string t))))
+
+(defun scs/org--basename-at-point ()
+  "Return the nondirectory basename at point for rename, or nil."
+  (let* ((raw (scs/org--basename-candidate-at-point))
+         (trimmed (and raw (string-trim raw)))
+         (base (and trimmed
+                    (not (string-empty-p trimmed))
+                    (file-name-nondirectory trimmed))))
+    (and base (not (string-empty-p base)) base)))
+
+;;;###autoload
+(defun scs/rename-visited-file-to-name-at-point ()
+  "Rename the visited file to the basename at point.
+Confirm with \"OLD: rename to: NEW\".  If the target already exists and
+is not the same file, ask a second time before overwriting.  Stays in
+the same directory.  Typical binding: `H-c R'."
+  (interactive)
+  (unless buffer-file-name
+    (user-error "Buffer is not visiting a file"))
+  (let* ((old buffer-file-name)
+         (old-base (file-name-nondirectory old))
+         (new-base (or (scs/org--basename-at-point)
+                       (user-error "No filename at point")))
+         (new (expand-file-name new-base (file-name-directory old))))
+    (if (string-equal (expand-file-name old) (expand-file-name new))
+        (message "Already named %s" old-base)
+      (unless (yes-or-no-p (format "%s: rename to: %s " old-base new-base))
+        (user-error "Rename aborted"))
+      (let ((ok-if-exists nil))
+        (when (file-exists-p new)
+          (if (file-equal-p old new)
+              (setq ok-if-exists t)
+            (unless (yes-or-no-p
+                     (format "Overwrite existing %s? " new-base))
+              (user-error "Rename aborted"))
+            (setq ok-if-exists t)))
+        (rename-file old new ok-if-exists)
+        (set-visited-file-name new nil t)
+        (message "Renamed to %s" new-base)))))
 
 (provide 'scs-org-tools)
 
