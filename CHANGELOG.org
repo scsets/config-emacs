@@ -7,6 +7,17 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 
+* 2026-07-24 Fri Nice Helm catalog UI on trunk
+
+- lisp/scs-command-hub-helm.el: section headers, aligned title/keys/
+  summary columns, and colored faces (extracted from the Hydra trial
+  so that branch can be dropped cleanly).
+- lisp/scs-command-hub.el: require the Helm UI module; Transient portal
+  unchanged.
+- init.el: autoload browse from the Helm module; reclaim ~C-c /~ and
+  ~C-c ?~ on ~org-mode-map~ (Org had shadowed the portal).
+- test/scs-command-hub-test.el: group + format checks.
+
 * 2026-07-24 Fri Transient q quits hub from any panel
 
 - lisp/scs-command-hub.el: every hub Transient shows ~q~ ->

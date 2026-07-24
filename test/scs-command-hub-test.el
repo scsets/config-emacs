@@ -5,9 +5,9 @@
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-07-24 Fri 12:07
-;; Version: 0.1.0
-;; Last-Updated: 2026-07-24 Fri 12:07
-;; Update #: 1
+;; Version: 0.1.1
+;; Last-Updated: 2026-07-24 Fri 18:05
+;; Update #: 2
 
 ;;; Commentary:
 ;;
@@ -18,6 +18,7 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; add: 2026-07-24 -- group/format ERT for Helm catalog UI
 ;; add: 2026-07-24 -- catalog accessor and validation ERT
 
 ;;; Code:
@@ -52,6 +53,27 @@
                 :type 'user-error)
   (should-error (scs/command-hub-validate-entry '(:name scs/reload-config))
                 :type 'user-error))
+
+(ert-deftest scs/command-hub-entry-group-favorites-first ()
+  "Favorite tag wins the section even when domain tags are present."
+  (should (eq (scs/command-hub-entry-group
+               '(:name x :title "t" :tags (org favorite)))
+              'favorite))
+  (should (eq (scs/command-hub-entry-group
+               '(:name x :title "t" :tags (tramp)))
+              'tramp)))
+
+(ert-deftest scs/command-hub-format-candidate-columns ()
+  "Formatted candidate keeps title, keys, and summary text."
+  (let* ((entry '(:name scs/reload-config
+                  :title "Reload config"
+                  :summary "Reload init.el"
+                  :keys "C-c r"
+                  :tags (config favorite)))
+         (display (scs/command-hub--format-candidate entry 20 8)))
+    (should (string-match-p "Reload config" display))
+    (should (string-match-p "C-c r" display))
+    (should (string-match-p "Reload init.el" display))))
 
 (provide 'scs-command-hub-test)
 ;;; scs-command-hub-test.el ends here

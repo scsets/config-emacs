@@ -5,9 +5,9 @@
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-07-24 Fri 12:07
-;; Version: 0.1.2
-;; Last-Updated: 2026-07-24 Fri 13:34
-;; Update #: 3
+;; Version: 0.1.3
+;; Last-Updated: 2026-07-24 Fri 18:05
+;; Update #: 4
 ;; Keywords: convenience, helm, transient
 ;; Package-Requires: ((emacs "29.1") (transient "0.5") (helm "3.0"))
 
@@ -21,18 +21,20 @@
 ;;
 ;; Solution:
 ;;   A Transient home on C-c ? over a curated plist catalog.  Helm
-;;   browses the catalog; nested Transients hold small workflows;
-;;   helpful/describe opens deep docs.  Catalog data is the source of
-;;   truth for titles and summaries.  :keys is a display hint only --
-;;   real bindings stay in prefix maps and bind-key.
+;;   browses the catalog (nice sectioned UI in scs-command-hub-helm.el);
+;;   nested Transients hold small workflows; helpful/describe opens
+;;   deep docs.  Catalog data is the source of truth for titles and
+;;   summaries.  :keys is a display hint only -- real bindings stay in
+;;   prefix maps and bind-key.
 ;;
 ;; Verify:
-;;   C-c ? or C-c / then c -- search a seeded title and RET to run.
+;;   C-c ? or C-c / then c -- sectioned Helm catalog; RET to run.
 ;;   Batch: emacs -batch -L lisp -l ert -l lisp/scs-command-hub.el \
 ;;     -l test/scs-command-hub-test.el -f ert-run-tests-batch-and-exit
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; add: 2026-07-24 -- require scs-command-hub-helm for catalog UI
 ;; add: 2026-07-24 -- q quits whole hub stack from every panel
 ;; add: 2026-07-24 -- C-c / twin binding (documented in Commentary)
 ;; add: 2026-07-24 -- catalog, Helm browse, Transient home, workflows
@@ -167,31 +169,13 @@ it belongs here.")
     (call-interactively name)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Helm catalog
+;; Helm catalog UI (scs-command-hub-helm.el)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun scs/command-hub--helm-candidates ()
-  "Build Helm candidate alist (DISPLAY . ENTRY) from the catalog."
-  (mapcar (lambda (entry)
-            (cons (scs/command-hub-entry-candidate entry) entry))
-          scs/command-hub-catalog))
-
-;;;###autoload
-(defun scs/command-hub-browse-catalog ()
-  "Browse the curated command catalog with Helm and run or describe."
-  (interactive)
-  (require 'helm)
-  (helm :sources
-        (helm-build-sync-source "SCS command catalog"
-          :candidates #'scs/command-hub--helm-candidates
-          :fuzzy-match t
-          :action
-          (helm-make-actions
-           "Run" (lambda (entry) (scs/command-hub-run-entry entry))
-           "Describe" (lambda (entry)
-                        (scs/command-hub-describe-command
-                         (scs/command-hub-entry-name entry)))))
-        :buffer "*helm SCS catalog*"))
+;; Section headers, column alignment, and faces live in the sibling
+;; module so trial-branch experiments can be dropped without losing
+;; the catalog presentation.
+(require 'scs-command-hub-helm)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Transient workflows

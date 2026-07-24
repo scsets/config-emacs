@@ -104,6 +104,7 @@ Emacs after large structural changes."
 (global-set-key (kbd "C-c r") #'scs/reload-config)
 ;; Command hub home: curated catalog, workflows, describe (see lisp/scs-command-hub.el).
 ;; C-c / is the same door without Shift (many keyboards need Shift for ?).
+;; Org also binds those keys; reclaimed in with-eval-after-load 'org below.
 (global-set-key (kbd "C-c ?") #'scs/command-hub)
 (global-set-key (kbd "C-c /") #'scs/command-hub)
 
@@ -241,7 +242,7 @@ Intentionally not *scratch*; new frames land on persistent notes."
 ;; add: 2026-07-24 -- Transient command hub home on C-c ?
 (autoload 'scs/command-hub "scs-command-hub"
   "Open the SCS command hub (Transient home on C-c ?)." t)
-(autoload 'scs/command-hub-browse-catalog "scs-command-hub"
+(autoload 'scs/command-hub-browse-catalog "scs-command-hub-helm"
   "Browse the curated command catalog with Helm." t)
 
 
@@ -2119,7 +2120,12 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
   :defer t)
 
 (with-eval-after-load 'org
-  (require 'org-tools))
+  (require 'org-tools)
+  ;; Org binds C-c / (sparse-tree) and C-c ? (table field info), which
+  ;; shadow the global command-hub portal.  Reclaim them; sparse trees
+  ;; remain via M-x org-sparse-tree.
+  (define-key org-mode-map (kbd "C-c /") #'scs/command-hub)
+  (define-key org-mode-map (kbd "C-c ?") #'scs/command-hub))
 
 ;; org-protocol needed for macOS scrim -- load after server starts
 (with-eval-after-load 'server

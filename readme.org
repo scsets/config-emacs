@@ -65,7 +65,8 @@ material.
 | Library | Loaded from | Purpose |
 |---------+-------------+---------|
 | =org-tools.el= | ~require~ after Org; Hyper prefix autoload | Buffer helpers (header, creation-date, zwsp, rename) + export (line-prefix, stationery, PDF/X) |
-| =scs-command-hub.el= | autoload ~scs/command-hub~; ~C-c ?~ / ~C-c /~ | Transient home: curated Helm catalog, workflows, describe |
+| =scs-command-hub.el= | autoload ~scs/command-hub~; ~C-c ?~ / ~C-c /~ | Transient home: workflows, describe; opens Helm catalog |
+| =scs-command-hub-helm.el= | autoload ~scs/command-hub-browse-catalog~ | Sectioned / aligned / colored Helm catalog UI |
 | =scs-frame-state.el= | autoload | Frame geometry save/restore |
 | =scs-tramp.el= | TRAMP ~:config~ + autoload | Known hosts, cleanup, no-trace policy |
 | =flycheck-org-lint-workaround.el= | ~flycheck~ block | Advice for broken Flycheck/org-lint line-cell handling |
