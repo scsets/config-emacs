@@ -113,6 +113,9 @@ profile).  Helm's own help is on ~?~; debug/customize live under
 ~C-c C-d~ / ~C-c c~ / ~C-c d~ on ~helm-map~.  Emacs help remains on
 ~F1~.
 
+In the command hub (~C-c ?~ / ~C-c /~), press ~q~ at any nesting level
+to leave the whole Transient stack.  ~C-g~ still backs up one level.
+
 First-run note: if the =el-get/el-get= checkout is missing, startup clones
 it over the network.  That is intentional for a single-user profile.
 

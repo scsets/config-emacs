@@ -7,6 +7,23 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 
+* 2026-07-24 Fri Transient q quits hub from any panel
+
+- lisp/scs-command-hub.el: every hub Transient shows ~q~ ->
+  ~transient-quit-all~.
+- init.el: ~transient-base-map~ also binds ~q~ to ~transient-quit-all~
+  so it works anytime in a Transient menu (~C-g~ still pops one level).
+
+* 2026-07-24 Fri Transient hub display: taller + brighter
+
+- init.el (~use-package transient~): punchier ~transient-heading~ and
+  semantic key faces (stay/exit/recurse/stack/return) for light/dark.
+- Transient always fits its side window to the menu text, so a bare
+  ~window-height~ alist entry stays minibuffer-sized for short hubs.
+  ~scs/transient--enforce-min-height~ advises
+  ~transient--fit-window-to-buffer~ and grows to ~28%~ of the frame
+  (at least 10 lines).  Tune ~scs/transient-min-height-fraction~.
+
 * 2026-07-24 Fri Command hub also on C-c /
 
 - init.el: bind ~C-c /~ to ~scs/command-hub~ (same as ~C-c ?~, no

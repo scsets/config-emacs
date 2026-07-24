@@ -28,6 +28,16 @@ Helm help was moved to ~?~, and the old ~C-h ...~ family was cleared
 from ~helm-map~ (subkeys first, then the prefix -- the other order
 recreates a ~C-h~ keymap).
 
+Transient menus use a bottom side window with brighter heading/key
+faces so groups and semantic key colors (stay / exit / recurse) are
+easier to read.  Transient itself always *fits* that window to the
+menu text, which is why a plain ~window-height~ setting looked like a
+minibuffer for short hubs.  This profile advises
+~transient--fit-window-to-buffer~ via ~scs/transient--enforce-min-height~
+and grows the window to ~scs/transient-min-height-fraction~ (default
+0.28 of the frame, at least 10 lines).  Faces live in the ~transient~
+~use-package~ block.
+
 * Emacs 30 strict plist checking
 
 In Emacs < 30, ~plist-put~ on a non-plist (like a string) silently

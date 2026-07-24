@@ -5,9 +5,9 @@
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-07-24 Fri 12:07
-;; Version: 0.1.1
-;; Last-Updated: 2026-07-24 Fri 13:22
-;; Update #: 2
+;; Version: 0.1.2
+;; Last-Updated: 2026-07-24 Fri 13:34
+;; Update #: 3
 ;; Keywords: convenience, helm, transient
 ;; Package-Requires: ((emacs "29.1") (transient "0.5") (helm "3.0"))
 
@@ -33,6 +33,7 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; add: 2026-07-24 -- q quits whole hub stack from every panel
 ;; add: 2026-07-24 -- C-c / twin binding (documented in Commentary)
 ;; add: 2026-07-24 -- catalog, Helm browse, Transient home, workflows
 
@@ -204,7 +205,9 @@ it belongs here.")
     ("d" "Insert creation date" scs/org-insert-creation-date)]
    ["Org ID"
     ("r" "Rebuild org-id locations" scs/org-id-rebuild)
-    ("u" "Report duplicate org-ids" scs/org-id-report-duplicates)]])
+    ("u" "Report duplicate org-ids" scs/org-id-report-duplicates)]]
+  [["Quit"
+    ("q" "Quit hub (all levels)" transient-quit-all)]])
 
 (transient-define-prefix scs/command-hub-workflow-tramp ()
   "TRAMP helpers (same commands as C-c t)."
@@ -212,13 +215,17 @@ it belongs here.")
     ("f" "Find file on host" scs/tramp-find-file)
     ("d" "Dired on host" scs/tramp-dired)
     ("c" "Cleanup connections" scs/tramp-cleanup)
-    ("r" "Revert / reopen remote buffer" scs/tramp-reopen)]])
+    ("r" "Revert / reopen remote buffer" scs/tramp-reopen)]]
+  [["Quit"
+    ("q" "Quit hub (all levels)" transient-quit-all)]])
 
 (transient-define-prefix scs/command-hub-workflow-frames ()
   "Frame geometry save/restore."
   [["Geometry"
     ("s" "Save frame geometry" scs/frame-state-save)
-    ("r" "Restore frame geometry" scs/frame-state-restore)]])
+    ("r" "Restore frame geometry" scs/frame-state-restore)]]
+  [["Quit"
+    ("q" "Quit hub (all levels)" transient-quit-all)]])
 
 (transient-define-prefix scs/command-hub-workflows ()
   "Sticky workflow panels for related command clusters."
@@ -227,7 +234,9 @@ it belongs here.")
    ["TRAMP"
     ("t" "TRAMP workflows" scs/command-hub-workflow-tramp)]
    ["Frames"
-    ("f" "Frame geometry workflows" scs/command-hub-workflow-frames)]])
+    ("f" "Frame geometry workflows" scs/command-hub-workflow-frames)]]
+  [["Quit"
+    ("q" "Quit hub (all levels)" transient-quit-all)]])
 
 ;;;###autoload
 (transient-define-prefix scs/command-hub ()
@@ -236,7 +245,9 @@ it belongs here.")
     ("c" "Catalog (curated commands)" scs/command-hub-browse-catalog)
     ("d" "Describe command" scs/command-hub-describe-command)]
    ["Workflows"
-    ("w" "Workflow panels..." scs/command-hub-workflows)]])
+    ("w" "Workflow panels..." scs/command-hub-workflows)]]
+  [["Quit"
+    ("q" "Quit hub (all levels)" transient-quit-all)]])
 
 (provide 'scs-command-hub)
 ;;; scs-command-hub.el ends here

@@ -2499,8 +2499,97 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
 ;; ----------------------------------------------------------
 
 ;; Explicit citizen for the command hub spine (also pulled by magit-section).
+;; Display: bottom side window.  Transient always *fits* the window to the
+;; menu text afterward, which is why a bare window-height alist entry looks
+;; like a minibuffer for short hubs -- we grow to a floor after that fit.
+;; Faces: punchier heading + semantic key colors (stay/exit/recurse).
 (use-package transient
-  :el-get t)
+  :el-get t
+  :config
+  ;; Keep dedicated + inhibit-same-window so the editing buffer stays
+  ;; current (suffixes often act on point).
+  (setq transient-display-buffer-action
+        '(display-buffer-in-side-window
+          (side . bottom)
+          (dedicated . t)
+          (inhibit-same-window . t)))
+  ;; Semantic coloring is already the Transient default; leave it on so
+  ;; key faces below mean stay / exit / recurse / return.
+  (setq transient-semantic-coloring t)
+  ;; Floor for Transient menu height.  Fraction of the selected frame;
+  ;; never smaller than 10 lines so short hubs still feel like a panel.
+  (defvar scs/transient-min-height-fraction 0.28
+    "Minimum Transient menu height as a fraction of the frame height.
+
+Transient calls `transient--fit-window-to-buffer' after display, which
+shrinks the side window to the menu text.  Short hubs therefore look
+minibuffer-sized unless we enlarge again afterward.")
+  (defun scs/transient--enforce-min-height (window)
+    "Grow WINDOW when Transient fitted it shorter than our height floor.
+
+Arguments: WINDOW is the Transient menu window.
+Return value: nil.
+Side effects: may call `enlarge-window' on WINDOW."
+    (when (window-live-p window)
+      (let* ((frame (window-frame window))
+             (want (max 10
+                        (round (* scs/transient-min-height-fraction
+                                  (frame-height frame)))))
+             (cur (window-total-height window))
+             (delta (- want cur)))
+        (when (> delta 0)
+          ;; Side windows can refuse some resizes; ignore and keep the fit.
+          (condition-case nil
+              (with-selected-window window
+                (enlarge-window delta))
+            (error nil))))))
+  ;; After Transient's own fit-to-buffer, enforce the floor.
+  (advice-add 'transient--fit-window-to-buffer :after
+              #'scs/transient--enforce-min-height)
+  ;; Plain q quits the whole Transient stack from any nested menu.
+  ;; Stock Transient uses C-g (one level) and C-q (all); hub muscle
+  ;; memory wants q.  Suffix rows in scs-command-hub also show it.
+  (keymap-set transient-base-map "q" #'transient-quit-all)
+  ;; Theme-aware specs (light and dark).  Bold headings make Org/TRAMP
+  ;; groups pop; key colors follow Transient's own semantic faces.
+  (custom-set-faces
+   '(transient-heading
+     ((((class color) (background light))
+       :inherit font-lock-keyword-face :weight bold :foreground "#005faf")
+      (((class color) (background dark))
+       :inherit font-lock-keyword-face :weight bold :foreground "#7dcfff")
+      (t :inherit font-lock-keyword-face :weight bold)))
+   '(transient-key
+     ((((class color) (background light))
+       :inherit font-lock-builtin-face :weight bold :foreground "#875f00")
+      (((class color) (background dark))
+       :inherit font-lock-builtin-face :weight bold :foreground "#e0af68")
+      (t :inherit font-lock-builtin-face :weight bold)))
+   '(transient-key-stay
+     ((((class color) (background light))
+       :inherit transient-key :foreground "#008700")
+      (((class color) (background dark))
+       :inherit transient-key :foreground "#9ece6a")))
+   '(transient-key-exit
+     ((((class color) (background light))
+       :inherit transient-key :foreground "#af0000")
+      (((class color) (background dark))
+       :inherit transient-key :foreground "#f7768e")))
+   '(transient-key-recurse
+     ((((class color) (background light))
+       :inherit transient-key :foreground "#005fff")
+      (((class color) (background dark))
+       :inherit transient-key :foreground "#7aa2f7")))
+   '(transient-key-stack
+     ((((class color) (background light))
+       :inherit transient-key :foreground "#5f00af")
+      (((class color) (background dark))
+       :inherit transient-key :foreground "#bb9af7")))
+   '(transient-key-return
+     ((((class color) (background light))
+       :inherit transient-key :foreground "#af8700")
+      (((class color) (background dark))
+       :inherit transient-key :foreground "#e0af68")))))
 
 ;; ----------------------------------------------------------
 ;; unfill
