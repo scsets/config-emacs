@@ -1,0 +1,229 @@
+#+TITLE: Command hub -- design
+#+FILENAME: 2026-07-24-command-hub-design.org
+#+DESCRIPTION: Transient home base on C-c ? for catalog, workflows, and docs
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-07-24 Fri 10:12
+#+VERSION: 0.1.0
+#+LAST-UPDATED: 2026-07-24 Fri 10:12
+#+UPDATE: 0
+
+* Summary
+
+Add a single home base on ~C-c ?~ so the team can remember that
+commands exist, read a short description, run sticky workflows, and
+open richer docs.  The spine is Transient; the curated catalog is plain
+data shown through Helm; everyday prefix discovery stays with
+which-key; deep docs use helpful (with ~describe-*~ fallback).  Hydra
+is a later experiment only if Transient feels wrong after real use.
+Approach C (thicker local dispatcher) stays an easy evolution if the
+local hub module owns the data from day one.
+
+* Goals
+
+Cover four jobs from one front door:
+
+| Job | Need | Owner in this design |
+|-----+------+----------------------|
+| A | Forget the next key after a prefix | which-key (already enabled) |
+| B | Forget that a command exists; want curated list + summary | Helm over a local catalog alist/plist list |
+| C | Sticky multi-step workflow panels | Transient (nested) |
+| D | Richer documentation when looking a command up | helpful, with ~describe-*~ fallback |
+
+Primary entry: ~C-c ?~ (works on macOS GUI and FreeBSD/SmartOS TTY).
+
+Library preference: pre-existing packages first; a thin local module
+only to own data and wire the packages.  Full custom UI is last choice.
+
+* Hard constraints
+
+- ~C-h~ / ~M-h~ remain delete (~key-translation-map~ in ~init.el~);
+  Emacs help stays on ~F1~.  Never reclaim ~C-h~ for help or hub keys.
+- Helm must stop treating ~C-h~ as its help/debug prefix family.  In
+  Helm sessions, ~C-h~ deletes; Helm help moves to ~?~; Helm's former
+  ~C-h ...~ chords relocate off that prefix (e.g. under existing
+  ~C-c h~ or another non-~C-h~ chord chosen at implementation time).
+- Data-first: curated catalog is inspectable data, not scattered UI.
+- Do not replace Helm, which-key, or existing prefix maps (~H-c~,
+  ~C-c t~, ~scs/quit-map~, etc.).
+- Keep a clean path to Approach C and to a Hydra trial without
+  rewriting the catalog.
+
+* Approach chosen
+
+**Approach B with a clean local home** (approved):
+
+- Transient = hub spine and sticky workflows
+- Helm = browse/search the curated catalog
+- which-key = unchanged prefix discovery
+- helpful = deep docs
+- Local module owns catalog data + wiring so Approach C is later
+  thickening, not a rewrite
+
+Rejected for now:
+
+- Approach A (Transient-only catalog) -- long curated lists are a poor
+  fit for Transient suffixes alone
+- Approach C as day-one -- more glue than needed; reachable later
+- Hydra as day-one spine -- try Transient first; Hydra only if the
+  team dislikes Transient after use
+
+Note: an older ~plan.org~ line listed Hydra for quit/small menus as a
+non-goal.  That note does not constrain this hub; this work is not
+"small menus," and Hydra remains a valid follow-up experiment.
+
+* Architecture
+
+#+begin_example
+C-c ?  -->  Transient home base
+              |- c  Catalog   --> Helm over curated entries
+              |- w  Workflows --> nested Transient panels
+              |- d  Describe  --> helpful / describe-*
+              |- q / C-g      --> quit
+#+end_example
+
+which-key continues to pop on ordinary prefixes; the hub does not
+replace it.
+
+* Data model
+
+Catalog entries are plists (or equivalent alists) in the local module.
+Suggested fields:
+
+| Field | Purpose |
+|-------+---------|
+| ~:name~ | Interactive command symbol |
+| ~:title~ | Short human label |
+| ~:summary~ | One-line reminder of what it does |
+| ~:tags~ | Optional keywords (~org~, ~tramp~, ~frame~, ~favorite~, ...) |
+| ~:keys~ | Optional binding hint for display only (not keymap authority) |
+
+Example:
+
+#+begin_src emacs-lisp
+(:name scs/frame-state-restore
+ :title "Restore frame geometry"
+ :summary "Reload a labeled frame size/position from var/frame-state.el"
+ :tags (frame favorite)
+ :keys "M-x scs/frame-state-restore")
+#+end_src
+
+Rules:
+
+- Prefix maps and ~bind-key~ remain authoritative for real bindings;
+  ~:keys~ is a hint for the catalog UI.
+- v1 catalog is curated by hand.  Do not auto-scrape every ~defun~.
+- Seed from Day-2 commands in ~readme.org~, frequently used Hyper /
+  ~C-c~ favorites, and local ~scs/*~ helpers people actually forget.
+- Grow an entry when something is forgotten once -- that is the signal.
+
+Consumers of the same data:
+
+- Helm catalog source (title, summary, search, run)
+- Transient workflow leaves (call ~:name~)
+- helpful / describe (need only ~:name~)
+- Later Hydra or Approach C wrappers (same list)
+
+* Transient home and workflows
+
+Top-level suffixes (descriptions shown in Transient):
+
+| Key | Action |
+|-----+--------|
+| ~c~ | Open curated Catalog (Helm) |
+| ~w~ | Enter Workflows submenu |
+| ~d~ | Describe (prompt or at-point); prefer helpful |
+| ~q~ / ~C-g~ | Leave |
+
+Workflows submenu (v1 -- small on purpose):
+
+- Org / notes cluster (capture, creation-date, id helpers, howm bits
+  already in daily use) -- required in v1
+- TRAMP cluster (mirror ~C-c t~ family for discoverability) -- required
+  in v1
+- Frames cluster (save/restore geometry) -- include in v1 if cheap;
+  otherwise first follow-up panel after live use
+
+Add further panels only when a related cluster is annoying to remember.
+Each leaf should call a real command, preferably one also listed in the
+catalog.
+
+Catalog Helm behavior:
+
+- Show ~:title~ with ~:summary~ (optional quieter ~:keys~ / tags)
+- RET runs ~:name~
+- A secondary action opens helpful / describe on ~:name~ without
+  running it (ties jobs B and D)
+
+* Helm C-h remediation
+
+Required alongside the hub (same project, not optional polish):
+
+1. Preserve ~C-h~ as delete inside Helm (consistent with global
+   translation).
+2. Bind Helm help to ~?~ while a Helm session is active.
+3. Move Helm's ~C-h ...~ debug/customize family off the ~C-h~ prefix.
+4. Document the new help chord in ~readme.org~ and a short
+   ~insights.org~ note so the team does not hunt for ~C-h~.
+
+* Packages and files
+
+| Piece | Role |
+|-------+------|
+| ~lisp/scs-command-hub.el~ | Catalog data, Transient defs, Helm source, entry command |
+| ~init.el~ | Load/autoload hub; bind ~C-c ?~; Helm remap; add helpful |
+| ~helpful~ | New el-get / ~use-package~ citizen for job D |
+| ~transient~ | Explicit dependency for the hub (may already arrive via other recipes) |
+| ~readme.org~ | Operator: hub chord, catalog idea, Helm ~?~, ~C-h~ = delete |
+| ~insights.org~ | Why Transient + Helm + data; Helm/~C-h~ decision |
+| ~CHANGELOG.org~ | Maintenance entry when this lands |
+| ~docs/2026-07-24-command-hub-design.org~ | This design |
+| Optional ~test/scs-command-hub-test.el~ | Catalog shape / pure helpers (not full UI) |
+
+* Rollout
+
+1. Helm ~C-h~ remediation + docs note
+2. Add helpful
+3. Land ~scs-command-hub.el~ with seeded catalog and thin Transient home
+4. Add v1 workflow panels (Org notes + TRAMP required; Frames if cheap)
+5. Live use; grow catalog when something is forgotten
+6. If Transient feels wrong for the team: try Hydra behind the same
+   ~C-c ?~ door, same catalog data
+
+* Verification
+
+- ~C-c ?~ opens Transient home in GUI and TTY
+- Catalog Helm finds a seeded entry by title/summary and runs it
+- Hub ~d~ and catalog secondary action open helpful (or describe
+  fallback)
+- In Helm, ~C-h~ deletes; ~?~ opens Helm help
+- which-key still pops on existing prefixes (~H-c~, ~C-c t~, ...)
+- No new claim on ~C-h~ anywhere in the hub
+
+* Non-goals (v1)
+
+- Replacing which-key, Helm, or existing prefix maps
+- Auto-generating the catalog from every ~defun~
+- Porting quit / ~scs/quit-map~ into Transient
+- Building Approach C's thicker dispatcher (only keep the door open)
+- Installing Hydra yet (explicit follow-up experiment)
+- Optional macOS ~H-/~ mirror of ~C-c ?~ (nice later; not required for v1)
+
+* Later paths
+
+**Approach C:** thicken ~scs-command-hub.el~ (policy, filters,
+backend swap).  Catalog plist list stays the source of truth.
+
+**Hydra trial:** same entry chord and catalog; swap or dual-drive the
+sticky workflow layer only after Transient has had a fair real-world
+test.
+
+* References
+
+- Current ~C-h~ / ~M-h~ translation and ~F1~ help: ~init.el~
+  (section "C-h/M-h as backspace")
+- which-key: ~init.el~ ~use-package which-key~
+- Helm prefix ~C-c h~ and bindings: ~init.el~ ~use-package helm~
+- Day-2 command list: ~readme.org~
+- Prefix map inventory / proposals: ~plan.org~
+- Hyper ~H-c~ notes: ~insights.org~

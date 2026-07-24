@@ -102,6 +102,10 @@ Emacs after large structural changes."
   (message "Reloaded %s" (abbreviate-file-name user-init-file)))
 
 (global-set-key (kbd "C-c r") #'scs/reload-config)
+;; Command hub home: curated catalog, workflows, describe (see lisp/scs-command-hub.el).
+;; C-c / is the same door without Shift (many keyboards need Shift for ?).
+(global-set-key (kbd "C-c ?") #'scs/command-hub)
+(global-set-key (kbd "C-c /") #'scs/command-hub)
 
 ;; Parenthesis jump helper (vi-style `%').  Point may sit inside or on the bracket.
 ;; http://www.emacswiki.org/emacs/ParenthesisMatching#toc4
@@ -234,6 +238,11 @@ Intentionally not *scratch*; new frames land on persistent notes."
 (autoload 'scs/org-append-zwsp-markers "org-tools" nil t)
 (autoload 'scs/org-ensure-buffer-header "org-tools" nil t)
 (autoload 'scs/rename-visited-file-to-name-at-point "org-tools" nil t)
+;; add: 2026-07-24 -- Transient command hub home on C-c ?
+(autoload 'scs/command-hub "scs-command-hub"
+  "Open the SCS command hub (Transient home on C-c ?)." t)
+(autoload 'scs/command-hub-browse-catalog "scs-command-hub"
+  "Browse the curated command catalog with Helm." t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -320,6 +329,30 @@ Intentionally not *scratch*; new frames land on persistent notes."
         (:name haproxy-mode
          :type github
          :pkgname "port19x/haproxy-mode")
+        ;; add: 2026-07-24 -- command hub deep docs (Transient catalog Describe)
+        (:name dash
+         :type github
+         :pkgname "magnars/dash.el"
+         :features dash)
+        (:name s
+         :type github
+         :pkgname "magnars/s.el"
+         :features s)
+        (:name f
+         :type github
+         :pkgname "rejeep/f.el"
+         :features f
+         :depends (s dash))
+        (:name elisp-refs
+         :type github
+         :pkgname "Wilfred/elisp-refs"
+         :features elisp-refs
+         :depends (dash s))
+        (:name helpful
+         :type github
+         :pkgname "Wilfred/helpful"
+         :features helpful
+         :depends (elisp-refs dash s f))
         (:name helm
          :type github
          :pkgname "emacs-helm/helm"
@@ -398,6 +431,14 @@ Intentionally not *scratch*; new frames land on persistent notes."
          :pkgname "thierryvolpiatto/wfnames"
          :branch "main"
          :features wfnames)
+        ;; add: 2026-07-24 -- explicit Transient for command hub spine
+        (:name transient
+         :type github
+         :pkgname "magit/transient"
+         :branch "main"
+         :load-path ("lisp")
+         :features transient
+         :depends (compat cond-let llama seq))
         (:name yasnippet
          :type github
          :pkgname "joaotavora/yasnippet"
@@ -1355,6 +1396,16 @@ was nil during daemon startup, so font must be applied per frame."
 (use-package haproxy-mode :el-get t)
 
 ;; ----------------------------------------------------------
+;; helpful
+;; ----------------------------------------------------------
+
+;; Richer command/function docs for the command hub (job D).
+(use-package helpful
+  :el-get t
+  :commands (helpful-callable helpful-function helpful-variable
+                             helpful-key helpful-command))
+
+;; ----------------------------------------------------------
 ;; helm
 ;; ----------------------------------------------------------
 
@@ -1395,6 +1446,22 @@ was nil during daemon startup, so font must be applied per frame."
   (require 'helm-for-files)
   (helm-mode 1)
   (helm-autoresize-mode 1)
+
+  ;; C-h is delete in this profile (key-translation-map).  Do not leave
+  ;; Helm's help/debug family on a C-h prefix -- it fights muscle memory
+  ;; and confuses the team.  Clear the C-h *subkeys first*, then drop the
+  ;; prefix itself (the other order recreates a C-h keymap).  Helm help
+  ;; is on ? ; debug/customize move under C-c on helm-map.
+  (define-key helm-map (kbd "C-h C-h") nil)
+  (define-key helm-map (kbd "C-h h") nil)
+  (define-key helm-map (kbd "C-h C-d") nil)
+  (define-key helm-map (kbd "C-h c") nil)
+  (define-key helm-map (kbd "C-h d") nil)
+  (define-key helm-map (kbd "C-h") nil)
+  (define-key helm-map (kbd "?") #'helm-help)
+  (define-key helm-map (kbd "C-c C-d") #'helm-enable-or-switch-to-debug)
+  (define-key helm-map (kbd "C-c c") #'helm-customize-group)
+  (define-key helm-map (kbd "C-c d") #'helm-debug-output)
 
   ;; helm-fd (C-/ in helm-find-files) is async and cannot fuzzy-match; it also
   ;; feeds the pattern to fd as literal substrings.  Replace with an in-buffer
@@ -2426,6 +2493,14 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
 ;; C-x d /ssh:host:/path -- browse remote filesystem
 ;; C-c t f/d -- find file / dired on a known host (see lisp/scs-tramp.el)
 ;; With ControlMaster, subsequent dired buffers on the same host are instant.
+
+;; ----------------------------------------------------------
+;; transient
+;; ----------------------------------------------------------
+
+;; Explicit citizen for the command hub spine (also pulled by magit-section).
+(use-package transient
+  :el-get t)
 
 ;; ----------------------------------------------------------
 ;; unfill

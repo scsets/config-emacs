@@ -1,0 +1,612 @@
+#+TITLE: Command hub -- implementation plan
+#+FILENAME: 2026-07-24-command-hub-plan.org
+#+DESCRIPTION: Step plan for Transient C-c ? hub, Helm catalog, helpful, Helm C-h fix
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-07-24 Fri 10:28
+#+VERSION: 0.1.0
+#+LAST-UPDATED: 2026-07-24 Fri 10:28
+#+UPDATE: 0
+
+* For agentic workers
+
+Spec: =docs/2026-07-24-command-hub-design.org=.
+Execute task-by-task.  Prefer inline execution in one session unless SCS
+asks for subagents.  Do not ~git commit~ unless SCS explicitly asks.
+ASCII only.  Prefer Org for docs.  Update ~CHANGELOG.org~ when code
+lands (GreyBeard style; file may be hardlinked as ~changelog.org~).
+
+REQUIRED when implementing: teachable Commentary and Change Log in new
+Elisp; soft comments that explain why; follow ~documented-code~ skill
+for API checks (Transient, Helm, helpful).
+
+* Goal
+
+Ship a ~C-c ?~ Transient home base that opens a curated Helm catalog,
+small sticky workflow panels, and helpful/describe docs -- while making
+Helm stop using ~C-h~ so delete stays sacred.
+
+* Architecture
+
+Local module ~lisp/scs-command-hub.el~ owns catalog plists, Helm
+source, Transient prefixes, and describe helpers.  ~init.el~ remaps
+Helm help, installs ~helpful~ + explicit ~transient~, autoloads the
+hub entry, binds ~C-c ?~.  which-key stays untouched.
+
+* Global constraints
+
+- Emacs 29.1+ (profile baseline).
+- ~C-h~ / ~M-h~ remain delete via ~key-translation-map~; help on ~F1~.
+- Never bind hub or Helm help to ~C-h~.
+- Curated catalog only (no auto-scrape of every ~defun~).
+- ~:keys~ is display hint only; real bindings stay in prefix maps /
+  ~bind-key~.
+- v1 workflows: Org/notes + TRAMP required; Frames if cheap.
+- Hydra is out of scope for this plan (follow-up experiment only).
+- Do not port ~scs/quit-map~ into Transient.
+
+* File map
+
+| Path | Action |
+|------|--------|
+| ~lisp/scs-command-hub.el~ | Create: catalog, accessors, Helm, Transient, describe |
+| ~test/scs-command-hub-test.el~ | Create: ERT for catalog accessors / validation |
+| ~init.el~ | Modify: el-get recipes, helpful + transient use-package, Helm remap, autoload, ~C-c ?~ |
+| ~readme.org~ | Operator: hub, catalog, Helm ~?~, ~C-h~ delete |
+| ~insights.org~ | Short note: Transient+Helm+data; Helm/~C-h~ |
+| ~CHANGELOG.org~ | Maintenance entry |
+| ~docs/2026-07-24-command-hub-design.org~ | Spec (already written; do not rewrite) |
+
+* Tasks
+
+** Task 1: Helm C-h remediation
+
+**Files:**
+- Modify: ~init.el~ (~use-package helm~ ~:config~ block, after
+  ~(helm-mode 1)~)
+- Modify: ~readme.org~, ~insights.org~ (short operator notes; can land
+  with Task 7 if preferred, but behavior must be documented before
+  claiming done)
+
+**Interfaces:**
+- Produces: Helm sessions where ~?~ runs ~helm-help~; ~C-h~ is not a
+  Helm help prefix; debug/customize live under ~C-c C-d~ / ~C-c c~ /
+  ~C-c d~ on ~helm-map~ (chosen non-~C-h~ chords)
+
+- [ ] Step 1: In the ~helm~ ~:config~ block, after ~(helm-mode 1)~ and
+  ~(helm-autoresize-mode 1)~, add a clearly commented remap.  Use this
+  shape (adjust only if a binding already collides -- then pick the
+  nearest free ~C-c~ chord and document it):
+
+#+begin_src emacs-lisp
+  ;; C-h is delete in this profile (key-translation-map).  Do not leave
+  ;; Helm's help/debug family on a C-h prefix -- it fights muscle memory
+  ;; and confuses the team.  Helm help is on ? ; debug/customize move
+  ;; under C-c on helm-map.
+  (define-key helm-map (kbd "C-h C-h") nil)
+  (define-key helm-map (kbd "C-h h") nil)
+  (define-key helm-map (kbd "C-h C-d") nil)
+  (define-key helm-map (kbd "C-h c") nil)
+  (define-key helm-map (kbd "C-h d") nil)
+  (define-key helm-map (kbd "C-h") nil)
+  (define-key helm-map (kbd "?") #'helm-help)
+  (define-key helm-map (kbd "C-c C-d") #'helm-enable-or-switch-to-debug)
+  (define-key helm-map (kbd "C-c c") #'helm-customize-group)
+  (define-key helm-map (kbd "C-c d") #'helm-debug-output)
+#+end_src
+
+Clear ~C-h~ *subkeys first*, then drop the ~C-h~ prefix itself.  The
+other order recreates a ~C-h~ keymap when the subkey unbinds run.
+
+- [ ] Step 2: Manual check in a live Emacs (or after ~scs/reload-config~):
+  open ~helm-M-x~, type a few chars, press ~C-h~ -- expect backspace /
+  delete of a character, not a help prefix.  Press ~?~ -- expect
+  ~*Helm Help*~.  Press ~C-g~ to quit.
+
+- [ ] Step 3: Do not commit unless SCS asks.
+
+** Task 2: Add helpful and declare transient
+
+**Files:**
+- Modify: ~init.el~ (~scs/el-get-local-sources~ list + new
+  ~use-package~ blocks near other packages, alphabetical habit)
+
+**Interfaces:**
+- Produces: ~(featurep 'helpful)~ after first use; ~transient~
+  available for the hub module
+
+- [ ] Step 1: Add an el-get recipe for helpful in
+  ~scs/el-get-local-sources~ (near other github recipes, keep list
+  readable):
+
+#+begin_src emacs-lisp
+        (:name helpful
+         :type github
+         :pkgname "Wilfred/helpful"
+         :depends (dash f s elisp-refs))
+#+end_src
+
+If el-get lacks recipes for ~dash~, ~f~, ~s~, or ~elisp-refs~, add
+minimal github recipes for those too (Wilfred/helpful README lists
+them).  Prefer existing el-get upstream recipes when present.
+
+- [ ] Step 2: Ensure ~transient~ is an explicit citizen (it may already
+  exist under ~el-get/transient~ via ~magit-section~).  Add:
+
+#+begin_src emacs-lisp
+(use-package transient
+  :el-get t)
+
+(use-package helpful
+  :el-get t
+  :commands (helpful-callable helpful-function helpful-variable
+                             helpful-key helpful-command))
+#+end_src
+
+Place them alphabetically among existing ~use-package~ blocks where
+practical.
+
+- [ ] Step 3: Restart Emacs or run the profile's usual package sync so
+  helpful installs.  Verify:
+
+#+begin_example
+M-x helpful-callable RET helm-M-x RET
+#+end_example
+
+Expected: helpful buffer, not an error about missing package.
+
+- [ ] Step 4: Do not commit unless SCS asks.
+
+** Task 3: Catalog data + ERT (TDD)
+
+**Files:**
+- Create: ~lisp/scs-command-hub.el~ (header, Commentary, Change Log,
+  catalog defconst, pure accessors only in this task)
+- Create: ~test/scs-command-hub-test.el~
+
+**Interfaces:**
+- Produces:
+  - ~scs/command-hub-catalog~ -- list of plists
+  - ~(scs/command-hub-entry-get ENTRY KEY)~ -- plist get with keyword KEY
+  - ~(scs/command-hub-entry-name ENTRY)~ -> symbol
+  - ~(scs/command-hub-entry-title ENTRY)~ -> string
+  - ~(scs/command-hub-entry-summary ENTRY)~ -> string
+  - ~(scs/command-hub-entry-candidate ENTRY)~ -> display string for Helm
+  - ~(scs/command-hub-find-by-name NAME)~ -> entry or nil
+  - ~(scs/command-hub-validate-entry ENTRY)~ -> ENTRY or signals
+    ~user-error~
+
+- [ ] Step 1: Write failing ERT in ~test/scs-command-hub-test.el~:
+
+#+begin_src emacs-lisp
+;;; scs-command-hub-test.el --- Tests for command hub catalog  -*- lexical-binding: t; -*-
+
+;; Filename: scs-command-hub-test.el
+;; Description: ERT tests for lisp/scs-command-hub.el catalog helpers
+;; Author: SCS
+;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
+;; Created: 2026-07-24 Fri 10:28
+;; Version: 0.1.0
+;; Last-Updated: 2026-07-24 Fri 10:28
+;; Update #: 1
+
+;;; Commentary:
+;;
+;; Batch run (from repo root):
+;;
+;;   emacs -batch -L lisp -l ert -l lisp/scs-command-hub.el \
+;;     -l test/scs-command-hub-test.el -f ert-run-tests-batch-and-exit
+
+;;; Code:
+
+(require 'ert)
+(require 'scs-command-hub)
+
+(ert-deftest scs/command-hub-entry-accessors ()
+  "Title, summary, and candidate string come from plist fields."
+  (let ((entry '(:name scs/reload-config
+                 :title "Reload config"
+                 :summary "Reload init.el"
+                 :tags (config)
+                 :keys "C-c r")))
+    (should (eq (scs/command-hub-entry-name entry) 'scs/reload-config))
+    (should (equal (scs/command-hub-entry-title entry) "Reload config"))
+    (should (equal (scs/command-hub-entry-summary entry) "Reload init.el"))
+    (should (string-match-p "Reload config"
+                            (scs/command-hub-entry-candidate entry)))
+    (should (string-match-p "Reload init.el"
+                            (scs/command-hub-entry-candidate entry)))))
+
+(ert-deftest scs/command-hub-find-by-name ()
+  "Lookup returns the seeded entry for a known command symbol."
+  (let ((entry (scs/command-hub-find-by-name 'scs/reload-config)))
+    (should entry)
+    (should (equal (scs/command-hub-entry-title entry) "Reload config"))))
+
+(ert-deftest scs/command-hub-validate-entry-rejects-incomplete ()
+  "Missing :name or :title is a user-error."
+  (should-error (scs/command-hub-validate-entry '(:title "x" :summary "y"))
+                :type 'user-error)
+  (should-error (scs/command-hub-validate-entry '(:name scs/reload-config))
+                :type 'user-error))
+
+(provide 'scs-command-hub-test)
+;;; scs-command-hub-test.el ends here
+#+end_src
+
+- [ ] Step 2: Run tests -- expect FAIL (file / functions missing):
+
+#+begin_example
+emacs -batch -L lisp -l ert -l lisp/scs-command-hub.el \
+  -l test/scs-command-hub-test.el -f ert-run-tests-batch-and-exit
+#+end_example
+
+- [ ] Step 3: Create ~lisp/scs-command-hub.el~ with teachable header /
+  Commentary / Change Log, then catalog + accessors.  Seed at least
+  these entries (titles/summaries may be tightened, names must match):
+
+  - ~scs/reload-config~ -- Reload config -- ~C-c r~
+  - ~scs/frame-state-save~ / ~scs/frame-state-restore~
+  - ~scs/tramp-find-file~ / ~scs/tramp-dired~ / ~scs/tramp-cleanup~ /
+    ~scs/tramp-reopen~
+  - ~scs/org-id-rebuild~ / ~scs/org-id-report-duplicates~
+  - ~scs/org-insert-creation-date~
+  - ~scs/el-get-report~
+
+Minimal implementation shape:
+
+#+begin_src emacs-lisp
+;;; scs-command-hub.el --- Curated command hub (Transient + Helm)  -*- lexical-binding: t; -*-
+
+;; Filename: scs-command-hub.el
+;; Description: C-c ? home base: catalog, workflows, describe
+;; Author: SCS
+;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
+;; Created: 2026-07-24 Fri 10:28
+;; Version: 0.1.0
+;; Last-Updated: 2026-07-24 Fri 10:28
+;; Update #: 1
+;; Package-Requires: ((emacs "29.1") (transient "0.5") (helm "3.0"))
+
+;;; Commentary:
+;;
+;; Problem:
+;;   Custom and favorite commands grow faster than memory.  Prefix maps
+;;   and which-key help with the next key, but not with "does this
+;;   command exist?" or sticky multi-step workflows.
+;;
+;; Solution:
+;;   A Transient home on C-c ? over a curated plist catalog.  Helm
+;;   browses the catalog; nested Transients hold small workflows;
+;;   helpful/describe opens deep docs.  Catalog data is the source of
+;;   truth for titles and summaries.
+;;
+;; Verify:
+;;   C-c ? then c -- search a seeded title and RET to run.
+;;   Batch: emacs -batch -L lisp -l ert -l lisp/scs-command-hub.el \
+;;     -l test/scs-command-hub-test.el -f ert-run-tests-batch-and-exit
+
+;;; Change Log:
+;; Newest first.
+;; add: 2026-07-24 -- initial catalog accessors and seeded entries
+
+;;; Code:
+
+(require 'cl-lib)
+
+(defconst scs/command-hub-catalog
+  '((:name scs/reload-config
+     :title "Reload config"
+     :summary "Reload init.el; prefix also re-applies early-init runtime bits"
+     :tags (config favorite)
+     :keys "C-c r")
+    ;; Fill every remaining seeded plist completely (no placeholders).
+    )
+  "Curated command catalog for the SCS command hub.
+
+Each entry is a plist with :name, :title, :summary, and optional
+:tags and :keys.  :keys is a display hint only.")
+
+(defun scs/command-hub-entry-get (entry key)
+  "Return KEY from catalog ENTRY plist."
+  (plist-get entry key))
+
+(defun scs/command-hub-entry-name (entry)
+  "Return the command symbol for ENTRY."
+  (scs/command-hub-entry-get entry :name))
+
+(defun scs/command-hub-entry-title (entry)
+  "Return the short title for ENTRY."
+  (scs/command-hub-entry-get entry :title))
+
+(defun scs/command-hub-entry-summary (entry)
+  "Return the one-line summary for ENTRY."
+  (scs/command-hub-entry-get entry :summary))
+
+(defun scs/command-hub-entry-candidate (entry)
+  "Return a Helm candidate string for ENTRY (title + summary)."
+  (format "%s -- %s"
+          (or (scs/command-hub-entry-title entry) "?")
+          (or (scs/command-hub-entry-summary entry) "")))
+
+(defun scs/command-hub-find-by-name (name)
+  "Return the catalog entry whose :name is NAME, or nil."
+  (cl-find name scs/command-hub-catalog
+           :key #'scs/command-hub-entry-name :test #'eq))
+
+(defun scs/command-hub-validate-entry (entry)
+  "Return ENTRY if it has :name and :title; else signal user-error."
+  (unless (and (plist-get entry :name) (plist-get entry :title))
+    (user-error "Catalog entry needs :name and :title: %S" entry))
+  entry)
+
+(provide 'scs-command-hub)
+;;; scs-command-hub.el ends here
+#+end_src
+
+Fill every seeded plist completely (no placeholder comments left in the
+~defconst~).  Keep ASCII ~--~ in candidate strings.
+
+- [ ] Step 4: Re-run the batch ERT command from Step 2.  Expected: all
+  three tests PASS.
+
+- [ ] Step 5: Do not commit unless SCS asks.
+
+** Task 4: Helm catalog + describe helpers
+
+**Files:**
+- Modify: ~lisp/scs-command-hub.el~
+- Modify: ~test/scs-command-hub-test.el~ (optional small pure tests only)
+
+**Interfaces:**
+- Consumes: catalog accessors from Task 3
+- Produces:
+  - ~(scs/command-hub-describe-command COMMAND)~ -- helpful if available,
+    else ~describe-function~
+  - ~(scs/command-hub-run-entry ENTRY)~ -- ~call-interactively~ on
+    ~:name~
+  - ~(scs/command-hub-browse-catalog)~ -- interactive; opens Helm over
+    ~scs/command-hub-catalog~ (the defconst).  Do not name the command
+    the same as the data variable.
+  - Helm actions: Run (default), Describe
+
+- [ ] Step 1: Add describe/run helpers and Helm launcher:
+
+#+begin_src emacs-lisp
+(defun scs/command-hub-describe-command (command)
+  "Describe COMMAND with helpful when available, else describe-function."
+  (interactive
+   (list (intern-soft
+          (completing-read "Describe command: " obarray #'commandp t))))
+  (unless (and command (commandp command))
+    (user-error "Not a command: %S" command))
+  (cond
+   ((fboundp 'helpful-command) (helpful-command command))
+   ((fboundp 'helpful-callable) (helpful-callable command))
+   (t (describe-function command))))
+
+(defun scs/command-hub-run-entry (entry)
+  "Call the interactive command named by ENTRY."
+  (let ((name (scs/command-hub-entry-name entry)))
+    (unless (and name (commandp name))
+      (user-error "Catalog :name is not an interactive command: %S" name))
+    (call-interactively name)))
+
+(defun scs/command-hub--helm-candidates ()
+  "Build Helm candidate alist (DISPLAY . ENTRY) from the catalog."
+  (mapcar (lambda (entry)
+            (cons (scs/command-hub-entry-candidate entry) entry))
+          scs/command-hub-catalog))
+
+(defun scs/command-hub-browse-catalog ()
+  "Browse the curated command catalog with Helm and run or describe."
+  (interactive)
+  (require 'helm)
+  (helm :sources
+        (helm-build-sync-source "SCS command catalog"
+          :candidates #'scs/command-hub--helm-candidates
+          :fuzzy-match t
+          :action
+          (helm-make-actions
+           "Run" (lambda (entry) (scs/command-hub-run-entry entry))
+           "Describe" (lambda (entry)
+                        (scs/command-hub-describe-command
+                         (scs/command-hub-entry-name entry)))))
+        :buffer "*helm SCS catalog*"))
+#+end_src
+
+- [ ] Step 2: Update file Change Log (~add: Helm catalog + describe~).
+
+- [ ] Step 3: Manual check: ~M-x scs/command-hub-browse-catalog~, type
+  ~Reload~, RET runs reload (or confirm the candidate is selectable).
+  Action menu: Describe opens helpful/describe.  In that Helm
+  session, ~C-h~ still deletes; ~?~ still opens Helm help.
+
+- [ ] Step 4: Re-run catalog ERT; still PASS.
+
+- [ ] Step 5: Do not commit unless SCS asks.
+
+** Task 5: Transient home on C-c ?
+
+**Files:**
+- Modify: ~lisp/scs-command-hub.el~
+- Modify: ~init.el~ (autoload + global bind)
+
+**Interfaces:**
+- Consumes: ~scs/command-hub-browse-catalog~,
+  ~scs/command-hub-describe-command~
+- Produces:
+  - ~(scs/command-hub)~ -- Transient prefix (the home base)
+  - ~(scs/command-hub-workflows)~ -- Transient prefix (submenu; may be
+    stub until Task 6 fills panels)
+  - Global: ~C-c ?~ -> ~scs/command-hub~
+
+- [ ] Step 1: Add Transient definitions at the end of
+  ~scs-command-hub.el~ (before ~provide~):
+
+#+begin_src emacs-lisp
+(require 'transient)
+
+(transient-define-prefix scs/command-hub-workflows ()
+  "Sticky workflow panels (filled in Task 6)."
+  [["Org / notes"
+    ("o" "Org / notes workflows" scs/command-hub-workflow-org)]
+   ["TRAMP"
+    ("t" "TRAMP workflows" scs/command-hub-workflow-tramp)]
+   ["Frames"
+    ("f" "Frame geometry workflows" scs/command-hub-workflow-frames)]])
+
+(transient-define-prefix scs/command-hub ()
+  "SCS command hub home base."
+  [["Browse"
+    ("c" "Catalog (curated commands)" scs/command-hub-browse-catalog)
+    ("d" "Describe command" scs/command-hub-describe-command)]
+   ["Workflows"
+    ("w" "Workflow panels..." scs/command-hub-workflows)]])
+#+end_src
+
+If Task 6 is not done yet, define the three ~scs/command-hub-workflow-*~
+commands as temporary interactive stubs that ~user-error~ with
+"Workflow not wired yet" so the file loads.  Replace stubs in Task 6.
+
+- [ ] Step 2: In ~init.el~ Local libraries section, add:
+
+#+begin_src emacs-lisp
+(autoload 'scs/command-hub "scs-command-hub"
+  "Open the SCS command hub (Transient home on C-c ?)." t)
+#+end_src
+
+And bind once keymaps are ready (near other ~C-c~ bindings, not under
+~C-h~):
+
+#+begin_src emacs-lisp
+(global-set-key (kbd "C-c ?") #'scs/command-hub)
+#+end_src
+
+- [ ] Step 3: Manual check: ~C-c ?~ shows Transient with Catalog /
+  Describe / Workflows.  ~c~ opens Helm catalog.  ~d~ prompts and
+  opens helpful/describe.  ~C-g~ leaves.
+
+- [ ] Step 4: Do not commit unless SCS asks.
+
+** Task 6: Workflow panels (Org + TRAMP; Frames if cheap)
+
+**Files:**
+- Modify: ~lisp/scs-command-hub.el~
+
+**Interfaces:**
+- Produces: real ~scs/command-hub-workflow-org~,
+  ~scs/command-hub-workflow-tramp~, and preferably
+  ~scs/command-hub-workflow-frames~ Transient prefixes
+- Leaves call existing commands (same symbols as catalog ~:name~
+  where possible)
+
+- [ ] Step 1: Replace stubs with nested Transients.  Example shape:
+
+#+begin_src emacs-lisp
+(transient-define-prefix scs/command-hub-workflow-org ()
+  "Org and notes helpers."
+  [["Dates / capture"
+    ("d" "Insert creation date" scs/org-insert-creation-date)
+    ("c" "Org capture" org-capture)]
+   ["Org ID"
+    ("r" "Rebuild org-id locations" scs/org-id-rebuild)
+    ("u" "Report duplicate org-ids" scs/org-id-report-duplicates)]])
+
+(transient-define-prefix scs/command-hub-workflow-tramp ()
+  "TRAMP helpers (same commands as C-c t)."
+  [["Remote"
+    ("f" "Find file on host" scs/tramp-find-file)
+    ("d" "Dired on host" scs/tramp-dired)
+    ("c" "Cleanup connections" scs/tramp-cleanup)
+    ("r" "Revert / reopen remote buffer" scs/tramp-reopen)]])
+
+(transient-define-prefix scs/command-hub-workflow-frames ()
+  "Frame geometry save/restore."
+  [["Geometry"
+    ("s" "Save frame geometry" scs/frame-state-save)
+    ("r" "Restore frame geometry" scs/frame-state-restore)]])
+#+end_src
+
+If ~org-capture~ feels too heavy for the Org panel, omit it and keep
+creation-date + id tools only.  Prefer small and honest over a crowded
+menu.
+
+- [ ] Step 2: Manual path: ~C-c ? w o~ reaches Org panel; ~C-c ? w t~
+  reaches TRAMP; ~C-c ? w f~ reaches Frames (if included).  Run one
+  leaf from each required panel.
+
+- [ ] Step 3: Update Change Log; keep Commentary Verify section in sync.
+
+- [ ] Step 4: Do not commit unless SCS asks.
+
+** Task 7: Operator docs + changelog + readme library table
+
+**Files:**
+- Modify: ~readme.org~ (Day-2 table + Local libraries table + Helm note)
+- Modify: ~insights.org~ (short entry)
+- Modify: ~CHANGELOG.org~ (newest-first GreyBeard entry)
+
+- [ ] Step 1: Add Day-2 row for ~C-c ?~ / ~scs/command-hub~.
+
+- [ ] Step 2: Document: in Helm, ~?~ = help; ~C-h~ = delete (same as
+  global).
+
+- [ ] Step 3: Add ~scs-command-hub.el~ to the Local libraries table.
+
+- [ ] Step 4: ~insights.org~ -- brief lesson: why Transient hub + Helm
+  catalog + data plists; Helm/~C-h~ decision.
+
+- [ ] Step 5: ~CHANGELOG.org~ entry listing hub, helpful, Helm remap,
+  tests.
+
+- [ ] Step 6: Do not commit unless SCS asks.
+
+** Task 8: Verification gate
+
+- [ ] Step 1: Batch ERT:
+
+#+begin_example
+emacs -batch -L lisp -l ert -l lisp/scs-command-hub.el \
+  -l test/scs-command-hub-test.el -f ert-run-tests-batch-and-exit
+#+end_example
+
+Expected: PASS (exit 0).
+
+- [ ] Step 2: Interactive checklist from the design:
+
+  - ~C-c ?~ opens Transient (GUI and, if available, TTY)
+  - Catalog finds ~Reload config~ by title/summary and can run it
+  - ~d~ / catalog Describe open helpful (or describe fallback)
+  - Helm: ~C-h~ deletes; ~?~ opens Helm help
+  - which-key still pops on ~H-c~ / ~C-c t~
+  - No new ~C-h~ claim in the hub
+
+- [ ] Step 3: Stop and report results to SCS.  Do not claim done without
+  the batch ERT evidence and the interactive checklist.
+
+* Spec coverage check
+
+| Design requirement | Task |
+|--------------------|------|
+| ~C-c ?~ Transient home | 5 |
+| Catalog plists + Helm browse/run | 3, 4 |
+| Describe via helpful/fallback | 4, 5 |
+| which-key unchanged | (no task changes it) |
+| Helm ~C-h~ remediation + ~?~ help | 1 |
+| Org + TRAMP workflows; Frames if cheap | 6 |
+| helpful package | 2 |
+| Docs + changelog | 7 |
+| Verification | 8 |
+| Hydra / Approach C / quit-map | explicitly out of scope |
+
+* Execution handoff
+
+Plan saved to =docs/2026-07-24-command-hub-plan.org=.
+
+Two ways to implement:
+
+1. *Subagent-driven* -- fresh agent per task, review between tasks
+2. *Inline in this session* -- walk the tasks here with checkpoints
+
+Which approach do you want?

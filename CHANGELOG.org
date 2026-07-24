@@ -7,6 +7,21 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 
+* 2026-07-24 Fri Command hub also on C-c /
+
+- init.el: bind ~C-c /~ to ~scs/command-hub~ (same as ~C-c ?~, no
+  Shift).  ~M-s o~ remains ~helm-occur~; ~plan.org~ once floated
+  ~C-c /~ for occur -- hub wins.
+
+* 2026-07-24 Fri Command hub (Transient + Helm catalog)
+
+- lisp/scs-command-hub.el: curated plist catalog, Helm browse/describe,
+  Transient home on ~C-c ?~, Org/TRAMP/Frames workflow panels.
+- test/scs-command-hub-test.el: ERT for catalog accessors/validation.
+- init.el: Helm ~C-h~ help/debug family cleared (~?~ = helm-help);
+  ~helpful~ + explicit ~transient~ (and deps); autoload + ~C-c ?~.
+- readme.org / insights.org: operator and design notes.
+
 * 2026-07-24 Fri scs/org- interactive prefix for export commands
 
 - lisp/org-tools.el: rename interactive export entry points to

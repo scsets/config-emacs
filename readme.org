@@ -65,6 +65,7 @@ material.
 | Library | Loaded from | Purpose |
 |---------+-------------+---------|
 | =org-tools.el= | ~require~ after Org; Hyper prefix autoload | Buffer helpers (header, creation-date, zwsp, rename) + export (line-prefix, stationery, PDF/X) |
+| =scs-command-hub.el= | autoload ~scs/command-hub~; ~C-c ?~ / ~C-c /~ | Transient home: curated Helm catalog, workflows, describe |
 | =scs-frame-state.el= | autoload | Frame geometry save/restore |
 | =scs-tramp.el= | TRAMP ~:config~ + autoload | Known hosts, cleanup, no-trace policy |
 | =flycheck-org-lint-workaround.el= | ~flycheck~ block | Advice for broken Flycheck/org-lint line-cell handling |
@@ -96,6 +97,7 @@ Control Center.
 
 | Command / action | Purpose |
 |------------------+---------|
+| ~C-c ?~ / ~C-c /~ / ~scs/command-hub~ | Command hub: curated catalog, workflows, describe |
 | ~C-c r~ / ~scs/reload-config~ | Reload =init.el=; prefix also re-applies early-init runtime bits |
 | ~scs/frame-state-save~ / ~restore~ | Geometry across reboot |
 | ~C-c t f/d/c/r~ | TRAMP find / dired / cleanup / reopen |
@@ -105,6 +107,11 @@ Control Center.
 | =bin/emacs-diagnostic= | Start with ~warning-minimum-level :warning~ |
 | delete =eln-cache/= | After Emacs or Homebrew GCC upgrades |
 | el-get repair | Remove broken =el-get/<pkg>= checkout, restart Emacs (bootstrap/sync) |
+
+In Helm sessions, ~C-h~ is still delete (same as the rest of this
+profile).  Helm's own help is on ~?~; debug/customize live under
+~C-c C-d~ / ~C-c c~ / ~C-c d~ on ~helm-map~.  Emacs help remains on
+~F1~.
 
 First-run note: if the =el-get/el-get= checkout is missing, startup clones
 it over the network.  That is intentional for a single-user profile.

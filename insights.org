@@ -7,6 +7,27 @@
 Durable technical lessons and incident notes.  Not current operator
 instructions (see =readme.org=) and not the open backlog (=tasks.org=).
 
+* Command hub: Transient + Helm + curated data
+
+Remembering that a command exists is a different job from remembering
+the next key after a prefix.  which-key already covers the latter.
+For the former, this profile uses a Transient home on ~C-c ?~ or
+~C-c /~ (same command; ~/~ needs no Shift) via ~lisp/scs-command-hub.el~
+over a curated plist catalog.  Helm
+searches titles and summaries; nested Transients hold small sticky
+workflows (Org, TRAMP, frames); helpful (with ~describe-*~ fallback)
+opens deeper docs.
+
+The catalog is plain data on purpose: Approach C (a thicker local
+dispatcher) or a later Hydra trial can reuse the same list without a
+rewrite.  Grow an entry when something is forgotten once.
+
+Helm used to teach a ~C-h~ help/debug prefix.  This profile maps
+~C-h~ / ~M-h~ to delete globally and keeps Emacs help on ~F1~.  So
+Helm help was moved to ~?~, and the old ~C-h ...~ family was cleared
+from ~helm-map~ (subkeys first, then the prefix -- the other order
+recreates a ~C-h~ keymap).
+
 * Emacs 30 strict plist checking
 
 In Emacs < 30, ~plist-put~ on a non-plist (like a string) silently
