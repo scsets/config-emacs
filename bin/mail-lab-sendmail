@@ -23,6 +23,10 @@ Account map (From address -> host):
   mail@vsm.in                   -> mail.eb.gy:465
 
 Password via: ~/.config/emacs/bin/authinfo-pass HOST USER 465
+
+Change Log (newest first; file-local, not only in VCS):
+  fix: 2026-07-24 -- teachable module docs for SCS team
+  add: 2026-07-20 -- OpenSSL SMTPS shim for Emacs mail lab sendmail
 """
 from __future__ import annotations
 

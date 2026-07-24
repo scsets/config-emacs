@@ -17,6 +17,10 @@ source uses, without pulling in Gnus or netrc.el at runtime.
 Usage:
   authinfo-pass MACHINE LOGIN [PORT]
   authinfo-pass --list
+
+Change Log (newest first; file-local, not only in VCS):
+  fix: 2026-07-24 -- teachable module docs for SCS team
+  add: 2026-07-20 -- authinfo/netrc PassCmd helper for mail lab
 """
 from __future__ import annotations
 

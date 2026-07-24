@@ -10,7 +10,6 @@
 ;; Update #: 1
 ;; Keywords: org, convenience
 ;; Package-Requires: ((emacs "29.1") (org "9.0"))
-;; fix: 2026-07-24 -- teachable Commentary and docstrings for SCS team
 
 ;;; Commentary:
 ;;
@@ -45,6 +44,17 @@
 ;; Design notes for `scs/org-ensure-buffer-header' live under
 ;; docs/ when present; rename behavior is documented in
 ;; docs/2026-07-23-rename-visited-to-name-at-point-design.org.
+
+;;; Change Log:
+;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-07-24 -- teachable Commentary and docstrings for SCS team
+;; add: 2026-07-23 -- scs/rename-visited-file-to-name-at-point
+;; add: 2026-07-22 -- scs/org-ensure-buffer-header from template
+;; fix: 2026-07-17 -- zwsp marker point filter for mid-paragraph
+;; add: 2026-07-17 -- scs/org-append-zwsp-markers
+;; fix: 2026-07-10 -- load via scs-cl (void cl-cond hygiene)
+;; fix: 2026-07-09 -- cl-block / cl-destructuring-bind in drawer downcase
+;; add: 2026-06-29 -- scs/org-insert-creation-date and lisp helpers
 
 ;;; Code:
 

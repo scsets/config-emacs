@@ -23,6 +23,15 @@
 ;;   "integration is fixed upstream" message; then this file and its require
 ;;   in init.el can be removed.
 
+;;; Change Log:
+;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-07-24 -- teachable Commentary for SCS team
+;; fix: 2026-07-09 -- cl-block early exits in org-lint probe
+;; fix: 2026-06-27 -- re-enable org-lint in Flycheck after el-get sync
+;; add: 2026-06-29 -- org-lint Flycheck integration workaround
+
+;;; Code:
+
 (require 'scs-cl)
 
 (defun scs/flycheck--org-lint-line-cell-p (line)

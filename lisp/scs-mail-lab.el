@@ -10,11 +10,6 @@
 ;; Update #: 1
 ;; Keywords: mail, mu4e, notmuch, bbdb
 ;; Package-Requires: ((emacs "29.1"))
-;; add: 2026-07-20 -- shared Maildir vault UI comparison
-;; fix: 2026-07-20 -- matched split layouts, threading, multi-account send
-;; fix: 2026-07-20 -- drop Gnus lab UI (keep mu4e + notmuch)
-;; add: 2026-07-20 -- BBDB contacts (mu cfind) + org-msg compose
-;; fix: 2026-07-24 -- teachable Commentary and docstrings for SCS team
 
 ;;; Commentary:
 ;;
@@ -59,6 +54,14 @@
 ;; ------------
 ;; From Emacs: `M-x scs/mail-lab-install-keys RET', then `C-c m m' or `C-c m n'
 ;; after a successful `mbsync -a' and index update in ~/mail.
+
+;;; Change Log:
+;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-07-24 -- teachable Commentary and docstrings for SCS team
+;; fix: 2026-07-20 -- drop Gnus lab UI (keep mu4e + notmuch)
+;; fix: 2026-07-20 -- matched split layouts, threading, multi-account send
+;; add: 2026-07-20 -- BBDB contacts (mu cfind) + org-msg compose
+;; add: 2026-07-20 -- shared Maildir vault UI comparison
 
 ;;; Code:
 

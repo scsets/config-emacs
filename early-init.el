@@ -24,6 +24,17 @@
 ;; The no-byte-compile cookie is intentional: do not leave early-init.elc in
 ;; the tree; stale bytecode here is painful to diagnose.
 ;;
+;;; Change Log:
+;;
+;; Newest first.  File-local so readers need not dig through VCS.
+;;
+;; fix: 2026-07-24 -- teachable Commentary for SCS team
+;; fix: 2026-07-10 -- Homebrew GCC discovery; no-byte-compile; scs-cl load path notes as relevant
+;; fix: 2026-07-09 -- load-prefer-newer; startup hygiene
+;; add: 2026-07-08 -- Homebrew native-comp paths; macOS modifiers; server launchers support
+;; fix: 2026-04-30 -- package archive safeguards
+;; add: 2026-03-23 -- initial early-init
+;;
 ;;; Code:
 
 

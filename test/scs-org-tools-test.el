@@ -8,7 +8,6 @@
 ;; Version: 0.1.0
 ;; Last-Updated: 2026-07-24 Fri 06:49
 ;; Update #: 1
-;; fix: 2026-07-24 -- teachable Commentary for SCS team
 
 ;;; Commentary:
 ;;
@@ -19,6 +18,14 @@
 ;;
 ;; Helpers build temp Org buffers with point on a known substring so tests
 ;; read like small user scenarios rather than opaque fixture strings.
+
+;;; Change Log:
+;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-07-24 -- teachable Commentary for SCS team
+;; add: 2026-07-23 -- rename-at-point ERT
+;; add: 2026-07-22 -- ensure-buffer-header ERT
+;; fix: 2026-07-17 -- zwsp mid-paragraph coverage
+;; add: 2026-07-17 -- zwsp marker ERT
 
 (require 'ert)
 (require 'cl-lib)

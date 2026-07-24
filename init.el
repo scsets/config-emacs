@@ -32,6 +32,20 @@
 ;; The no-byte-compile cookie is intentional: init.el is the authoritative
 ;; source; stale init.elc in the tree is painful to debug.
 ;;
+;;; Change Log:
+;;
+;; Newest first.  File-local so readers need not dig through VCS.
+;;
+;; fix: 2026-07-24 -- teachable Commentary and section policy notes for SCS team
+;; add: 2026-07-24 -- before-save LAST-UPDATED hook; rename-at-point autoload
+;; add: 2026-07-22 -- org-ensure-buffer-header; scs/convert autoloads
+;; add: 2026-07-17 -- zwsp markers autoload; H-w delete-frame
+;; fix: 2026-07-10 -- scs-cl; Org ID / Helm / hygiene review fixes
+;; add: 2026-07-09 -- frame-state; plain org-id for howm; recentf/dired hardening
+;; fix: 2026-07-09 -- remove Hyperbole/HyWiki; drop org-mem/org-node
+;; fix: 2026-07-09 -- howm rename/search/tags; desktop/EWW/el-get hygiene
+;; add: 2026-03-05 -- cl-lib/subr-x at top; split heavy settings into early-init
+;;
 ;;; Code:
 
 ;; lisp/ may already be on load-path from early-init; repeat here so batch
@@ -91,6 +105,8 @@ Emacs after large structural changes."
 
 ;; Parenthesis jump helper (vi-style `%').  Point may sit inside or on the bracket.
 ;; http://www.emacswiki.org/emacs/ParenthesisMatching#toc4
+;; bind C-% to goto-match-paren
+;; note, cursor must right before/on/after paren/brace/bracket
 (defun goto-match-paren (_arg)
   "Jump to the matching bracket when point is on (), {}, or [].
 Mimics the vi `%' motion.  Works from inside or just outside the

@@ -14,4 +14,8 @@
 #   -n  do not wait for the client frame to finish; return immediately
 #
 # Any extra arguments are forwarded to emacsclient (files to visit, -e, etc.).
+#
+# Change Log (newest first; file-local, not only in VCS):
+# fix: 2026-07-24 -- teachable header comments for SCS team
+# add: 2026-07-08 -- GUI emacsclient launcher for daemon workflow
 exec emacsclient -a "" -cn ${1+"$@"}

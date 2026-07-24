@@ -7,6 +7,13 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 
+* 2026-07-24 Fri In-file Change Log sections
+
+- early-init.el, init.el, lisp/*.el, lisp/scs-convert/, test/*.el,
+  bin/*: add file-local ~Change Log~ (newest first, from git plus prior
+  ~add:~ / ~fix:~ notes) after Commentary so readers need not dig VCS.
+- init.el: restore clarifying ~C-%~ / ~goto-match-paren~ cursor-position note.
+
 * 2026-07-24 Fri Teachable comments across first-party sources
 
 - early-init.el, init.el, lisp/*.el, lisp/scs-convert/scs-convert.el,

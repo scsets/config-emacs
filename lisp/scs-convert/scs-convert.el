@@ -10,7 +10,6 @@
 ;; Update #: 1
 ;; Keywords: convenience, pandoc, org, markdown
 ;; Package-Requires: ((emacs "29.1"))
-;; add: 2026-07-22 -- scs/convert markdown->org with tidy Lua filter
 
 ;;; Commentary:
 ;;
@@ -32,6 +31,11 @@
 ;;   should become Org in place.  Whole-buffer conversion switches to org-mode
 ;;   and can offer to rename .md to .org.  Requires `pandoc' on PATH (or set
 ;;   `scs/convert-pandoc-program').
+
+;;; Change Log:
+;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-07-24 -- teachable Commentary for SCS team
+;; add: 2026-07-22 -- scs/convert markdown->org with tidy Lua filter
 
 ;;; Code:
 

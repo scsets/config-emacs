@@ -14,4 +14,8 @@
 #   -t     use the current terminal instead of creating a GUI window
 #
 # Extra arguments are passed through to emacsclient.
+#
+# Change Log (newest first; file-local, not only in VCS):
+# fix: 2026-07-24 -- teachable header comments for SCS team
+# add: 2026-07-08 -- TTY emacsclient launcher for daemon workflow
 exec emacsclient -a "" -t ${1+"$@"}

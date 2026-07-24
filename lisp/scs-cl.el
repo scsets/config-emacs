@@ -26,6 +26,11 @@
 ;;   init.  In this repo, prefer (require 'scs-cl) over bare (require 'cl-lib)
 ;;   so the stack stays consistent everywhere.
 
+;;; Change Log:
+;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-07-24 -- teachable Commentary for SCS team
+;; add: 2026-07-10 -- eager load of Emacs CL toolkit
+
 ;;; Code:
 
 ;; Load order matches upstream dependencies: cl-lib first, then macros and

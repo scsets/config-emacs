@@ -17,6 +17,10 @@
 # -Q skips site-init and default init files; we explicitly load this tree.
 # --debug-init stops on the first error inside a loaded init file.
 # Extra arguments after the script name are passed through to emacs (see ${1+"$@"}).
+#
+# Change Log (newest first; file-local, not only in VCS):
+# fix: 2026-07-24 -- teachable header comments for SCS team
+# add: 2026-07-10 -- batch/debug-init launcher with warnings enabled
 set -e
 
 # Override with USER_EMACS_DIRECTORY when testing a non-default config path.

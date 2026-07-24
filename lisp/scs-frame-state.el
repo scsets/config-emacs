@@ -24,6 +24,11 @@
 ;;   M-x scs/frame-state-capture RET prints the alist in *Messages*.  Save,
 ;;   restart Emacs, restore; the frame should match within pixel rounding.
 
+;;; Change Log:
+;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-07-24 -- teachable Commentary for SCS team
+;; add: 2026-07-09 -- frame geometry capture/restore helper
+
 ;;; Code:
 
 (require 'scs-cl)

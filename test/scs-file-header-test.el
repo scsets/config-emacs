@@ -8,7 +8,6 @@
 ;; Version: 0.1.0
 ;; Last-Updated: 2026-07-24 Fri 06:49
 ;; Update #: 1
-;; fix: 2026-07-24 -- teachable Commentary for SCS team
 
 ;;; Commentary:
 ;;
@@ -19,6 +18,11 @@
 ;;
 ;; Tests call `scs/update-last-updated-on-save' directly with a fixed
 ;; stamp function so results do not depend on the clock or on saving to disk.
+
+;;; Change Log:
+;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-07-24 -- teachable Commentary for SCS team
+;; add: 2026-07-23 -- ERT for LAST-UPDATED save hook
 
 (require 'ert)
 (require 'org)

@@ -31,6 +31,13 @@
 ;;   var/tramp-backup/ locally, not on the remote.  On dasfrp/ganafrp, dired
 ;;   should list directories when gls is installed.
 
+;;; Change Log:
+;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-07-24 -- teachable Commentary for SCS team
+;; fix: 2026-07-10 -- rename my/tramp-* to scs/tramp-*; scs-cl require
+;; fix: 2026-07-09 -- cl-loop for FreeBSD host profiles
+;; add: 2026-07-08 -- TRAMP hosts, no-trace policy, key map
+
 ;;; Code:
 
 (require 'tramp)

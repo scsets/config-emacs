@@ -10,7 +10,6 @@
 ;; Update #: 1
 ;; Keywords: org, export, convenience
 ;; Package-Requires: ((emacs "29.1") (org "9.0"))
-;; fix: 2026-07-24 -- teachable Commentary and docstrings for SCS team
 
 ;;; Commentary:
 ;;
@@ -153,6 +152,12 @@
 ;; Requires pdf2pdfx1a.sh (Ghostscript + Adobe SWOP ICC profile).  The
 ;; exported PDF is replaced in place.  Set =org-tools-pdfx-script= if the
 ;; script lives somewhere other than the default path.
+
+;;; Change Log:
+;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-07-24 -- teachable Commentary for SCS team
+;; fix: 2026-07-09 -- when-let* / cl-reduce / cl-sort cleanups
+;; add: 2026-07-08 -- stationery and LaTeX export helpers
 
 ;;; Code:
 

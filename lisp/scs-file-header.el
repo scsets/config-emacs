@@ -10,7 +10,6 @@
 ;; Update #: 2
 ;; Keywords: convenience, files
 ;; Package-Requires: ((emacs "29.1"))
-;; fix: 2026-07-24 -- teachable Commentary and why-comments for SCS team
 
 ;;; Commentary:
 ;;
@@ -55,6 +54,11 @@
 ;; narrow hook until a team review decides otherwise.  Built-in
 ;; `time-stamp' is a related alternative that needs cookies / local
 ;; patterns and was rejected for v1.
+
+;;; Change Log:
+;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-07-24 -- teachable Commentary and why-comments for SCS team
+;; add: 2026-07-23 -- scs/update-last-updated-on-save on before-save-hook
 
 ;;; Code:
 
