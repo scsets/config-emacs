@@ -1,6 +1,9 @@
 ;;; init.el --- SCS team Emacs configuration  -*- lexical-binding: t; no-byte-compile: t; -*-
 ;;
 ;; $Id: init.el,v 1.19 2026/03/23 08:27:13 scs Exp $
+;; Created: 2026-03-05 Thu 17:59
+;; Last-Updated: 2026-07-25 Sat 10:44
+;; Update #: 3
 ;;
 ;;; Commentary:
 ;;
@@ -36,7 +39,9 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
-;; add: 2026-07-24 -- gitea.el local client (~/src/gitea.el, no fedi/tp)
+;; fix: 2026-07-25 -- let gitea.el own its platform cache location
+;; fix: 2026-07-25 -- install gitea.el through its canonical el-get recipe
+;; fix: 2026-07-24 -- el-get sync/install errors warn; init continues (theme stays put)
 ;; fix: 2026-07-24 -- teachable Commentary and section policy notes for SCS team
 ;; add: 2026-07-24 -- before-save LAST-UPDATED hook; rename-at-point autoload
 ;; add: 2026-07-22 -- org-ensure-buffer-header; scs/convert autoloads
@@ -328,6 +333,11 @@ Intentionally not *scratch*; new frames land on persistent notes."
         (:name framemove
          :type github
          :pkgname "emacsmirror/framemove")
+        (:name gitea
+         :type github
+         :pkgname "scsets/gitea.el"
+         :branch "trunk"
+         :features gitea)
         (:name haproxy-mode
          :type github
          :pkgname "port19x/haproxy-mode")
@@ -336,11 +346,6 @@ Intentionally not *scratch*; new frames land on persistent notes."
          :type github
          :pkgname "magnars/dash.el"
          :features dash)
-        ;; add: 2026-07-24 -- markdown rendering dependency for gitea.el
-        (:name markdown-mode
-         :type github
-         :pkgname "jrblevin/markdown-mode"
-         :features markdown-mode)
         (:name s
          :type github
          :pkgname "magnars/s.el"
@@ -438,7 +443,7 @@ Intentionally not *scratch*; new frames land on persistent notes."
          :pkgname "thierryvolpiatto/wfnames"
          :branch "main"
          :features wfnames)
-        ;; add: 2026-07-24 -- Magit process editor helper for gitea.el / magit
+        ;; add: 2026-07-24 -- Magit process editor helper
         (:name with-editor
          :type github
          :pkgname "magit/with-editor"
@@ -563,12 +568,57 @@ package \\\"nil\\\"\"."
     (view-mode 1)
     (display-buffer (current-buffer))))
 
+(defun scs/el-get-package-has-recipe-p (package)
+  "Return non-nil when el-get can resolve a recipe for PACKAGE.
+
+Arguments: PACKAGE is a package name string or symbol.
+Return value: non-nil when `el-get-package-def' succeeds.
+Side effects: none."
+  (condition-case nil
+      (progn (el-get-package-def package) t)
+    (error nil)))
+
+(defun scs/el-get-prune-status-orphans ()
+  "Remove installed el-get packages that no longer have a recipe.
+
+When a recipe is deleted from `scs/el-get-local-sources' but the package
+remains in `.status.el', a later `(el-get 'sync)' aborts with
+\"can not find a recipe\".  That used to stop init.el before themes and
+the rest of the UI loaded.  Pruning orphans keeps sync honest."
+  (dolist (pkg (el-get-list-package-names-with-status "installed" "required"))
+    (unless (scs/el-get-package-has-recipe-p pkg)
+      (message "el-get: pruning orphan %s (no recipe in sources)" pkg)
+      ;; el-get-remove tolerates a missing recipe and clears status + checkout.
+      (ignore-errors (el-get-remove pkg)))))
+
+(defun scs/el-get-safe-sync (&rest packages)
+  "Sync el-get packages without aborting Emacs init on failure.
+
+Arguments: PACKAGES are optional package names; omit to sync all.
+Return value: nil.
+Side effects: may prune orphans, install/update packages, and emit a
+warning if sync still fails.
+
+This is the durable fix for \"init died before load-theme\": el-get must
+never `error' out of init.el.  Prefer messages/warnings and keep going."
+  (let ((el-get-is-lazy t))
+    (scs/el-get-prune-status-orphans)
+    (condition-case err
+        (apply #'el-get 'sync packages)
+      (error
+       (message "el-get sync failed (init continues): %s"
+                (error-message-string err))
+       (display-warning
+        'scs-el-get
+        (format "el-get sync failed (init continues): %s"
+                (error-message-string err))
+        :warning)))))
+
 ;; Register load-paths and autoloads for installed packages once,
 ;; without requiring their features.  Per-package :el-get sync below
 ;; only runs for packages that are not yet installed.
 ;; el-get-is-lazy avoids loading every package feature during this pass.
-(let ((el-get-is-lazy t))
-  (el-get 'sync))
+(scs/el-get-safe-sync)
 
 ;; ----------------------------------------------------------
 ;; use-package
@@ -622,17 +672,28 @@ Arguments: NAME is the package declared by `use-package'; SOURCE is nil,
 a package name, or an el-get recipe plist.
 Return value: nil.
 Side effects: may contact package archives or source repositories, update
-package files, and mutate `el-get-sources'."
+package files, and mutate `el-get-sources'.  Errors are messaged; they do
+not abort init."
   (ignore name)
   (when source
-    (require 'el-get)
-    (when (consp source)
-      (scs/el-get-upsert-source source))
-    (let ((pkg (if (consp source)
-                   (el-get-source-name source)
-                 source)))
-      (unless (el-get-package-is-installed pkg)
-        (el-get 'sync pkg)))))
+    (condition-case err
+        (progn
+          (require 'el-get)
+          (when (consp source)
+            (scs/el-get-upsert-source source))
+          (let ((pkg (if (consp source)
+                         (el-get-source-name source)
+                       source)))
+            (unless (el-get-package-is-installed pkg)
+              (el-get 'sync pkg))))
+      (error
+       (message "el-get install failed for %s (init continues): %s"
+                name (error-message-string err))
+       (display-warning
+        'scs-el-get
+        (format "el-get install failed for %s (init continues): %s"
+                name (error-message-string err))
+        :warning)))))
 
 (defun use-package-handler/:el-get (name _keyword source rest state)
   "Generate code to install NAME through el-get using SOURCE.
@@ -1403,26 +1464,11 @@ was nil during daemon startup, so font must be applied per frame."
   (setq framemove-hook-into-windmove t))
 
 ;; ----------------------------------------------------------
-;; gitea (local checkout; talks to local Gitea /api/v1)
+;; gitea (el-get package; talks to the local Gitea /api/v1)
 ;; ----------------------------------------------------------
-;; Package lives at ~/src/gitea.el (public fork of fj.el).
-;; HTTP/util/compose are in-tree (no fedi.el / tp.el).  Remaining deps:
-;; markdown-mode, magit-section, with-editor, transient via el-get.
+;; Source: https://github.com/scsets/gitea.el
 ;; Token is read from ~/.config/gitea/access-token when present -- not
 ;; hardcoded in this file.
-
-(use-package markdown-mode
-  :el-get t
-  :defer t)
-
-;; Magit files live under the magit-section recipe checkout (lisp/).
-(use-package magit-section
-  :el-get t
-  :defer t)
-
-(use-package with-editor
-  :el-get t
-  :defer t)
 
 (defun scs/gitea-token-from-config ()
   "Return the Gitea API token from ~/.config/gitea/access-token, or nil.
@@ -1439,17 +1485,14 @@ the local instance."
                       (line-end-position)))))))
 
 (use-package gitea
-  :load-path "/Users/scs/src/gitea.el"
-  :after (markdown-mode magit-section with-editor transient)
-  :commands (gitea-list-own-repos gitea-list-issues gitea-list-pulls
-                                  gitea-notifications gitea-token
-                                  gitea-create-token)
+  :el-get t
+  :commands (gitea gitea-api-browse gitea-api-execute gitea-create-token)
   :init
-  ;; Local Homebrew / workstation Gitea (see MCP get_me: login scs).
+  ;; Local workstation Gitea.
   (setq gitea-host "http://127.0.0.1:3000"
         gitea-user "scs"
         ;; Prefer the workstation token file over auth-source for this lab.
-        gitea-token-use-auth-source nil)
+        gitea-use-auth-source nil)
   :config
   (setq gitea-token (or gitea-token (scs/gitea-token-from-config)))
   (unless gitea-token

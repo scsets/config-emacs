@@ -1,19 +1,31 @@
 # $Id$
 #+title: Emacs Configuration Changelog
 #+author: scs
+#+DATE: 2026-07-10 Fri 10:54
+#+LAST-UPDATED: 2026-07-25 Sat 10:44
+#+UPDATE: 3
 
 * Document role
 
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 
-* 2026-07-24 Fri Local gitea.el against workstation Gitea
+* 2026-07-25  SCS  <scs@scs.re>
 
-- init.el: =use-package= =gitea= from =~/src/gitea.el= with host
-  =http://127.0.0.1:3000= and user =scs=; token from
-  =~/.config/gitea/access-token= (not inlined).
-- Deps: =markdown-mode=, =magit-section=, =with-editor=, =transient=
-  (no =fedi.el= / =tp.el=; HTTP and compose are in-tree in gitea.el).
+- init.el (=use-package gitea=): Leave schema cache placement to gitea.el so
+  the package does not depend on this configuration's no-littering layout or
+  a pre-existing =var/= directory.
+- init.el (=scs/el-get-local-sources=): Add the canonical gitea.el recipe.
+- init.el (=use-package gitea=): Let el-get manage installation and loading,
+  register the current commands, and retain the local instance settings.
+
+* 2026-07-24 Fri el-get orphans no longer blank the theme
+
+- Root cause: =(el-get 'sync)= aborted init when =.status.el= still listed
+  packages after their recipes were removed, so =(load-theme ...)= never ran.
+- init.el: =scs/el-get-prune-status-orphans= + =scs/el-get-safe-sync=
+  (=condition-case=: message/warn, keep loading). Same wrap on
+  =scs/use-package-el-get-install=. Theme stays in its original place.
 
 * 2026-07-24 Fri Nice Helm catalog UI on trunk
 
