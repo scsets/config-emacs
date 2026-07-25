@@ -2,8 +2,8 @@
 ;;
 ;; $Id: init.el,v 1.19 2026/03/23 08:27:13 scs Exp $
 ;; Created: 2026-03-05 Thu 17:59
-;; Last-Updated: 2026-07-25 Sat 10:44
-;; Update #: 3
+;; Last-Updated: 2026-07-25 Sat 12:53
+;; Update #: 5
 ;;
 ;;; Commentary:
 ;;
@@ -39,6 +39,8 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; fix: 2026-07-25 -- declare Gitea contextual interface dependencies
+;; add: 2026-07-25 -- install Embark for buffer-local Gitea actions
 ;; fix: 2026-07-25 -- let gitea.el own its platform cache location
 ;; fix: 2026-07-25 -- install gitea.el through its canonical el-get recipe
 ;; fix: 2026-07-24 -- el-get sync/install errors warn; init continues (theme stays put)
@@ -333,11 +335,17 @@ Intentionally not *scratch*; new frames land on persistent notes."
         (:name framemove
          :type github
          :pkgname "emacsmirror/framemove")
+        (:name embark
+         :type github
+         :pkgname "oantolin/embark"
+         :features embark
+         :depends (compat))
         (:name gitea
          :type github
          :pkgname "scsets/gitea.el"
          :branch "trunk"
-         :features gitea)
+         :features gitea
+         :depends (embark magit-section transient))
         (:name haproxy-mode
          :type github
          :pkgname "port19x/haproxy-mode")

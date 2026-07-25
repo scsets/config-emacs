@@ -2,8 +2,8 @@
 #+title: Emacs Configuration Changelog
 #+author: scs
 #+DATE: 2026-07-10 Fri 10:54
-#+LAST-UPDATED: 2026-07-25 Sat 10:44
-#+UPDATE: 3
+#+LAST-UPDATED: 2026-07-25 Sat 12:53
+#+UPDATE: 5
 
 * Document role
 
@@ -12,6 +12,11 @@ Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 
 * 2026-07-25  SCS  <scs@scs.re>
 
+- init.el (=scs/el-get-local-sources=): Add Embark through el-get for
+  buffer-local Gitea actions.  No global or minibuffer binding is installed,
+  so the existing Helm completion setup remains unchanged.
+- init.el (=scs/el-get-local-sources=): Declare Embark, Magit Section, and
+  Transient as dependencies of the local Gitea recipe.
 - init.el (=use-package gitea=): Leave schema cache placement to gitea.el so
   the package does not depend on this configuration's no-littering layout or
   a pre-existing =var/= directory.
