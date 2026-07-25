@@ -1,9 +1,8 @@
 ;;; init.el --- SCS team Emacs configuration  -*- lexical-binding: t; no-byte-compile: t; -*-
 ;;
-;; $Id: init.el,v 1.19 2026/03/23 08:27:13 scs Exp $
 ;; Created: 2026-03-05 Thu 17:59
-;; Last-Updated: 2026-07-25 Sat 12:53
-;; Update #: 5
+;; Last-Updated: 2026-07-25 Sat 19:02
+;; Update #: 8
 ;;
 ;;; Commentary:
 ;;
@@ -39,6 +38,9 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; fix: 2026-07-25 -- use TeX as the always-on GUI/terminal input method
+;; fix: 2026-07-25 -- keep the optional postfix input method dormant by default
+;; fix: 2026-07-25 -- use postfix accents without swallowing leading punctuation
 ;; fix: 2026-07-25 -- declare Gitea contextual interface dependencies
 ;; add: 2026-07-25 -- install Embark for buffer-local Gitea actions
 ;; fix: 2026-07-25 -- let gitea.el own its platform cache location
@@ -862,34 +864,28 @@ git-commit buffers so we do not fight tools or mangle huge logs."
 ;; M-x list-input-methods
 ;; Display a list of all the supported input methods.
 
-(setq default-input-method "latin-prefix")
+;; Activate TeX input at startup in graphical and terminal Emacs.  Its
+;; backslash-led sequences leave ordinary apostrophes and hyphens alone;
+;; C-\ still toggles the method for the current buffer.
+(setq default-input-method "TeX")
 (add-hook 'after-init-hook
-          (lambda () (activate-input-method "latin-prefix")))
+          (lambda () (activate-input-method default-input-method)))
 
-;;   latin-prefix ('L>' in mode line) — quail/latin-pre
-;;   Modifier before letter: ` then a -> à, ' then e -> é, etc.
+;;   TeX ('\' in the mode line) -- quail/latin-ltx
+;;   A backslash introduces LaTeX-like character names and accents.
 ;;
-;;    effect    | prefix | examples
-;;   -----------+--------+--------------------------------------
-;;    acute     |   '    | 'a -> á   'e -> é   '' -> ´
-;;    grave     |   `    | `a -> à   `e -> è
-;;    circumflex|   ^    | ^a -> â   ^e -> ê
-;;    diaeresis |   "    | "a -> ä   "u -> ü   "" -> ¨
-;;    tilde     |   ~    | ~a -> ã   ~n -> ñ
-;;    cedilla   |  , ~   | ,c -> ç   ~c -> ç
-;;    caron     |   ~    | ~c -> č   ~z -> ž
-;;    macron    |   -    | -a -> ā   -- -> ¯
-;;    dot above |  / .   | /g -> ġ   .g -> ġ
-;;    misc      | " ~ /  | "s -> ß   ~d -> ð   ~t -> þ   /a -> å   /e -> æ   /o -> ø
-;;    symbol    |   ~    | ~> -> »   ~< -> «   ~! -> ¡   ~? -> ¿
-;;    symbol    |  _ /   | _o -> º   _a -> ª   // -> °   /\ -> ×   _y -> ¥
-;;    symbol    |   ^    | ^r -> ®   ^c -> ©   ^1 -> ¹   ^2 -> ²   ^3 -> ³
+;;    effect      | examples
+;;   -------------+--------------------------------------
+;;    acute       | \'e -> é   \'a -> á
+;;    grave       | \`e -> è   \`a -> à
+;;    circumflex  | \^e -> ê   \^a -> â
+;;    diaeresis   | \"u -> ü   \"a -> ä
+;;    tilde       | \~n -> ñ   \~a -> ã
+;;    cedilla     | \cc -> ç
+;;    names       | \pi -> π   \int -> ∫
+;;    backslash   | \\ -> \
 ;;
-;;   Doubling the prefix separates it from the letter: e.g. ''a -> 'a
-;;
-;;   On macOS: Option is Meta in early-init.el, so Option+` sends M-`, not
-;;   the quail grave prefix.  Type ` as a plain character (often the §/` key
-;;   without Option), then the letter.
+
 
 ;; ----------------------------------------------------------
 ;; Visual-line-mode hook for text-mode

@@ -2,8 +2,8 @@
 #+title: Emacs Configuration Changelog
 #+author: scs
 #+DATE: 2026-07-10 Fri 10:54
-#+LAST-UPDATED: 2026-07-25 Sat 12:53
-#+UPDATE: 5
+#+LAST-UPDATED: 2026-07-25 Sat 19:02
+#+UPDATE: 8
 
 * Document role
 
@@ -12,6 +12,16 @@ Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
 
 * 2026-07-25  SCS  <scs@scs.re>
 
+- init.el (input method): Make =TeX= the active startup input method.
+  Its backslash-led sequences work in graphical and terminal Emacs while
+  ordinary =a'= and =-g= remain literal; =C-\= can still toggle it.
+- init.el (input method): Stop activating =latin-postfix= at startup so
+  punctuation remains literal during ordinary typing.  Keep it as the
+  optional =C-\= method; =C-x 8= composition remains available without
+  enabling an input method.
+- init.el (input method): Replace =latin-prefix= with =latin-postfix=.
+  Accents now follow their letters (=e'= becomes =é= and =e`= becomes
+  =è=), while leading punctuation such as =-g= remains literal.
 - init.el (=scs/el-get-local-sources=): Add Embark through el-get for
   buffer-local Gitea actions.  No global or minibuffer binding is installed,
   so the existing Helm completion setup remains unchanged.
