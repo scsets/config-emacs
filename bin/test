@@ -1,0 +1,83 @@
+#!/bin/sh
+# Filename: test
+# Description: Deterministic ERT runner for the Emacs configuration
+# Author: SCS
+# Copyright: Copyright (C) 2026, SCS, all rights reserved.
+# Created: 2026-07-27 Mon 06:24
+# Version: 0.1.0
+# Last-Updated: 2026-07-27 Mon 07:54
+# Update #: 1
+#
+# Run from any directory.  The explicit load-prefer-newer setting makes
+# project source win when an untracked .elc file is older than its .el file.
+#
+# Change Log:
+# add: 2026-07-27 -- include focused Org capture policy and behavior tests
+# add: 2026-07-27 -- run all ERT suites with source-newer loading enabled
+
+set -eu
+
+SCS_TEST_VERSION=0.1.0
+
+scs_test_usage()
+{
+    printf '%s\n' \
+        'usage: test run' \
+        '       test --help' \
+        '       test --version' \
+        '' \
+        'run       run every repository ERT suite in one clean Emacs process'
+}
+
+scs_test_root()
+{
+    case $0 in
+        */*) SCS_TEST_PATH=$0 ;;
+        *) SCS_TEST_PATH=$(command -v "$0") ;;
+    esac
+    SCS_TEST_BIN_DIR=$(CDPATH= cd "$(dirname "$SCS_TEST_PATH")" && pwd)
+    dirname "$SCS_TEST_BIN_DIR"
+}
+
+case ${1-} in
+    '')
+        printf 'test %s\n' "$SCS_TEST_VERSION"
+        scs_test_usage
+        ;;
+    --help|-h)
+        [ "$#" -eq 1 ] || {
+            scs_test_usage >&2
+            exit 2
+        }
+        scs_test_usage
+        ;;
+    --version)
+        [ "$#" -eq 1 ] || {
+            scs_test_usage >&2
+            exit 2
+        }
+        printf 'test %s\n' "$SCS_TEST_VERSION"
+        ;;
+    run)
+        [ "$#" -eq 1 ] || {
+            scs_test_usage >&2
+            exit 2
+        }
+        SCS_TEST_ROOT=$(scs_test_root)
+        cd "$SCS_TEST_ROOT"
+        exec emacs --batch -Q \
+            --eval '(setq load-prefer-newer t)' \
+            -L "$SCS_TEST_ROOT/lisp" \
+            -l ert \
+            -l test/scs-command-hub-test.el \
+            -l test/scs-file-header-test.el \
+            -l test/scs-org-capture-test.el \
+            -l test/org-tools-test.el \
+            -f ert-run-tests-batch-and-exit
+        ;;
+    *)
+        printf 'test: unknown command: %s\n' "$1" >&2
+        scs_test_usage >&2
+        exit 2
+        ;;
+esac

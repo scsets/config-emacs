@@ -1,8 +1,13 @@
 ;;; init.el --- SCS team Emacs configuration  -*- lexical-binding: t; no-byte-compile: t; -*-
 ;;
+;; Filename: init.el
+;; Description: SCS team Emacs configuration and package policy
+;; Author: SCS
+;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
-;; Last-Updated: 2026-07-25 Sat 19:02
-;; Update #: 8
+;; Version: 0.1.0
+;; Last-Updated: 2026-07-27 Mon 07:54
+;; Update #: 11
 ;;
 ;;; Commentary:
 ;;
@@ -38,6 +43,12 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-07-27 -- install focused Org capture and Scrim/Captee templates
+;; fix: 2026-07-27 -- use Scrim's required server/server TCP auth-file path
+;; fix: 2026-07-27 -- keep socket and Scrim TCP servers independently tracked
+;; fix: 2026-07-27 -- demand and idempotently enable diff-hl
+;; fix: 2026-07-27 -- apply a nil-frame font setting to existing and future frames
+;; fix: 2026-07-27 -- make abbrev-mode the default in new buffers
 ;; fix: 2026-07-25 -- use TeX as the always-on GUI/terminal input method
 ;; fix: 2026-07-25 -- keep the optional postfix input method dormant by default
 ;; fix: 2026-07-25 -- use postfix accents without swallowing leading punctuation
@@ -738,16 +749,85 @@ Side effects: may install packages while byte-compiling."
 ;; ----------------------------------------------------------
 ;;
 ;; server-start lets emacsclient attach to this session.  On macOS we also
-;; start a named TCP server for tools (e.g. Scrim) that expect that convention.
+;; start a TCP server for Scrim, which requires the auth file server/server.
+;; The listeners can share the basename "server": one is a Unix socket under
+;; `server-socket-dir', while the other is a TCP auth file under the explicit
+;; directory below.  Their process state must remain separate.
 
 (require 'server)
 (unless (server-running-p) (server-start))
 
-;; Second server instance via TCP for Scrim
-(when (eq system-type 'darwin)
-  (let ((server-name "server")
-        (server-use-tcp t))
-    (unless (server-running-p "server") (server-start))))
+(defconst scs/scrim-server-name "server"
+  "Server name required by Scrim for its macOS-only TCP auth file.")
+
+(defconst scs/scrim-server-auth-dir
+  (expand-file-name "server/" user-emacs-directory)
+  "Authentication directory required by Scrim.
+
+Scrim 1.1.3 accepts only a shared-secret file named `server' inside a
+directory also named `server'.  Keep this explicit because no-littering
+changes the global value of `server-auth-dir' later during startup.")
+
+(defvar scs/scrim-server-process nil
+  "Network process for the Scrim TCP server, or nil.
+
+Emacs normally tracks one server in `server-process'.  The Scrim TCP
+listener is kept here so starting it does not replace the default Unix
+socket listener used by plain emacsclient.")
+
+(defun scs/start-scrim-server ()
+  "Start the named Scrim TCP server on macOS without replacing the socket server.
+
+Return the owned TCP server process, or nil when an external server with
+the same name is already running.  No-op outside macOS."
+  (when (eq system-type 'darwin)
+    (let ((expected-file
+           (expand-file-name scs/scrim-server-name
+                             scs/scrim-server-auth-dir)))
+      ;; Migrate a listener created by an older configuration.  A normal
+      ;; config reload leaves an already-correct listener undisturbed.
+      (when (and scs/scrim-server-process
+                 (not (equal
+                       (process-get scs/scrim-server-process :server-file)
+                       expected-file)))
+        (scs/stop-scrim-server))
+      (if (process-live-p scs/scrim-server-process)
+          scs/scrim-server-process
+        ;; `server-start' restarts the process in `server-process'.  Bind that
+        ;; state separately so the default Unix socket remains alive.
+        (let ((server-name scs/scrim-server-name)
+              (server-auth-dir scs/scrim-server-auth-dir)
+              (server-use-tcp t)
+              (server-process nil))
+          ;; For TCP, `server-running-p' returns :other for a stale auth
+          ;; file whose recorded PID no longer exists.  Only t establishes
+          ;; that another live process owns this dedicated endpoint.
+          (if (eq t (server-running-p server-name))
+              (setq scs/scrim-server-process nil)
+            ;; Startup and migration are configuration operations; do not
+            ;; block a reload behind `server-start's client prompt.
+            (server-start nil t)
+            (setq scs/scrim-server-process server-process)))))))
+
+(defun scs/stop-scrim-server ()
+  "Stop the Scrim TCP server owned by this Emacs process.
+
+This is an exit hook.  It removes the TCP authentication file while the
+default server cleanup independently removes the Unix socket."
+  (when scs/scrim-server-process
+    ;; Do not call `server-stop' here: `server-clients' is shared by both
+    ;; listeners, so it would also disconnect ordinary emacsclient frames.
+    (let ((server-file
+           (process-get scs/scrim-server-process :server-file)))
+      (when (process-live-p scs/scrim-server-process)
+        (delete-process scs/scrim-server-process))
+      (when (and server-file (file-exists-p server-file))
+        (let (delete-by-moving-to-trash)
+          (delete-file server-file)))
+      (setq scs/scrim-server-process nil))))
+
+(scs/start-scrim-server)
+(add-hook 'kill-emacs-hook #'scs/stop-scrim-server)
 
 ;; ----------------------------------------------------------
 ;; Column numbers
@@ -994,15 +1074,15 @@ emacsclient frames are created after init, often when `display-graphic-p'
 was nil during daemon startup, so font must be applied per frame."
   (let ((ws (if frame (frame-parameter frame 'window-system) window-system)))
     (when (memq ws '(ns mac win32 pgtkf))
-      (set-face-attribute 'default (or frame t)
+      ;; A nil FRAME means all existing frames and the default for new ones.
+      (set-face-attribute 'default frame
                           :family "Menlo"
                           :height 180
                           :weight 'normal
                           :width 'normal))))
 
-(add-hook 'after-make-frame-functions
-          ;; emacsclient frames may miss the startup-time font set in early-init.
-          (lambda (frame) (scs/apply-default-font frame)))
+;; emacsclient frames may miss the startup-time font set in early-init.
+(add-hook 'after-make-frame-functions #'scs/apply-default-font)
 
 (when (display-graphic-p)
   (tool-bar-mode -1))
@@ -1201,7 +1281,8 @@ was nil during daemon startup, so font must be applied per frame."
 
 (use-package abbrev
   :init
-  (abbrev-mode))
+  ;; `abbrev-mode' is buffer-local; new buffers inherit its default value.
+  (setq-default abbrev-mode t))
 
 ;; ----------------------------------------------------------
 ;; calendar
@@ -2234,6 +2315,8 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
 
 (with-eval-after-load 'org
   (require 'org-tools)
+  (require 'scs-org-capture)
+  (scs/org-capture-configure)
   ;; Org binds C-c / (sparse-tree) and C-c ? (table field info), which
   ;; shadow the global command-hub portal.  Reclaim them; sparse trees
   ;; remain via M-x org-sparse-tree.
@@ -2397,8 +2480,8 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
   (add-to-list 'org-src-lang-modes (quote ("plantuml" . plantuml)))
   (add-to-list 'org-src-lang-modes '(("mermaid" . mermaid))))
 
-;; org-capture
-;; (hook defined in Custom functions section above)
+;; Org capture policy and target files live in lisp/scs-org-capture.el.
+;; The finalization hook that closes client frames is defined above.
 
 ;; ----------------------------------------------------------
 ;; recentf
@@ -2794,11 +2877,12 @@ Side effects: may call `enlarge-window' on WINDOW."
 ;; Show VCS diff markers in the margin/fringe
 (use-package diff-hl
   :el-get t
-  :defer t
+  :demand t
   :config
-  (global-diff-hl-mode)
+  (global-diff-hl-mode 1)
   (unless (display-graphic-p)
-    (diff-hl-margin-mode)))
+    (require 'diff-hl-margin)
+    (diff-hl-margin-mode 1)))
 
 ;; ----------------------------------------------------------
 ;; eat

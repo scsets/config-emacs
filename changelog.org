@@ -1,14 +1,55 @@
-# $Id$
-#+title: Emacs Configuration Changelog
-#+author: scs
+#+TITLE: Emacs Configuration Changelog
+#+FILENAME: changelog.org
+#+DESCRIPTION: Historical, user-visible Emacs configuration changes
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
-#+LAST-UPDATED: 2026-07-25 Sat 19:02
-#+UPDATE: 8
+#+VERSION: 0.1.0
+#+LAST-UPDATED: 2026-07-27 Mon 07:54
+#+UPDATE: 11
+# $Id$
 
 * Document role
 
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
-Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10.
+Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10, then
+normalized to lowercase =changelog.org= on 2026-07-27.
+
+* 2026-07-27  SCS  <scs@scs.re>
+
+- =lisp/scs-org-capture.el= (~scs/org-capture-configure~): Define focused
+  inbox, task, Org Protocol web, and date-tree work-log templates; make web
+  capture the Scrim/Captee default and add the canonical TODO file to the
+  agenda without duplicating existing entries.
+- =init.el= (Org setup): Load and apply the focused capture policy when Org
+  becomes available.
+- =test/scs-org-capture-test.el=: Verify the policy records and real
+  capture/finalize behavior for all four destinations using temporary files.
+- =bin/test=: Include the Org capture suite in the deterministic ERT run.
+- =~/notes/inbox.org=: Add documented Inbox and Web captures targets.
+- =~/notes/work-log.org=: Add the documented date-tree Work Log target.
+- =init.el= (Scrim server): Use Scrim 1.1.3's required
+  =~/.config/emacs/server/server= TCP authentication path while retaining the
+  independently tracked default Unix-socket server; derive cleanup state from
+  the owned process so reloads remove an older path correctly.
+- =.hermes/plans/review.md= (server finding): Correct the earlier
+  distinct-name recommendation using the constraint observed in the running
+  Scrim app.
+- =init.el= (server setup): Keep the default Unix socket server and the
+  macOS Scrim TCP server under distinct names and separately tracked
+  process state; clean up the auxiliary listener on exit.
+- =init.el= (~scs/apply-default-font~): Make a nil frame apply the font
+  to existing frames and the default for future frames, as documented.
+- =init.el= (~use-package abbrev~): Make ~abbrev-mode~ the inherited
+  default for new buffers.
+- =init.el= (~use-package diff-hl~): Demand the package and enable its
+  global and terminal-margin modes idempotently.
+- =bin/test=: Add a deterministic all-suite ERT runner which prefers
+  newer source over stale untracked bytecode.
+- =.hermes/plans/2026-07-26_191559-emacs-config-review-and-improvements.md=:
+  Remove the rejected, factually unreliable Hermes execution plan.
+- =.hermes/plans/review.md=: Correct the Emacs 31 server-process and
+  abbrev-mode API details discovered during implementation.
 
 * 2026-07-25  SCS  <scs@scs.re>
 
