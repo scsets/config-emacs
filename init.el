@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-07-27 Mon 07:54
-;; Update #: 11
+;; Last-Updated: 2026-07-27 Mon 12:34
+;; Update #: 14
 ;;
 ;;; Commentary:
 ;;
@@ -24,7 +24,8 @@
 ;;   Custom functions -- small helpers and hook targets defined here.
 ;;   Local libraries -- autoloads pointing at lisp/*.el.
 ;;   Package managers -- el-get bootstrap and use-package :el-get glue.
-;;   General settings -- server, encoding, save hygiene, dired, input method.
+;;   General settings -- server, encoding, save hygiene, dired, search tools,
+;;   input method.
 ;;   Custom file -- where Customize would write (we keep config in Git instead).
 ;;   Settings formerly in custom.el -- theme, desktop, migrated Customize values.
 ;;   Keybindings -- Hyper chords (macOS), C-c prefixes, safety remaps.
@@ -43,6 +44,9 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-07-27 -- prefer ripgrep and fd for search/find where syntax fits
+;; fix: 2026-07-27 -- prefer gls for Dired on macOS and SmartOS, not darwin-only
+;; add: 2026-07-27 -- use Homebrew gls for Dired on macOS (BSD ls lacks --dired)
 ;; add: 2026-07-27 -- install focused Org capture and Scrim/Captee templates
 ;; fix: 2026-07-27 -- use Scrim's required server/server TCP auth-file path
 ;; fix: 2026-07-27 -- keep socket and Scrim TCP servers independently tracked
@@ -937,6 +941,17 @@ git-commit buffers so we do not fight tools or mangle huge logs."
 
 (setq dired-kill-when-opening-new-dired-buffer t)
 
+;; Dired wants an ls that supports --dired so unusual names parse safely.
+;; Stock ls on macOS (BSD) and SmartOS/Illumos (system-type usg-unix-v)
+;; does not.  GNU coreutils installs as `gls' via Homebrew (macOS) or
+;; pkgsrc (SmartOS).  Emacs 31 only auto-picks gls for darwin and
+;; berkeley-unix while files.el loads, so SmartOS never gets that
+;; default, and a thin early PATH can miss the macOS probe too.  Prefer
+;; gls wherever it exists, then let Dired re-probe --dired next listing.
+(when-let ((gls (executable-find "gls")))
+  (setq insert-directory-program gls)
+  (setq dired-use-ls-dired 'unspecified))
+
 ;; ----------------------------------------------------------
 ;; Input method
 ;; ----------------------------------------------------------
@@ -974,7 +989,7 @@ git-commit buffers so we do not fight tools or mangle huge logs."
 (add-hook 'text-mode-hook #'visual-line-mode)
 
 ;; ----------------------------------------------------------
-;; External tools (aspell, ugrep)
+;; External tools (aspell, ripgrep, fd)
 ;; ----------------------------------------------------------
 
 (when (executable-find "aspell")
@@ -991,10 +1006,60 @@ git-commit buffers so we do not fight tools or mangle huge logs."
 (setq dictionary-server "dict.org")
 (setq dictionary-use-single-buffer t)
 
-;; https://github.com/Genivia/ugrep?tab=readme-ov-file#emacs
-(when (executable-find "ugrep")
-  (setq-default xref-search-program 'ugrep))
+;; Prefer ripgrep and fd when installed, without treating them as POSIX
+;; grep/find drop-ins.  Syntax boundaries we honor:
+;; - rgrep still builds find(1) -name/-path/-prune expressions; fd speaks
+;;   a different language (-e/-t/-g, regex by default).  Keep find-program
+;;   as "find" for rgrep/find-dired; use fd only via fd-dired and Helm.
+;; - xref-search-program 'ripgrep uses the rg-shaped entry in
+;;   xref-search-program-alist (not grep -r flags).
+;; - grep/rgrep templates below keep find for file selection and swap only
+;;   the content matcher to rg (-nH --null --no-heading; no grep --include).
+(defun scs/fd-executable ()
+  "Return fd or Debian fd-find's fdfind, or nil if neither is on `exec-path'."
+  (or (executable-find "fd")
+      (executable-find "fdfind")))
 
+(defun scs/setup-search-tools ()
+  "Point xref/grep at ripgrep, and fd-aware UIs at fd, when available.
+
+Call once at init.  Safe to call again after PATH/`exec-path' changes.
+Leaves stock find(1) as `find-program' so find-expression commands keep
+working; see comments above this function for the syntax split."
+  (cond
+   ((executable-find "rg")
+    (require 'grep)
+    (setq xref-search-program 'ripgrep)
+    ;; grep-apply-setting records host defaults so later
+    ;; grep-compute-defaults does not restore POSIX grep commands.
+    (grep-apply-setting
+     'grep-command
+     "rg -nH --null --no-heading -e ")
+    (grep-apply-setting
+     'grep-template
+     "rg <X> <C> -nH --null --no-heading -e <R> <F>")
+    (grep-apply-setting
+     'grep-find-command
+     '("find . -type f -print0 | xargs -0 rg -nH --null --no-heading -e " . 64))
+    (grep-apply-setting
+     'grep-find-template
+     "find -H <D> <X> -type f <F> -print0 | xargs -0 rg <C> -nH --null --no-heading -e <R>"))
+   ((executable-find "ugrep")
+    ;; Fallback when rg is missing (older hosts); ugrep speaks its own flags.
+    (setq xref-search-program 'ugrep)))
+  (when-let ((fd (scs/fd-executable)))
+    ;; fd-dired and helm-fd read these; set whenever the feature is loaded.
+    (setq fd-dired-program fd)
+    (when (boundp 'helm-fd-executable)
+      (setq helm-fd-executable fd))))
+
+(scs/setup-search-tools)
+(with-eval-after-load 'fd-dired
+  (when-let ((fd (scs/fd-executable)))
+    (setq fd-dired-program fd)))
+(with-eval-after-load 'helm-fd
+  (when-let ((fd (scs/fd-executable)))
+    (setq helm-fd-executable fd)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Custom file
@@ -1053,8 +1118,6 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
 (load-theme 'adwaita t) ;; used to be tango-dark
 
 (setq byte-compile-error-on-warn nil)
-(when (executable-find "ugrep")
-  (setq grep-command "ugrep"))
 (setq org-ql-search-directories-files-recursive t)
 (setq org-safe-remote-resources
       '("\\`https://cdn\\.britannica\\.com/s:800x450,c:crop/66/195966-138-F9E7A828/facts-turtles\\.jpg\\'"))
@@ -2899,10 +2962,14 @@ Side effects: may call `enlarge-window' on WINDOW."
 ;; fd-dired
 ;; ----------------------------------------------------------
 
-;; Use fd instead of find for dired
+;; find-dired speaks find(1) expressions; this command speaks fd (regex
+;; by default, -e/-t/-g).  Use C-c f when you mean fd; leave M-x find-dired
+;; for classic find.  Binary may be `fd' or Debian's `fdfind'.
 (use-package fd-dired
   :el-get t
-  :if (executable-find "fd")
+  :if (scs/fd-executable)
+  :init
+  (setq fd-dired-program (scs/fd-executable))
   :bind ("C-c f" . fd-dired))
 
 ;; ----------------------------------------------------------
