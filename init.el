@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-07-27 Mon 12:47
-;; Update #: 16
+;; Last-Updated: 2026-07-27 Mon 14:16
+;; Update #: 17
 ;;
 ;;; Commentary:
 ;;
@@ -44,6 +44,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; fix: 2026-07-27 -- autoload howm-mode; expose async clipper cancellation
 ;; add: 2026-07-27 -- bind Embark act to C-.
 ;; add: 2026-07-27 -- install org-web-clipper from local Gitea with pinned tools
 ;; add: 2026-07-27 -- prefer ripgrep and fd for search/find where syntax fits
@@ -2001,6 +2002,7 @@ Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-di
   :el-get t
   :after org
   :defer t
+  :commands (howm-mode)
   :init
   (setq howm-directory "~/notes")
   (setq howm-home-directory howm-directory)
@@ -2453,7 +2455,8 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
 (use-package org-web-clipper
   :el-get t
   :commands (org-web-clipper-capture
-             org-web-clipper-capture-current-page)
+             org-web-clipper-capture-current-page
+             org-web-clipper-cancel)
   :custom
   (org-web-clipper-root-directory
    (expand-file-name "~/notes/clips/")))

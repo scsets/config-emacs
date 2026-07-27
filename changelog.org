@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-07-27 Mon 12:47
-#+UPDATE: 16
+#+LAST-UPDATED: 2026-07-27 Mon 14:16
+#+UPDATE: 17
 # $Id$
 
 * Document role
@@ -17,6 +17,10 @@ normalized to lowercase =changelog.org= on 2026-07-27.
 
 * 2026-07-27  SCS  <scs@scs.re>
 
+- =init.el= (=use-package howm=, =use-package org-web-clipper=): Autoload
+  ~howm-mode~ before the notes-tree Org hook calls it, preventing completed
+  clips from failing to open; expose the asynchronous clipper's cancellation
+  command.
 - =init.el= (=use-package embark=): Bind =C-.= to =embark-act=.
 - =init.el= (=scs/el-get-local-sources=, =use-package org-web-clipper=):
   Install =org-web-clipper= from the local Gitea =trunk= branch, run its
