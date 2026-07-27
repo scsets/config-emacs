@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-07-27 Mon 12:34
-;; Update #: 14
+;; Last-Updated: 2026-07-27 Mon 12:47
+;; Update #: 16
 ;;
 ;;; Commentary:
 ;;
@@ -44,6 +44,8 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-07-27 -- bind Embark act to C-.
+;; add: 2026-07-27 -- install org-web-clipper from local Gitea with pinned tools
 ;; add: 2026-07-27 -- prefer ripgrep and fd for search/find where syntax fits
 ;; fix: 2026-07-27 -- prefer gls for Dired on macOS and SmartOS, not darwin-only
 ;; add: 2026-07-27 -- use Homebrew gls for Dired on macOS (BSD ls lacks --dired)
@@ -442,6 +444,14 @@ Intentionally not *scratch*; new frames land on persistent notes."
          :url "https://git.sr.ht/~bzg/org-contrib"
          :load-path ("lisp")
          :depends (org))
+        (:name org-web-clipper
+         :type git
+         :url "http://127.0.0.1:3000/scs/org-web-clipper.git"
+         :branch "trunk"
+         :features org-web-clipper
+         :depends (org)
+         ;; Keep Defuddle and LinkeDOM at the package's locked versions.
+         :build (("npm" "ci" "--omit=dev" "--ignore-scripts")))
         (:name ob-mermaid
          :type github
          :pkgname "arnm/ob-mermaid"
@@ -1612,6 +1622,17 @@ was nil during daemon startup, so font must be applied per frame."
   (setq framemove-hook-into-windmove t))
 
 ;; ----------------------------------------------------------
+;; embark
+;; ----------------------------------------------------------
+
+;; Contextual actions on the thing at point or the current minibuffer
+;; candidate.  Already pulled in for gitea.el; bind the usual act chord
+;; so it is usable outside Gitea buffers too.
+(use-package embark
+  :el-get t
+  :bind (("C-." . embark-act)))
+
+;; ----------------------------------------------------------
 ;; gitea (el-get package; talks to the local Gitea /api/v1)
 ;; ----------------------------------------------------------
 ;; Source: https://github.com/scsets/gitea.el
@@ -2426,6 +2447,16 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
   (require 'org-expiry)
   (org-expiry-insinuate)
   (setq org-expiry-inactive-timestamps t))
+
+;; org-web-clipper
+;; Local Gitea checkout plus its pinned Defuddle/LinkeDOM toolchain.
+(use-package org-web-clipper
+  :el-get t
+  :commands (org-web-clipper-capture
+             org-web-clipper-capture-current-page)
+  :custom
+  (org-web-clipper-root-directory
+   (expand-file-name "~/notes/clips/")))
 
 ;; TODO keywords.
 (setq org-todo-keywords
