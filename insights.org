@@ -1,6 +1,13 @@
 # $Id$
-#+title: Technical Insights
-#+author: scs
+#+TITLE: Technical Insights
+#+FILENAME: insights.org
+#+DESCRIPTION: Durable technical lessons from the SCS Emacs configuration
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-03-05 Thu 17:59
+#+VERSION: 0.1.0
+#+LAST-UPDATED: 2026-07-31 Fri 14:50
+#+UPDATE: 1
 
 * Document role
 
@@ -577,8 +584,9 @@ On macOS, mapping Caps Lock to Fn via Karabiner Elements, then setting
 the home row. The bindings must be guarded with
 ~(when (eq system-type 'darwin) ...)~ since Hyper is not available on
 other platforms without similar remapping. Fn+C is stolen by macOS
-Control Center; see *Hyper ~H-c~ prefix and macOS Fn+C* below for the
-Karabiner and ~key-translation-map~ fix used in this config.
+Control Center; Fn+H is stolen by Show Desktop.  See *Hyper chords that
+macOS steals (Fn+C / Fn+H)* below for the Karabiner and
+~key-translation-map~ fix used in this config.
 
 A column-header comment above grouped ~global-set-key~ calls documents
 the mnemonic for each binding at a glance, per the CLAUDE.md style for
@@ -831,20 +839,25 @@ When locating drawers with regexps, use ~[ \t]*~ for indentation, not
 class), not “spaces”, so it can match the asterisk at the start of an
 Org heading line.
 
-* Hyper =H-c= prefix and macOS Fn+C (Control Center)
+* Hyper chords that macOS steals (Fn+C / Fn+H)
 
 With ~ns-function-modifier~ set to ~hyper~ (Caps Lock remapped to Fn
-via Karabiner), ~H-c~ means Fn+C. On recent macOS releases, Fn+C is a
-system shortcut that opens Control Center from the menu bar (Full
-Keyboard Access → *Open Control Center*). Clearing that shortcut in
-System Settings → Accessibility → Keyboard may help on some versions,
-but it often persists or reappears; the reliable fix here is Karabiner
-plus a one-line Emacs translation.
+via Karabiner), a Hyper chord is physically Fn+letter.  Recent macOS
+releases steal some of those before Emacs:
 
-** Prefix keymap
+| Chord | macOS action | Emacs want |
+|-------+--------------+------------|
+| Fn+C  | Control Center (Full Keyboard Access) | ~H-c~ prefix |
+| Fn+H  | Show Desktop (also Fn-F11 / Cmd-Mission Control) | ~H-h~ delete |
+
+Clearing the shortcut in System Settings sometimes helps and sometimes
+does not stick; the reliable fix is the same Karabiner proxy pattern
+for each stolen letter, plus a one-line Emacs translation.
+
+** Prefix keymap (~H-c~)
 
 A single-key global binding on ~H-c~ (for example ~org-capture~)
-/fire immediately/ and prevent a two-key sequence such as ~H-c d~.
+/fires immediately/ and prevents a two-key sequence such as ~H-c d~.
 The fix is to make ~H-c~ a prefix keymap (~define-prefix-command~),
 then bind follow-up keys on that map:
 
@@ -864,22 +877,48 @@ The command signals ~user-error~ outside Org mode.
 (define-key scs/hyper-c-prefix-map (kbd "H-d") #'scs/org-insert-creation-date)
 #+end_example
 
-** Karabiner: stop macOS from seeing raw Fn+C in Emacs
+** Progressive rub-out (~H-h~)
 
-If Emacs never sees ~H-c~, or Control Center steals the chord, add a
-Karabiner-Elements rule scoped to ~org.gnu.Emacs~ so other apps keep
-normal Fn behaviour. The rule /consumes/ Fn+C and re-emits a proxy
-chord macOS does not treat as Control Center:
+~H-h~ runs ~scs/hyper-h-rubout~.  "Rub out" means delete /before/
+point (Backspace direction), not forward delete after point:
 
-- *From:* Fn+C (Caps+C with the usual Caps→Fn remap)
-- *To:* C with physical Cmd+Ctrl+Opt held (no Shift)
+- First press: one preceding sentence, with
+  ~sentence-end-double-space~ bound to nil for this command only.
+  Emacs's default (double space after ~.~) would treat
+  ~sentence 1. sentence 2. sentence 3.|~ as one sentence and wipe the
+  line; single-space prose keeps only ~sentence 3.~ on the first press.
+- Immediate second press: kill from ~line-beginning-position~ to
+  point (rest of the preceding line), or another backward sentence
+  if already at bol.
 
-Rule description in =~/.config/karabiner/karabiner.json~:
-~Emacs: Fn+C as C-M-s-c (avoid macOS Control Center on Fn+C)~.
+Text lands on the kill ring (~yank~ restores it).  The command resets
+~this-command~ after the kill so a second ~H-h~ is still detected as
+a repeat (~kill-region~ would otherwise rename ~this-command~).
+
+Plain Backspace / =C-h= are /rub-out/ (before point) and stay
+one-character.  Forward Delete (=C-d=, Fn-Backspace / =<deletechar>=)
+runs ~scs/delete-forward~: if spaces or tabs follow point, remove that
+whole run (so ~test|     test1~ becomes ~testtest1~); otherwise delete
+one character.  =smart-delete-mode= stays disabled because it remaps
+rub-out.
+
+** Karabiner: stop macOS from seeing raw Fn+C / Fn+H in Emacs
+
+Scope rules to ~org.gnu.Emacs~ so other apps keep normal Fn behaviour.
+Each rule /consumes/ Fn+letter and re-emits a proxy chord macOS does
+not treat as the system shortcut:
+
+- *From:* Fn+C or Fn+H (Caps+letter with the usual Caps→Fn remap)
+- *To:* that letter with physical Cmd+Ctrl+Opt held (no Shift)
+
+Rule descriptions in =~/.config/karabiner/karabiner.json~:
+
+- ~Emacs: Fn+C as C-M-s-c (avoid macOS Control Center on Fn+C)~
+- ~Emacs: Fn+H as C-M-s-h (avoid macOS Show Desktop on Fn+H)~
 
 #+begin_example
 {
-  "description": "Emacs: Fn+C as C-M-s-c (avoid macOS Control Center on Fn+C)",
+  "description": "Emacs: Fn+H as C-M-s-h (avoid macOS Show Desktop on Fn+H)",
   "manipulators": [{
     "type": "basic",
     "conditions": [{
@@ -887,19 +926,19 @@ Rule description in =~/.config/karabiner/karabiner.json~:
       "bundle_identifiers": ["^org\\.gnu\\.Emacs$"]
     }],
     "from": {
-      "key_code": "c",
+      "key_code": "h",
       "modifiers": { "mandatory": ["fn"], "optional": ["any"] }
     },
     "to": [{
-      "key_code": "c",
+      "key_code": "h",
       "modifiers": ["left_command", "left_control", "left_option"]
     }]
   }]
 }
 #+end_example
 
-Only Fn+C needs this rewrite; other Hyper keys (Fn+X, Fn+B, …) still
-use ~ns-function-modifier~ unchanged.
+Other Hyper keys (Fn+X, Fn+B, …) still use ~ns-function-modifier~
+unchanged unless macOS starts stealing them too.
 
 ** Emacs: translate the proxy chord back to Hyper
 
@@ -911,11 +950,13 @@ This config remaps physical modifiers before ~kbd~ sees them:
 | Option       | Meta (~M~)     |
 | Control      | Super (~s~)    |
 
-So Karabiner’s Cmd+Ctrl+Opt+C arrives as ~C-M-s-c~ (lowercase ~s~ =
-Super). Translate it back to ~H-c~ in the ~darwin~ block:
+So Karabiner’s Cmd+Ctrl+Opt+letter arrives as ~C-M-s-<letter>~
+(lowercase ~s~ = Super).  Translate each proxy back in the ~darwin~
+block:
 
 #+begin_example
 (define-key key-translation-map (kbd "C-M-s-c") (kbd "H-c"))
+(define-key key-translation-map (kbd "C-M-s-h") (kbd "H-h"))
 #+end_example
 
 ** Pitfall: ~C-M-S-c~ is not ~C-M-s-c~

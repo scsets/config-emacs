@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-07-27 Mon 14:16
-#+UPDATE: 17
+#+LAST-UPDATED: 2026-07-31 Fri 14:50
+#+UPDATE: 27
 # $Id$
 
 * Document role
@@ -15,12 +15,67 @@ Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10, then
 normalized to lowercase =changelog.org= on 2026-07-27.
 
+* 2026-07-31  SCS  <scs@scs.re>
+
+- =lisp/scs-copy-path.el= (~scs/copy-path~): DWIM copy of buffer, Dired
+  (marks or file at point), or ~default-directory~ paths to the kill
+  ring / clipboard; formats include absolute, abbreviated, relative,
+  project-relative, truename, TRAMP local-name / remote-id, shell-quoted,
+  and path:line[:column].  ~C-u~ prompts for format.
+- =init.el=: Autoload ~scs/copy-path~ and bind ~H-c p~ on
+  ~scs/hyper-c-prefix-map~.
+- =lisp/scs-copy-path.el= (~scs/copy-path--directory-of~,
+  ~scs/copy-path--file-position~): Preserve a directory selected in Dired
+  instead of copying its parent; report absolute line and column numbers
+  even when the file buffer is narrowed.
+- =test/scs-copy-path-test.el=, =bin/test=: Add focused ERT regressions for
+  Dired directory selection and narrowed file positions to the standard
+  repository test run.
+- =readme.org=, =insights.org=: Document the Fn+C / Fn+H macOS proxy
+  bindings and adopt the standard first-party document metadata block.
+
 * 2026-07-27  SCS  <scs@scs.re>
 
+- =init.el= (~scs/delete-forward~): Forward Delete only -- =C-d=,
+  =<deletechar>=, =<delete>= chew a following whitespace run; rub-out
+  (=C-h=, Backspace) stays one character.  Disable =smart-delete-mode=
+  (it remaps rub-out / =DEL=).
+- =init.el= (=use-package smart-delete=): Bind smart rub-out on =C-h=
+  and =<backspace>= as well as =DEL= (this profile deletes with =C-h=);
+  advice =smart-delete-backward= so bare M-x/Helm cannot crash on nil
+  indentation (=wrong-type-argument number-or-marker-p=).
 - =init.el= (=use-package howm=, =use-package org-web-clipper=): Autoload
   ~howm-mode~ before the notes-tree Org hook calls it, preventing completed
   clips from failing to open; expose the asynchronous clipper's cancellation
   command.
+- =init.el= (~scs/hyper-h--kill-sentence-back~, ~scs/hyper-h-rubout~):
+  Rub out with =sentence-end-double-space= bound to nil so single-space
+  prose ("A. B. C.|") loses only the last sentence on the first H-h.
+- =init.el= (=scs/el-get-local-sources=, =use-package smart-delete=):
+  Install =leodag/smart-delete= and enable it globally via
+  ~scs/global-smart-delete-mode~ (skip minibuffer).
+- =init.el= (~scs/hyper-h-rubout~): First press rubs out one preceding
+  sentence; repeat rubs out the rest of the line (or another sentence
+  at BOL).  Line-first wiped every sentence on a single line; also
+  restore =this-command= so repeats are detected after =kill-region=.
+- =init.el= (~scs/hyper-h-rubout~): Rub out /backward/ -- first press
+  kills from line beginning to point; repeat runs =kill-sentence= with
+  a negative argument.  Rename from forward ~scs/hyper-h-delete~
+  (alias kept).
+- =init.el= (~scs/hyper-h-delete~): First press kills only to
+  =line-end-position= (keeps the newline); =kill-line= was eating it.
+- =init.el= (~scs/hyper-h-delete~, Hyper bindings): Bind =H-h= to kill
+  to end of line, then =kill-sentence= on an immediate repeat; translate
+  Karabiner proxy =C-M-s-h= back to =H-h=.
+- =~/.config/karabiner/karabiner.json=: Emacs-only rule rewriting Fn+H
+  to Cmd+Ctrl+Opt+H so macOS Show Desktop (Apple: Fn-H / Fn-F11) does
+  not steal Hyper-h.
+- =insights.org=: Document the Fn+H Show Desktop proxy beside Fn+C.
+- =init.el= (C-h section): Stop translating =C-h= to =DEL= (that hid the
+  event from package maps).  Move =help-char= to =C-^=, bind =C-h= to
+  =delete-backward-char=, keep full help on =F1=/=C-^=.  Local maps such
+  as Embark can bind =C-h= for help again; Helm still clears its =C-h=
+  prefix so delete remains in Helm.
 - =init.el= (=use-package embark=): Bind =C-.= to =embark-act=.
 - =init.el= (=scs/el-get-local-sources=, =use-package org-web-clipper=):
   Install =org-web-clipper= from the local Gitea =trunk= branch, run its

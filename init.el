@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-07-27 Mon 14:16
-;; Update #: 17
+;; Last-Updated: 2026-07-31 Fri 14:50
+;; Update #: 26
 ;;
 ;;; Commentary:
 ;;
@@ -35,7 +35,8 @@
 ;; How to find things in this file:
 ;;   Search for semicolon banner lines or for `(use-package PACKAGE'.
 ;;   Team-specific symbols usually start with scs/ or scs--.
-;;   C-h f and apropos still work once Emacs is running.
+;;   F1 f / F1 v and apropos still work once Emacs is running.
+;;   (C-h is delete in this profile; see the C-h section under Keybindings.)
 ;;
 ;; The no-byte-compile cookie is intentional: init.el is the authoritative
 ;; source; stale init.elc in the tree is painful to debug.
@@ -44,7 +45,16 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-07-31 -- autoload scs/copy-path and bind it on H-c p
 ;; fix: 2026-07-27 -- autoload howm-mode; expose async clipper cancellation
+;; fix: 2026-07-27 -- forward delete chews spaces; leave rub-out alone
+;; fix: 2026-07-27 -- smart-delete on C-h/DEL; guard M-x nil crash
+;; fix: 2026-07-27 -- H-h uses single-space sentence ends; add smart-delete on DEL
+;; fix: 2026-07-27 -- H-h rubs out sentence first, then rest of line
+;; fix: 2026-07-27 -- H-h rubs out backward (line, then sentence)
+;; fix: 2026-07-27 -- H-h first press keeps the newline (not kill-line)
+;; add: 2026-07-27 -- H-h progressive kill; Karabiner proxy for macOS Fn+H
+;; add: 2026-07-27 -- free package C-h help while keeping C-h as delete
 ;; add: 2026-07-27 -- bind Embark act to C-.
 ;; add: 2026-07-27 -- install org-web-clipper from local Gitea with pinned tools
 ;; add: 2026-07-27 -- prefer ripgrep and fd for search/find where syntax fits
@@ -103,6 +113,71 @@ to test; everything below is skipped until you remove the call."
   (with-current-buffer " *load*"
     (goto-char (point-max))))
 (defalias 'my-exit #'scs/exit-loading)
+
+(defun scs/hyper-h--kill-sentence-back ()
+  "Kill one preceding sentence, treating a single space after `.' as enough.
+
+Emacs defaults `sentence-end-double-space' to t, so on a line like
+\"A. B. C.|\" `kill-sentence' with -1 would rub out the whole line.
+Bind it to nil for this command only; leave the global default alone."
+  (let ((sentence-end-double-space nil))
+    (kill-sentence -1)))
+
+(defun scs/hyper-h-rubout ()
+  "Rub out preceding text: one sentence, then the rest of the line.
+
+\"Rub out\" is the old name for deleting /before/ point (Backspace
+direction), not forward delete after point.
+
+- First press: kill the preceding sentence.  Uses single-space sentence
+  ends for this command only (see `scs/hyper-h--kill-sentence-back').
+  On \"A. B. C.|\" only \"C.\" goes away.
+- Immediate repeat: kill from the beginning of the line to point (the
+  rest of the preceding line).  If point is already at the beginning
+  of the line, kill one more sentence backward instead.
+
+Kill commands normally set `this-command' to `kill-region' so consecutive
+kills append on the kill ring; this command restores `this-command' so a
+second H-h still counts as a repeat of this command.
+
+Bound to Hyper-h on macOS (Karabiner proxies Fn+H; see Hyper keybindings).
+Forward Delete / C-d is separate (`scs/delete-forward'); rub-out keys
+(C-h, Backspace) stay one-character."
+  (interactive)
+  (if (eq last-command this-command)
+      ;; Escalate: rest of line before point, or another sentence at BOL.
+      (let ((beg (line-beginning-position)))
+        (if (= (point) beg)
+            (scs/hyper-h--kill-sentence-back)
+          (kill-region beg (point))))
+    (scs/hyper-h--kill-sentence-back))
+  ;; Keep H-h repeat detection; do not leave this-command as kill-region.
+  (setq this-command 'scs/hyper-h-rubout))
+
+(defalias 'scs/hyper-h-delete #'scs/hyper-h-rubout)
+
+(defun scs/delete-forward (&optional n)
+  "Delete after point: chew a whitespace run, else one character.
+
+Greybeard distinction (do not blur these):
+- Rub-out -- delete /before/ point (Backspace, C-h).  Unchanged here.
+- Delete -- delete /after/ point (C-d, Fn-Backspace / <deletechar>).
+
+When the following text is spaces or tabs, remove that whole run in one
+go.  Example, point at | in \"test|     test1\" becomes \"testtest1\".
+Otherwise delete N characters forward like `delete-char'.
+
+Active region: delete the region when `delete-active-region' allows it."
+  (interactive "p")
+  (cond
+   ((and (use-region-p) delete-active-region)
+    (delete-region (region-beginning) (region-end)))
+   ((looking-at "[ \t]+")
+    (delete-region (point) (match-end 0)))
+   ((eobp)
+    (message "End of buffer"))
+   (t
+    (delete-char (prefix-numeric-value n)))))
 
 (defun scs/reapply-early-init-runtime ()
   "Re-apply early-init.el settings that can change mid-session.
@@ -272,6 +347,14 @@ Intentionally not *scratch*; new frames land on persistent notes."
   "Open the SCS command hub (Transient home on C-c ?)." t)
 (autoload 'scs/command-hub-browse-catalog "scs-command-hub-helm"
   "Browse the curated command catalog with Helm." t)
+;; add: 2026-07-31 -- DWIM path copy (file / Dired / TRAMP / formats)
+(autoload 'scs/copy-path "scs-copy-path"
+  "Copy buffer/Dired/TRAMP path(s) to the kill ring and clipboard." t)
+(autoload 'scs/copy-path-absolute "scs-copy-path" nil t)
+(autoload 'scs/copy-path-relative "scs-copy-path" nil t)
+(autoload 'scs/copy-path-project "scs-copy-path" nil t)
+(autoload 'scs/copy-path-truename "scs-copy-path" nil t)
+(autoload 'scs/copy-path-local-name "scs-copy-path" nil t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -378,6 +461,10 @@ Intentionally not *scratch*; new frames land on persistent notes."
          :type github
          :pkgname "magnars/s.el"
          :features s)
+        (:name smart-delete
+         :type github
+         :pkgname "leodag/smart-delete"
+         :features smart-delete)
         (:name f
          :type github
          :pkgname "rejeep/f.el"
@@ -1177,10 +1264,13 @@ was nil during daemon startup, so font must be applied per frame."
 ;; ----------------------------------------------------------
 
 ;; mac-command-modifier etc. are set in early-init.el (before window-system
-;; init).  Karabiner rewrites Fn+C in Emacs to C-M-s-c (see karabiner.json)
-;; so macOS does not open Control Center.  Lowercase s is Super, not Shift.
+;; init).  Karabiner rewrites stolen Fn chords inside Emacs to C-M-s-*
+;; proxies (see karabiner.json): Fn+C would open Control Center, Fn+H
+;; would Show Desktop (Apple: Command-Mission Control / Fn-H / Fn-F11).
+;; Lowercase s is Super, not Shift.
 (when (eq system-type 'darwin)
-  (define-key key-translation-map (kbd "C-M-s-c") (kbd "H-c")))
+  (define-key key-translation-map (kbd "C-M-s-c") (kbd "H-c"))
+  (define-key key-translation-map (kbd "C-M-s-h") (kbd "H-h")))
 
 ;; Another possibility would be to define each one separately
 ;; (define-key key-translation-map (kbd "C-M-S-s") (kbd "H"))
@@ -1195,6 +1285,7 @@ was nil during daemon startup, so font must be applied per frame."
   (global-set-key (kbd "H-x") 'helm-M-x)                 ;; eXecute
   (global-set-key (kbd "H-b") 'helm-mini)                ;; Buffer
   (global-set-key (kbd "H-k") 'kill-current-buffer)      ;; Kill
+  (global-set-key (kbd "H-h") #'scs/hyper-h-rubout)     ;; rub out sentence, then line
   (global-set-key (kbd "H-s") 'save-buffer)              ;; Save
   (global-set-key (kbd "H-r") 'revert-buffer-quick)      ;; Revert
   (global-set-key (kbd "H-g") 'grep)                     ;; Grep
@@ -1217,6 +1308,8 @@ was nil during daemon startup, so font must be applied per frame."
   (define-key scs/hyper-c-prefix-map (kbd "h") #'scs/org-ensure-buffer-header) ;; Header
   (define-key scs/hyper-c-prefix-map (kbd "R") #'scs/rename-visited-file-to-name-at-point) ;; Rename
   (define-key scs/hyper-c-prefix-map (kbd "v") #'scs/convert) ;; conVert
+  ;; Path: absolute by default; C-u H-c p prompts for format (relative, truename, …).
+  (define-key scs/hyper-c-prefix-map (kbd "p") #'scs/copy-path) ;; Path
   (global-set-key (kbd "H-a") 'org-agenda)               ;; Agenda
   (global-set-key (kbd "H-l") 'org-store-link)           ;; Link
   (global-set-key (kbd "H-i") 'helm-imenu)               ;; Imenu
@@ -1243,19 +1336,48 @@ was nil during daemon startup, so font must be applied per frame."
 (global-set-key [remap list-buffers] 'ibuffer)
 
 ;; ----------------------------------------------------------
-;; C-h/M-h as backspace
+;; Rub-out (C-h) vs Delete (C-d / Fn-Backspace)
 ;; ----------------------------------------------------------
 
-;; CTRL-H as delete
-;; `help` is mapped to F1
-;; https://www.emacswiki.org/emacs/BackspaceKey
-
+;; Greybeard keys (keep them distinct):
+;; - Rub-out -- before point: C-h and physical Backspace (`DEL').
+;; - Delete  -- after point:  C-d and Fn-Backspace (`<deletechar>').
+;;
+;; Goal for C-h: rub out by default, but local maps that bind C-h for
+;; help (Embark during embark-act, and similar) must still see the real
+;; C-h event.
+;;
+;; Why not key-translation-map C-h -> DEL?  Translation rewrites the event
+;; before any keymap runs, so package C-h bindings never fire.  That is
+;; why Embark help looked "broken" under the old one-way translation.
+;;
+;; Instead:
+;; 1. Move help-char off C-h so the command loop does not treat C-h as
+;;    the global help character (prefix help, help-form, and friends).
+;;    C-\\ is already toggle-input-method here, so use C-^ instead.
+;; 2. Bind C-h in the global map to rub-out.  Active minor/local maps that
+;;    bind C-h (Embark, etc.) override this while they are active.
+;; 3. Keep full help on F1 (and ? / <help> via help-event-list).
+;; 4. Keep M-h -> M-DEL translation; that does not collide with C-h help.
+;; 5. Bind Delete keys to `scs/delete-forward' (chew whitespace runs after
+;;    point).  Do not put that behavior on rub-out keys.
+;;
+;; Helm still clears its own C-h prefix so C-h remains rub-out inside Helm
+;; (help stays on ? there).  See the helm :config block.
+;;
 ;; tip: Tab is available as C-i
 ;;      RET is available as C-j or C-m
 ;;      ESC is available as C-[
 
-;; map C-h to backspace
-(define-key key-translation-map [?\C-h] [?\C-?])
+(setq help-char ?\C-^)
+(global-set-key (kbd "C-^") #'help-command)
+(global-set-key (kbd "C-h") #'delete-backward-char)
+(global-set-key (kbd "<f1>") #'help-command)
+
+;; Delete after point (not rub-out).  macOS Fn-Backspace is <deletechar>.
+(global-set-key (kbd "C-d") #'scs/delete-forward)
+(global-set-key (kbd "<deletechar>") #'scs/delete-forward)
+(global-set-key (kbd "<delete>") #'scs/delete-forward)
 
 ;; map M-h [mark-paragraph] to M-backspace
 (define-key key-translation-map [?\M-h] [?\M-\d])
@@ -1727,11 +1849,12 @@ the local instance."
   (helm-mode 1)
   (helm-autoresize-mode 1)
 
-  ;; C-h is delete in this profile (key-translation-map).  Do not leave
-  ;; Helm's help/debug family on a C-h prefix -- it fights muscle memory
-  ;; and confuses the team.  Clear the C-h *subkeys first*, then drop the
-  ;; prefix itself (the other order recreates a C-h keymap).  Helm help
-  ;; is on ? ; debug/customize move under C-c on helm-map.
+  ;; C-h is delete globally in this profile (see Keybindings).  Do not
+  ;; leave Helm's help/debug family on a C-h prefix -- inside Helm we
+  ;; want the global delete binding, not a nested help map.  Clear the
+  ;; C-h *subkeys first*, then drop the prefix itself (the other order
+  ;; recreates a C-h keymap).  Helm help is on ? ; debug/customize move
+  ;; under C-c on helm-map.
   (define-key helm-map (kbd "C-h C-h") nil)
   (define-key helm-map (kbd "C-h h") nil)
   (define-key helm-map (kbd "C-h C-d") nil)
@@ -2712,6 +2835,20 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
   (use-package sly-macrostep :el-get t)
   (use-package sly-repl-ansi-color :el-get t)
   (sly-setup '(sly-fancy)))
+
+;; ----------------------------------------------------------
+;; smart-delete (installed, not enabled)
+;; ----------------------------------------------------------
+
+;; leodag/smart-delete is IntelliJ-like *rub-out* on leading blanks (it
+;; binds DEL / Backspace).  This profile keeps rub-out plain and puts
+;; whitespace chewing on Delete only (`scs/delete-forward' on C-d /
+;; <deletechar>).  Keep the el-get recipe for optional experiments;
+;; do not turn the minor mode on here.
+(use-package smart-delete
+  :el-get t
+  :defer t
+  :disabled t)
 
 ;; ----------------------------------------------------------
 ;; tramp

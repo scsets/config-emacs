@@ -1,6 +1,13 @@
 # $Id: readme.org,v 1.7 2026/03/07 17:16:56 scs Exp $
-#+title: Emacs Configuration
-#+author: scs
+#+TITLE: Emacs Configuration
+#+FILENAME: readme.org
+#+DESCRIPTION: Installation and operation of the SCS Emacs configuration
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-03-05 Thu 17:59
+#+VERSION: 0.1.0
+#+LAST-UPDATED: 2026-07-31 Fri 14:50
+#+UPDATE: 1
 
 * Document role
 
@@ -92,7 +99,7 @@ M-x scs/frame-state-restore
 
 See =insights.org= for property-drawer behaviour, the ~H-c~ Hyper prefix,
 and the Karabiner + ~key-translation-map~ workaround for macOS Fn+C /
-Control Center.
+Control Center and Fn+H / Show Desktop.
 
 * Day-2 operations
 
@@ -130,7 +137,7 @@ it over the network.  That is intentional for a single-user profile.
 | ~ugrep~ | optional | ~xref-search-program~ when present |
 | aspell | optional | flyspell (currently idle in config) |
 | Homebrew + GCC + libgccjit | macOS native-comp | discovered in =early-init.el= |
-| Karabiner | macOS Hyper | Fn → Hyper; Fn+C proxy for ~H-c~ |
+| Karabiner | macOS Hyper | Fn → Hyper; Fn+C / Fn+H proxies |
 | ~mmdc~ | feature | Mermaid Babel |
 | PlantUML / ditaa jars | feature | via ~PROFILE_DIR~/lib when set |
 | Ghostscript / ImageMagick | feature | =org-tools.el= export helpers |
@@ -227,10 +234,11 @@ shortcuts (see =init.el=). ~H-c~ is a /prefix/ keymap:
 ~H-c H-d~ also works. Both require Org mode; the command errors
 elsewhere.
 
-macOS steals raw Fn+C (Control Center). Karabiner rewrites Fn+C inside
-Emacs to a proxy chord; ~init.el~ translates that back to ~H-c~. See
-=insights.org= (*Hyper ~H-c~ prefix and macOS Fn+C*) for the rule,
-~key-translation-map~ entry, and the ~C-M-s~ vs ~C-M-S~ pitfall.
+macOS steals raw Fn+C (Control Center) and Fn+H (Show Desktop).
+Karabiner rewrites those chords inside Emacs to proxy chords; ~init.el~
+translates them back to ~H-c~ / ~H-h~.  See =insights.org= (*Hyper
+chords that macOS steals*) for the rules, ~key-translation-map~
+entries, and the ~C-M-s~ vs ~C-M-S~ pitfall.
 
 * Target Platforms
 
