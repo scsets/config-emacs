@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-07-31 Fri 14:50
-;; Update #: 26
+;; Last-Updated: 2026-08-03 Mon 15:09
+;; Update #: 27
 ;;
 ;;; Commentary:
 ;;
@@ -27,7 +27,8 @@
 ;;   General settings -- server, encoding, save hygiene, dired, search tools,
 ;;   input method.
 ;;   Custom file -- where Customize would write (we keep config in Git instead).
-;;   Settings formerly in custom.el -- theme, desktop, migrated Customize values.
+;;   Settings formerly in custom.el -- desktop, migrated Customize values.
+;;   Frame / UI -- theme (GUI vs TTY), font, tool-bar.
 ;;   Keybindings -- Hyper chords (macOS), C-c prefixes, safety remaps.
 ;;   Packages -- use-package blocks, mostly alphabetical (see in-file notes).
 ;;   Finalization -- (provide 'init).
@@ -45,6 +46,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-03 -- TTY frames load misterioso; GUI keeps adwaita (Frame/UI)
 ;; add: 2026-07-31 -- autoload scs/copy-path and bind it on H-c p
 ;; fix: 2026-07-27 -- autoload howm-mode; expose async clipper cancellation
 ;; fix: 2026-07-27 -- forward delete chews spaces; leave rub-out alone
@@ -1175,8 +1177,8 @@ working; see comments above this function for the syntax split."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; Values that once lived in a persisted custom.el file, kept here so the
-;; repo remains the single source of truth.  Desktop save/load and theme choice
-;; are part of daily session restore on this machine.
+;; repo remains the single source of truth.  Desktop save/load is part of
+;; daily session restore on this machine.  Theme lives under Frame / UI.
 
 (blink-cursor-mode -1)
 (with-eval-after-load 'desktop
@@ -1213,7 +1215,6 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
   (add-hook 'desktop-save-hook #'scs/desktop-sanitize-before-save))
 (desktop-save-mode t)
 (size-indication-mode t)
-(load-theme 'adwaita t) ;; used to be tango-dark
 
 (setq byte-compile-error-on-warn nil)
 (setq org-ql-search-directories-files-recursive t)
@@ -1225,8 +1226,27 @@ EWW buffers with a nil `eww-history-position' make desktop save signal
 (setq windmove-wrap-around nil)
 
 ;; ----------------------------------------------------------
-;; Frame / UI (GUI only)
+;; Frame / UI
 ;; ----------------------------------------------------------
+;; Theme, font, and tool-bar.  Stays in init.el (not early-init): during
+;; early-init the initial frame does not exist yet, so display-graphic-p
+;; is always nil even for GUI Emacs.  See insights.org.
+
+(defun scs/apply-ui-theme (&optional frame)
+  "Load the GUI or terminal color theme for FRAME.
+
+GUI frames use `adwaita'; TTY frames (emacs -nw, emacsclient -t, SSH)
+use the built-in `misterioso' theme, which reads well on 256-color
+terminals.  Themes are process-global: if one daemon serves both GUI
+and TTY clients, the most recently created frame's kind wins.  Local
+GUI and remote SSH Emacs are separate processes, so they do not
+interfere."
+  (let ((frame (or frame (selected-frame))))
+    (when (frame-live-p frame)
+      (with-selected-frame frame
+        (if (display-graphic-p frame)
+            (load-theme 'adwaita t)
+          (load-theme 'misterioso t))))))
 
 (defun scs/apply-default-font (&optional frame)
   "Apply the standard GUI font to FRAME, or globally when FRAME is nil.
@@ -1242,7 +1262,10 @@ was nil during daemon startup, so font must be applied per frame."
                           :weight 'normal
                           :width 'normal))))
 
-;; emacsclient frames may miss the startup-time font set in early-init.
+;; Daemon/emacsclient frames are created after init; re-apply so a
+;; headless daemon still gets the right theme/font on the first client.
+(scs/apply-ui-theme)
+(add-hook 'after-make-frame-functions #'scs/apply-ui-theme)
 (add-hook 'after-make-frame-functions #'scs/apply-default-font)
 
 (when (display-graphic-p)
