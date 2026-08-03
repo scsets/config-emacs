@@ -3,7 +3,7 @@
 ;; $Id: early-init.el,v 1.1 2026/03/23 07:36:04 scs Exp $
 ;;
 ;; Filename: early-init.el
-;; Description: Performance, UI, packages, and macOS native-comp setup before init.el.
+;; Description: Performance, UI, packages, PATH, and macOS native-comp setup before init.el.
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;;
@@ -17,6 +17,9 @@
 ;; What lives here (in order):
 ;;   - Temporary GC and handler tweaks for faster startup, restored on
 ;;     emacs-startup-hook
+;;   - Prefer GNU/user tool prefixes on PATH (SmartOS /opt/tools, pkgsrc,
+;;     Homebrew, FreeBSD ports) before thin system /usr/bin; on SmartOS
+;;     exit immediately if core GNU tools are still missing
 ;;   - Homebrew paths for native compilation on macOS (LIBRARY_PATH, CC)
 ;;   - Quiet warnings during normal startup (use bin/emacs-diagnostic to debug)
 ;;   - Frame defaults, macOS modifier remapping, package.el archives
@@ -28,6 +31,8 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-03 -- SmartOS hard-fail if core GNU tools missing after PATH
+;; add: 2026-08-03 -- prepend GNU/user tool dirs on PATH and exec-path
 ;; fix: 2026-07-24 -- teachable Commentary for SCS team
 ;; fix: 2026-07-10 -- Homebrew GCC discovery; no-byte-compile; scs-cl load path notes as relevant
 ;; fix: 2026-07-09 -- load-prefer-newer; startup hygiene
@@ -70,6 +75,146 @@
                   gc-cons-percentage 0.2
                   file-name-handler-alist scs--file-name-handler-alist
                   vc-handled-backends scs--vc-handled-backends)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; PATH / exec-path: prefer GNU and user tool prefixes
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; SmartOS login PATH often puts /usr/bin before /opt/tools/bin.  System sed,
+;; make, awk, find, grep, ls then win over gsed/gmake/gawk/gfind/ggrep/gls
+;; (and the unprefixed symlinks that pkgsrc/tools install beside them).
+;; Package builds (el-get/howm make) and Emacs subprocesses inherit that
+;; order.  Prepend known tool directories early so both PATH and exec-path
+;; agree before configure/make and before init.el probes helpers.
+;;
+;; On SmartOS/Illumos this config then *requires* the core GNU helpers.  A
+;; bare zone without /opt/tools (or equivalent) exits immediately with a
+;; clear message instead of failing halfway through package builds.
+;;
+;; Directories that do not exist are skipped (macOS has no /opt/tools, a bare
+;; SmartOS zone may lack pkgsrc, etc.).
+
+(defun scs/prepend-exec-directory (dir)
+  "Put DIR first on `exec-path' and on the process PATH when it exists.
+
+DIR is expanded.  No-op when DIR is missing or not a directory.  Drops any
+earlier duplicate of DIR from `exec-path' so the prepend sticks."
+  (when (and (stringp dir) (file-directory-p dir))
+    (let* ((dir (directory-file-name (expand-file-name dir)))
+           (path (or (getenv "PATH") ""))
+           (parts (unless (string= path "")
+                    (split-string path path-separator t))))
+      (setq exec-path (cons dir (delete dir (copy-sequence exec-path))))
+      (setenv "PATH" (mapconcat #'identity
+                                (cons dir (delete dir parts))
+                                path-separator))
+      dir)))
+
+(defun scs/setup-tool-path ()
+  "Prepend platform tool prefixes so GNU helpers shadow thin system ones.
+
+Highest priority first in the list below.  Each existing directory is
+prepended in reverse so the first entry ends up first on PATH/`exec-path'.
+Only existing directories are added.  Safe on every platform; missing
+prefixes are ignored."
+  ;; Walk low-to-high priority so the final prepend leaves Homebrew /
+  ;; /opt/tools ahead of /usr/local and system paths.
+  (dolist (dir (reverse '("/opt/homebrew/bin"
+                          "/opt/homebrew/sbin"
+                          "/opt/tools/bin"
+                          "/opt/tools/sbin"
+                          "/opt/local/bin"
+                          "/opt/local/sbin"
+                          "/usr/local/bin"
+                          "/usr/local/sbin")))
+    (scs/prepend-exec-directory dir)))
+
+(scs/setup-tool-path)
+
+(defun scs/smartos-p ()
+  "Return non-nil when this Emacs is running on SmartOS/Illumos.
+
+`system-type' is `usg-unix-v' there.  Confirm with zonename(1) or the
+usual pkgsrc/tools prefixes so plain SVR4 hosts are not treated as SmartOS."
+  (and (eq system-type 'usg-unix-v)
+       (or (file-executable-p "/usr/bin/zonename")
+           (file-directory-p "/opt/tools")
+           (file-directory-p "/opt/local"))))
+
+(defvar scs/smartos-required-gnu-tools
+  '("gsed" "gmake" "gawk" "gfind" "ggrep" "gls")
+  "GNU tool names that must exist on SmartOS after PATH setup.
+
+Require the g-prefixed binaries explicitly.  Accepting plain sed/make/awk
+would pass on stock /usr/bin (illumos sed is not GNU and breaks howm make).
+/opt/tools usually also ships unprefixed symlinks (sed -> gsed); PATH
+prepending makes those work for Makefiles that call sed/make without the g.")
+
+(defun scs/gnu-tool-path (base)
+  "Return absolute path of gBASE or BASE on `exec-path', or nil.
+
+BASE is the unprefixed name (\"sed\", \"awk\", …).  Prefers gBASE."
+  (or (executable-find (concat "g" base))
+      (executable-find base)))
+
+(defun scs/early-init-fail (fmt &rest args)
+  "Print FMT with ARGS to the echo area and stderr, then exit Emacs."
+  (let ((msg (apply #'format fmt args)))
+    (message "%s" msg)
+    ;; TTY / SSH users see stderr even when the echo area is gone.
+    (ignore-errors
+      (princ (concat msg "\n") #'external-debugging-output))
+    (kill-emacs 1)))
+
+(defun scs/require-smartos-gnu-tools ()
+  "On SmartOS, exit unless core g* GNU tools are on PATH after setup.
+
+No-op on macOS, FreeBSD, and Linux.  Requires gsed, gmake, gawk, gfind,
+ggrep, and gls by those exact names so thin /usr/bin sed/awk cannot
+satisfy the check."
+  (when (scs/smartos-p)
+    (let ((missing
+           (let (out)
+             (dolist (name scs/smartos-required-gnu-tools (nreverse out))
+               (unless (executable-find name)
+                 (push name out))))))
+      (when missing
+        (scs/early-init-fail
+         (concat
+          "SCS Emacs on SmartOS requires GNU tools on PATH after early-init.\n"
+          "Missing: %s\n"
+          "Install under /opt/tools/bin (preferred) or /opt/local/bin, then\n"
+          "restart Emacs.  Need at least: gsed gmake gawk gfind ggrep gls\n"
+          "(unprefixed sed/make/awk/find/grep/ls symlinks are optional but\n"
+          "recommended so Makefiles that call plain sed still get GNU).\n"
+          "Current PATH=%s")
+         (mapconcat #'identity missing ", ")
+         (or (getenv "PATH") ""))))))
+
+(scs/require-smartos-gnu-tools)
+
+(defun scs/prefer-gnu-program (base &optional emacs-var)
+  "Prefer the g-prefixed GNU tool for BASE when it is on `exec-path'.
+
+Looks up \"gBASE\" then BASE via `executable-find'.  When EMACS-VAR is a
+bound symbol (for example `find-program'), set it to the absolute path.
+Return the chosen path string, or nil when neither exists.
+
+Examples of BASE: \"sed\", \"make\", \"awk\", \"find\", \"grep\", \"ls\".
+Call after `scs/setup-tool-path' so /opt/tools and friends are visible."
+  (let ((path (scs/gnu-tool-path base)))
+    (when (and path emacs-var (boundp emacs-var))
+      (set emacs-var path))
+    path))
+
+;; Point Emacs at GNU-friendly helpers when the g* name exists.  PATH already
+;; prefers unprefixed symlinks under /opt/tools (sed -> gsed, make -> gmake);
+;; these bindings cover hosts that only ship the g* names, and make Dired /
+;; grep / find unambiguous inside Emacs.
+(scs/prefer-gnu-program "ls" 'insert-directory-program)
+(scs/prefer-gnu-program "find" 'find-program)
+(scs/prefer-gnu-program "grep" 'grep-program)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
