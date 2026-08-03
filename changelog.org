@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-03 Mon 16:34
-#+UPDATE: 30
+#+LAST-UPDATED: 2026-08-03 Mon 16:45
+#+UPDATE: 31
 # $Id$
 
 * Document role
@@ -17,6 +17,19 @@ normalized to lowercase =changelog.org= on 2026-07-27.
 
 * 2026-08-03  SCS  <scs@scs.re>
 
+- =init.el= / =lisp/scs-mail-lab.el=: Remove the external contacts
+  database package and all mail-lab contact-store helpers/keys; keep
+  mu4e, notmuch, msmtp, and org-msg only.  Contacts via UI completion or
+  =mu cfind= in the shell.
+- =init.el= (gitea recipe): Clone private =scsets/gitea.el= over SSH
+  (=git@github.com:...=) so SmartOS/daemon installs work without HTTPS
+  credentials.
+- =init.el= (~scs/el-get-skip-unavailable-local-packages~): When local
+  Gitea (=http://127.0.0.1:3000/=) is down, drop =org-web-clipper= from
+  the session sources and clear stuck =required= status so init stops
+  remove/reinstall thrashing.
+- =init.el= (~scs/el-get-safe-sync~): Document why el-get prints
+  \"removing it first\" (status =required= after a failed install).
 - =early-init.el= (~scs/setup-tool-path~): Prepend Homebrew, /opt/tools,
   pkgsrc =/opt/local=, and =/usr/local= onto =PATH= and =exec-path= so
   GNU helpers (gsed/gmake/gawk/gfind/ggrep/gls and unprefixed symlinks)

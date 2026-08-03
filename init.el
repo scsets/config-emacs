@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-03 Mon 16:34
-;; Update #: 28
+;; Last-Updated: 2026-08-03 Mon 16:45
+;; Update #: 29
 ;;
 ;;; Commentary:
 ;;
@@ -46,6 +46,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-03 -- remove mail contacts package; gitea SSH; skip local clipper
 ;; add: 2026-08-03 -- howm el-get recipe (docs need rd2; not global dep)
 ;; add: 2026-08-03 -- TTY frames load misterioso; GUI keeps adwaita (Frame/UI)
 ;; add: 2026-07-31 -- autoload scs/copy-path and bind it on H-c p
@@ -322,7 +323,7 @@ Intentionally not *scratch*; new frames land on persistent notes."
   "Restore the selected frame's saved geometry." t)
 (autoload 'scs/convert "scs-convert"
   "Convert region or buffer via Pandoc (markdown -> org)." t)
-;; add: 2026-07-20 -- mail lab (mu4e / notmuch / BBDB / org-msg)
+;; add: 2026-07-20 -- mail lab (mu4e / notmuch / org-msg)
 (autoload 'scs/mail-lab-mu4e "scs-mail-lab"
   "Open mu4e on the shared ~/mail vault." t)
 (autoload 'scs/mail-lab-notmuch "scs-mail-lab"
@@ -331,10 +332,6 @@ Intentionally not *scratch*; new frames land on persistent notes."
   "notmuch search on the shared ~/mail vault." t)
 (autoload 'scs/mail-lab-compose "scs-mail-lab"
   "Compose mail as one of the lab addresses." t)
-(autoload 'scs/mail-lab-bbdb "scs-mail-lab"
-  "Open BBDB for the mail lab." t)
-(autoload 'scs/mail-lab-export-contacts "scs-mail-lab"
-  "Export mu contacts into the BBDB file." t)
 (autoload 'scs/mail-lab-install-keys "scs-mail-lab"
   "Bind C-c m for the mail lab." t)
 ;; org-tools: interactive entry points (hooks load via require after Org)
@@ -447,8 +444,10 @@ Intentionally not *scratch*; new frames land on persistent notes."
          :features embark
          :depends (compat))
         (:name gitea
-         :type github
-         :pkgname "scsets/gitea.el"
+         ;; Private repo: HTTPS needs interactive credentials (fails on
+         ;; SmartOS/daemon).  SSH works with the host key already on PATH.
+         :type git
+         :url "git@github.com:scsets/gitea.el.git"
          :branch "trunk"
          :features gitea
          :depends (embark magit-section transient))
@@ -565,6 +564,9 @@ exec ./configure --with-emacs=\"$em\"
          :depends (org))
         (:name org-web-clipper
          :type git
+         ;; Laptop-only local Gitea by default.  On hosts without
+         ;; 127.0.0.1:3000, scs/el-get-skip-unavailable-local-packages
+         ;; drops this source for the session so init does not thrash.
          :url "http://127.0.0.1:3000/scs/org-web-clipper.git"
          :branch "trunk"
          :features org-web-clipper
@@ -575,17 +577,7 @@ exec ./configure --with-emacs=\"$em\"
          :type github
          :pkgname "arnm/ob-mermaid"
          :depends (org))
-        ;; add: 2026-07-20 -- mail lab contacts + HTML compose
-        ;; Build via lisp/makefile-temp (no automake/autoconf required).
-        (:name bbdb
-         :type git
-         :url "https://git.savannah.nongnu.org/git/bbdb.git"
-         :description "Insidious Big Brother Database (contacts)"
-         :load-path ("./lisp")
-         ;; /usr/bin/make: zsh may shadow `make' with a function.
-         :build (("/usr/bin/make" "--directory=lisp" "--makefile=./makefile-temp"))
-         :features bbdb-loaddefs
-         :autoloads nil)
+        ;; add: 2026-07-20 -- mail lab HTML compose
         (:name org-msg
          :type github
          :pkgname "jeremy-compostella/org-msg"
@@ -667,6 +659,44 @@ Side effects: mutates `el-get-sources'."
 (dolist (source scs/el-get-local-sources)
   (scs/el-get-upsert-source source))
 
+(defun scs/el-get-http-url-reachable-p (url &optional timeout)
+  "Return non-nil when URL answers over HTTP within TIMEOUT seconds."
+  (let ((timeout (or timeout 1)))
+    (and (executable-find "curl")
+         (zerop (call-process "curl" nil nil nil
+                              "-sf" "--connect-timeout"
+                              (number-to-string timeout)
+                              "-o" null-device
+                              url)))))
+
+(defun scs/el-get-skip-unavailable-local-packages ()
+  "Drop session sources that need host-local services when unavailable.
+
+`org-web-clipper' lives on laptop Gitea (http://127.0.0.1:3000/...).  On
+SmartOS and other hosts that URL fails every init: el-get marks the
+package `required', then each startup does remove + reinstall + fail.
+Skipping the source here and clearing a stuck `required' status stops
+that thrash without deleting the recipe from init.el."
+  (let ((local-gitea "http://127.0.0.1:3000/"))
+    (unless (scs/el-get-http-url-reachable-p local-gitea)
+      (let ((skip '("org-web-clipper")))
+        (setq el-get-sources
+              (cl-remove-if
+               (lambda (candidate)
+                 (member (el-get-source-name candidate) skip))
+               el-get-sources))
+        (dolist (pkg skip)
+          (when (member (el-get-read-package-status pkg)
+                        '("required" "removed"))
+            ;; Keep a failed/partial checkout from looping forever.
+            (ignore-errors
+              (el-get-save-package-status pkg "removed"))
+            (message
+             "el-get: skipping %s (local Gitea %s not reachable)"
+             pkg local-gitea)))))))
+
+(scs/el-get-skip-unavailable-local-packages)
+
 (defun scs/el-get-sync-status-recipes ()
   "Reconcile `.status.el' with bootstrap and declared recipes.
 
@@ -738,12 +768,21 @@ Side effects: none."
 When a recipe is deleted from `scs/el-get-local-sources' but the package
 remains in `.status.el', a later `(el-get 'sync)' aborts with
 \"can not find a recipe\".  That used to stop init.el before themes and
-the rest of the UI loaded.  Pruning orphans keeps sync honest."
+the rest of the UI loaded.  Pruning orphans keeps sync honest.
+
+Also clears stuck `required' rows with no recipe (failed installs of
+packages that were later removed from sources), without calling
+`el-get-remove' when that path hits broken autoloads."
   (dolist (pkg (el-get-list-package-names-with-status "installed" "required"))
     (unless (scs/el-get-package-has-recipe-p pkg)
       (message "el-get: pruning orphan %s (no recipe in sources)" pkg)
-      ;; el-get-remove tolerates a missing recipe and clears status + checkout.
-      (ignore-errors (el-get-remove pkg)))))
+      (let ((status (el-get-read-package-status pkg)))
+        (cond
+         ((string= status "required")
+          ;; Avoid el-get-remove thrash/broken autoload paths for ghosts.
+          (ignore-errors (el-get-save-package-status pkg "removed")))
+         (t
+          (ignore-errors (el-get-remove pkg))))))))
 
 (defun scs/el-get-safe-sync (&rest packages)
   "Sync el-get packages without aborting Emacs init on failure.
@@ -754,8 +793,15 @@ Side effects: may prune orphans, install/update packages, and emit a
 warning if sync still fails.
 
 This is the durable fix for \"init died before load-theme\": el-get must
-never `error' out of init.el.  Prefer messages/warnings and keep going."
+never `error' out of init.el.  Prefer messages/warnings and keep going.
+
+Why you see \"removing it first\" then reinstall: a failed package is
+stored as status `required'.  The next `el-get' install path always
+removes a `required' package before retrying.  That is normal el-get
+behavior, not a random wipe.  Fix the underlying install error (or
+remove the recipe / clear status) to stop the loop."
   (let ((el-get-is-lazy t))
+    (scs/el-get-skip-unavailable-local-packages)
     (scs/el-get-prune-status-orphans)
     (condition-case err
         (apply #'el-get 'sync packages)
@@ -827,7 +873,11 @@ a package name, or an el-get recipe plist.
 Return value: nil.
 Side effects: may contact package archives or source repositories, update
 package files, and mutate `el-get-sources'.  Errors are messaged; they do
-not abort init."
+not abort init.
+
+Skips install when the package was intentionally dropped from
+`el-get-sources' for this host (see
+`scs/el-get-skip-unavailable-local-packages')."
   (ignore name)
   (when source
     (condition-case err
@@ -837,9 +887,16 @@ not abort init."
             (scs/el-get-upsert-source source))
           (let ((pkg (if (consp source)
                          (el-get-source-name source)
-                       source)))
-            (unless (el-get-package-is-installed pkg)
-              (el-get 'sync pkg))))
+                       (el-get-as-string source))))
+            (cond
+             ((el-get-package-is-installed pkg)
+              nil)
+             ((not (scs/el-get-package-has-recipe-p pkg))
+              (message
+               "el-get: not installing %s (no recipe on this host)"
+               pkg))
+             (t
+              (el-get 'sync pkg)))))
       (error
        (message "el-get install failed for %s (init continues): %s"
                 name (error-message-string err))
@@ -3208,13 +3265,8 @@ Side effects: may call `enlarge-window' on WINDOW."
 ;; ----------------------------------------------------------
 
 ;; Homebrew ships mu4e/notmuch Lisp; lisp/scs-mail-lab.el wires
-;; load-path, BBDB contacts, org-msg compose, and msmtp send.
+;; load-path, org-msg compose, and msmtp send.
 ;; Sync stays in the terminal (mbsync / mu index / notmuch new).
-;; add: 2026-07-20
-(use-package bbdb
-  :el-get t
-  :defer t)
-
 (use-package org-msg
   :el-get t
   :defer t)

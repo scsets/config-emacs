@@ -1,14 +1,14 @@
 ;;; scs-mail-lab.el --- mu4e and notmuch on ~/mail  -*- lexical-binding: t; -*-
 
 ;; Filename: scs-mail-lab.el
-;; Description: Shared Maildir lab -- mu4e, notmuch, msmtp, BBDB, org-msg
+;; Description: Shared Maildir lab -- mu4e, notmuch, msmtp, org-msg
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-07-20 Sun 10:00
-;; Version: 0.1.0
-;; Last-Updated: 2026-07-24 Fri 06:49
-;; Update #: 1
-;; Keywords: mail, mu4e, notmuch, bbdb
+;; Version: 0.2.0
+;; Last-Updated: 2026-08-03 Mon 16:55
+;; Update #: 2
+;; Keywords: mail, mu4e, notmuch
 ;; Package-Requires: ((emacs "29.1"))
 
 ;;; Commentary:
@@ -25,14 +25,13 @@
 ;; Solution
 ;; --------
 ;; One Maildir root (`scs/mail-lab-root`), three account dirs, msmtp
-;; selected from the message From: header, BBDB for completion, org-msg
-;; for HTML-friendly bodies.  Entry point: `C-c m' -> `scs/mail-lab-prefix-map'.
+;; selected from the message From: header, org-msg for HTML-friendly
+;; bodies.  Entry point: `C-c m' -> `scs/mail-lab-prefix-map'.
 ;;
 ;; Data (inspectable on disk)
 ;; --------------------------
 ;;   ~/mail/           shared Maildir (mbsync)
 ;;   mu / notmuch      indexes built in the terminal
-;;   BBDB file         contacts (default via no-littering)
 ;;
 ;; Sync stays in the shell (Emacs does not run these automatically):
 ;;   mbsync -a
@@ -44,11 +43,10 @@
 ;;   notmuch.el        C-c m n
 ;;   search            C-c m s
 ;;   compose           C-c m c
-;;   BBDB              C-c m b
-;;   export contacts   C-c m e
 ;;
 ;; Send path: message-mode -> msmtp (-a From) via ~/.msmtprc (mailcow :465).
 ;; Compose embellishment: org-msg (HTML-friendly Org body).
+;; Contacts: use mu/notmuch completion or `mu cfind' in the shell.
 ;;
 ;; How to check
 ;; ------------
@@ -57,10 +55,11 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; del: 2026-08-03 -- remove external contacts database integration
 ;; fix: 2026-07-24 -- teachable Commentary and docstrings for SCS team
 ;; fix: 2026-07-20 -- drop Gnus lab UI (keep mu4e + notmuch)
 ;; fix: 2026-07-20 -- matched split layouts, threading, multi-account send
-;; add: 2026-07-20 -- BBDB contacts (mu cfind) + org-msg compose
+;; add: 2026-07-20 -- org-msg compose
 ;; add: 2026-07-20 -- shared Maildir vault UI comparison
 
 ;;; Code:
@@ -154,7 +153,7 @@ Account names in ~/.msmtprc are the bare addresses (e.g. scs@scs.re)."
 
 Account is selected from the message From: header (-a ADDRESS).
 Passwords come from ~/.authinfo through authinfo-pass (passwordeval).
-Also ensures BBDB completion and org-msg compose are ready."
+Also ensures org-msg compose is ready."
   (require 'message)
   (require 'sendmail)
   (let ((prog (scs/mail-lab--msmtp-program)))
@@ -174,120 +173,7 @@ Also ensures BBDB completion and org-msg compose are ready."
   (add-hook 'message-send-mail-hook #'scs/mail-lab--set-msmtp-account)
   ;; Older configs used smtpmail From: hook; remove so msmtp -a wins.
   (remove-hook 'message-send-hook #'scs/mail-lab--apply-smtp-from-header)
-  (scs/mail-lab-configure-bbdb)
   (scs/mail-lab-configure-org-msg))
-
-;;;; BBDB contacts (shared by mu4e and notmuch compose)
-
-(defun scs/mail-lab--bbdb-file ()
-  "Return the BBDB file path used by the mail lab.
-
-Prefer the live `bbdb-file' (no-littering sets var/bbdb/bbdb.el).
-Fall back to ~/.bbdb when BBDB is not loaded yet."
-  (if (boundp 'bbdb-file)
-      (expand-file-name bbdb-file)
-    (expand-file-name "~/.bbdb")))
-
-(defun scs/mail-lab-configure-bbdb ()
-  "Load BBDB and hook it into message / mu4e / notmuch lightly.
-
-Completion: M-TAB (`bbdb-complete-mail') in message-mode headers.
-Does not enable auto-create-on-read; use `scs/mail-lab-export-contacts'."
-  (require 'bbdb)
-  (require 'bbdb-message)
-  (require 'bbdb-migrate) ; mu cfind dumps file-version 6; migrate to 9
-  ;; Ensure no-littering directory exists when that path is in use.
-  (let ((dir (file-name-directory (scs/mail-lab--bbdb-file))))
-    (when dir
-      (make-directory dir t)))
-  (setq bbdb-complete-mail t
-        bbdb-complete-mail-allow-cycling t
-        bbdb-message-all-addresses t)
-  ;; message always; mu4e/notmuch when their Lisp is on load-path.
-  (apply #'bbdb-initialize
-         (append '(message)
-                 (when (locate-library "mu4e") '(mu4e))
-                 (when (locate-library "notmuch") '(notmuch)))))
-
-(defun scs/mail-lab--mu-contacts-json ()
-  "Return a list of contact alists from `mu cfind --format=json'.
-
-Each element has keys email and name (name may be nil).  Using JSON
-avoids broken Lisp from mu's --format=bbdb when a display-name contains
-quotes."
-  (with-temp-buffer
-    (unless (zerop (call-process "mu" nil t nil "cfind" "--format=json" ""))
-      (user-error "mu cfind --format=json failed; is the mu index ready?"))
-    (goto-char (point-min))
-    (let ((json-object-type 'alist)
-          (json-array-type 'list)
-          (json-key-type 'symbol)
-          (json-false nil)
-          (json-null nil))
-      (require 'json)
-      (json-read))))
-
-;;;###autoload
-(defun scs/mail-lab-export-contacts (&optional force)
-  "Export vault contacts from mu into the BBDB file.
-
-Harvests via `mu cfind --format=json' (safer than --format=bbdb when
-names contain quotes), then creates BBDB records programmatically.
-Writes `bbdb-file'.  Prompts before overwrite unless FORCE (prefix arg)."
-  (interactive "P")
-  (unless (executable-find "mu")
-    (user-error "mu not found on PATH (brew install mu)"))
-  (require 'bbdb-com)
-  (scs/mail-lab-configure-bbdb)
-  (let* ((file (scs/mail-lab--bbdb-file))
-         (dir (file-name-directory file))
-         (contacts (scs/mail-lab--mu-contacts-json))
-         (count 0)
-         (bbdb-allow-duplicates t)
-         (bbdb-silent t))
-    (when dir
-      (make-directory dir t))
-    (when (and (file-exists-p file)
-               (not force)
-               (not (yes-or-no-p
-                     (format "Overwrite BBDB file %s? " file))))
-      (user-error "Export cancelled"))
-    (when (file-exists-p file)
-      (copy-file file (concat file ".bak") t))
-    ;; Fresh format-9 file; avoid mu's file-version 6 dump.
-    (with-temp-file file
-      (insert ";; -*-coding: utf-8-emacs;-*-\n"
-              ";;; file-format: 9\n"))
-    (set-file-modes file #o600)
-    (when (and (boundp 'bbdb-buffer) (buffer-live-p bbdb-buffer))
-      (with-current-buffer bbdb-buffer
-        (set-buffer-modified-p nil)
-        (kill-buffer (current-buffer))))
-    (setq bbdb-buffer nil
-          bbdb-records nil)
-    (bbdb-buffer)
-    (dolist (c contacts)
-      (let* ((email (alist-get 'email c))
-             (name (alist-get 'name c)))
-        (when (and email (stringp email) (not (string-empty-p email)))
-          (condition-case err
-              (progn
-                (bbdb-create-internal
-                 :name (and name (stringp name) (not (string-empty-p name))
-                            name)
-                 :mail (list email))
-                (setq count (1+ count)))
-            (error
-             (message "BBDB skip %s: %s" email (error-message-string err)))))))
-    (bbdb-save nil t)
-    (message "Exported %d contacts to %s" count file)))
-
-;;;###autoload
-(defun scs/mail-lab-bbdb ()
-  "Open BBDB (after ensuring mail-lab BBDB config)."
-  (interactive)
-  (scs/mail-lab-configure-bbdb)
-  (call-interactively #'bbdb))
 
 ;;;; org-msg (shared HTML-friendly compose)
 
@@ -528,25 +414,20 @@ has only one window, split below first so the advice stays predictable."
     (define-key map (kbd "n") #'scs/mail-lab-notmuch)
     (define-key map (kbd "s") #'scs/mail-lab-search)
     (define-key map (kbd "c") #'scs/mail-lab-compose)
-    (define-key map (kbd "b") #'scs/mail-lab-bbdb)
-    (define-key map (kbd "e") #'scs/mail-lab-export-contacts)
     map))
 
 (defvar scs/mail-lab-prefix-map
   (scs/mail-lab--make-prefix-map)
   "Prefix map bound to `C-c m' by `scs/mail-lab-install-keys'.
-Keys: m mu4e, n notmuch, s search, c compose, b BBDB, e export contacts.")
+Keys: m mu4e, n notmuch, s search, c compose.")
 
 ;;;###autoload
 (defun scs/mail-lab-install-keys ()
   "Bind C-c m to `scs/mail-lab-prefix-map'."
   (unless (keymapp scs/mail-lab-prefix-map)
     (setq scs/mail-lab-prefix-map (scs/mail-lab--make-prefix-map)))
-  ;; Refresh bindings when the map was built before b/e existed.
-  (define-key scs/mail-lab-prefix-map (kbd "b") #'scs/mail-lab-bbdb)
-  (define-key scs/mail-lab-prefix-map (kbd "e") #'scs/mail-lab-export-contacts)
   (define-key global-map (kbd "C-c m") scs/mail-lab-prefix-map)
-  (message "mail-lab keys: C-c m m/n/s/c/b/e"))
+  (message "mail-lab keys: C-c m m/n/s/c"))
 
 (provide 'scs-mail-lab)
 

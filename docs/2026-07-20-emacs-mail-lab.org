@@ -4,9 +4,9 @@
 #+AUTHOR: SCS
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-20 Mon 17:44
-#+VERSION: 0.3.0
-#+LAST-UPDATED: 2026-07-20 Mon 19:19
-#+UPDATE: 10
+#+VERSION: 0.4.0
+#+LAST-UPDATED: 2026-08-03 Mon 16:55
+#+UPDATE: 11
 
 * Goal
 
@@ -15,7 +15,7 @@ Compare two Emacs mail UIs on one local vault:
 - mu4e (=mu= index)
 - notmuch.el (=notmuch= index)
 
-Shared extras: BBDB contacts (from =mu cfind=) and =org-msg= compose.
+Shared extras: =org-msg= compose (HTML-friendly Org bodies).
 
 (Gnus was tried and dropped -- too much bookkeeping for this lab.)
 
@@ -32,7 +32,7 @@ Shared extras: BBDB contacts (from =mu cfind=) and =org-msg= compose.
 | Credentials | =~/.authinfo= (mode 600), filled by hand |
 | Pass helper | =~/.config/emacs/bin/authinfo-pass= |
 | Sync config | =~/.mbsyncrc= |
-| Contacts | BBDB (=var/bbdb/bbdb.el= via no-littering) |
+| Contacts | mu/notmuch UI completion, or =mu cfind= in the shell |
 
 *** mbsync channels
 
@@ -59,7 +59,6 @@ Shared extras: BBDB contacts (from =mu cfind=) and =org-msg= compose.
 - [X] Minimal mu4e (=lisp/scs-mail-lab.el=, =C-c m m=)
 - [X] Minimal notmuch.el (=C-c m n=)
 - [X] Dropped Gnus lab UI
-- [X] BBDB contacts + =mu cfind --format=json= export (=C-c m e=)
 - [X] =org-msg= HTML-friendly compose (shared)
 
 ** Phase 3 -- scorecard
@@ -74,35 +73,21 @@ Reload config (=C-c r=) or restart Emacs, then:
 | mu4e | =C-c m m= | =j g= global INBOX; list top / body bottom; =c= compose; =C-c C-c= send |
 | notmuch | =C-c m n= or =C-c m s= | =RET= thread (opens below); =m= compose; =C-c C-c= send |
 | compose (any) | =C-c m c= | pick From; Org body via =org-msg=; =C-c C-c= send |
-| BBDB | =C-c m b= | browse / search contacts |
-| export contacts | =C-c m e= | harvest from mu into BBDB file |
 
 *** Layout and threads
 
 - mu4e :: =mu4e-split-view= horizontal; related messages on (=mu4e-search-include-related=)
 - notmuch :: search stays on top; show opens in lower window; search lines are threads
 
-*** Contacts (BBDB)
+*** Contacts
 
-Mental model:
-
-1. Harvest addresses already seen in mail (=mu cfind=)
-2. Store in the BBDB file (Lisp data; inspectable)
-3. Complete on To/Cc with =M-TAB= (=bbdb-complete-mail=) in compose
-
-Shell preview:
+Use the mail UI's own address completion (mu4e / notmuch).  Shell
+preview of addresses already seen in the vault:
 
 #+begin_src shell
 mu cfind --format=json -n 5 ''
 mu cfind --format=plain -n 5 ''
 #+end_src
-
-In Emacs: =C-c m e= harvests via JSON into the BBDB file (backs up with
-=.bak=, creates format-9 records).  Prefer this over raw
-=mu cfind --format=bbdb= (that dump can break on names with quotes).
-Then =C-c m b= (or =M-x bbdb=) to browse.
-
-=org-msg= compose still uses the same BBDB completion hooks (message-mode).
 
 *** Sending
 
