@@ -21,6 +21,11 @@ normalized to lowercase =changelog.org= on 2026-07-27.
   pkgsrc =/opt/local=, and =/usr/local= onto =PATH= and =exec-path= so
   GNU helpers (gsed/gmake/gawk/gfind/ggrep/gls and unprefixed symlinks)
   win over thin SmartOS =/usr/bin= tools before package builds run.
+- =early-init.el= (~scs/setup-smartos-make-shell~): On SmartOS set
+  =MAKEFLAGS=SHELL=/usr/bin/bash= (and =shell-file-name=) so GNU make
+  recipes do not run under =/bin/sh= → ksh93.  Login bash does not help:
+  make ignores env =SHELL= and ksh93 =echo -n= breaks howm's =bcomp.el=
+  rule.  No per-package el-get recipe required.
 - =early-init.el= (~scs/require-smartos-gnu-tools~): On SmartOS/Illumos,
   exit immediately with a stderr message unless =gsed=, =gmake=, =gawk=,
   =gfind=, =ggrep=, and =gls= are on PATH after setup (plain =/usr/bin/sed=

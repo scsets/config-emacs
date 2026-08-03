@@ -31,6 +31,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-03 -- SmartOS MAKEFLAGS SHELL=bash for make recipes (howm)
 ;; add: 2026-08-03 -- SmartOS hard-fail if core GNU tools missing after PATH
 ;; add: 2026-08-03 -- prepend GNU/user tool dirs on PATH and exec-path
 ;; fix: 2026-07-24 -- teachable Commentary for SCS team
@@ -193,6 +194,41 @@ satisfy the check."
          (or (getenv "PATH") ""))))))
 
 (scs/require-smartos-gnu-tools)
+
+(defun scs/setup-smartos-make-shell ()
+  "On SmartOS, force GNU make recipes to run under bash.
+
+Login SHELL can be bash while /bin/sh is still ksh93.  GNU make does not
+honor the SHELL environment variable for recipes (it defaults to /bin/sh).
+ksh93's `echo -n` is not portable and breaks stock Makefiles (howm's
+bcomp.el rule: unterminated sed s///).  Putting SHELL=/path/to/bash into
+MAKEFLAGS applies to every `make` Emacs spawns (el-get, etc.) without
+per-package recipes.
+
+No-op when not on SmartOS or when bash is missing."
+  (when (scs/smartos-p)
+    (let ((bash (or (executable-find "bash") "/usr/bin/bash")))
+      (unless (file-executable-p bash)
+        (scs/early-init-fail
+         "SCS Emacs on SmartOS needs bash for GNU make recipes (MAKEFLAGS).\nMissing executable: %s"
+         bash))
+      ;; Interactive and call-process shell helpers match the login shell.
+      (setq shell-file-name bash)
+      (setenv "SHELL" bash)
+      ;; make ignores env SHELL; MAKEFLAGS assignment is the portable lever.
+      (let* ((assign (concat "SHELL=" bash))
+             (prev (getenv "MAKEFLAGS")))
+        (setenv "MAKEFLAGS"
+                (cond
+                 ((or (null prev) (string= prev ""))
+                  assign)
+                 ((string-match-p "\\bSHELL=" prev)
+                  ;; Keep an existing SHELL= from the user/environment.
+                  prev)
+                 (t
+                  (concat assign " " prev))))))))
+
+(scs/setup-smartos-make-shell)
 
 (defun scs/prefer-gnu-program (base &optional emacs-var)
   "Prefer the g-prefixed GNU tool for BASE when it is on `exec-path'.
