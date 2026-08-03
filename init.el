@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-03 Mon 15:09
-;; Update #: 27
+;; Last-Updated: 2026-08-03 Mon 16:34
+;; Update #: 28
 ;;
 ;;; Commentary:
 ;;
@@ -46,6 +46,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-03 -- howm el-get recipe (docs need rd2; not global dep)
 ;; add: 2026-08-03 -- TTY frames load misterioso; GUI keeps adwaita (Frame/UI)
 ;; add: 2026-07-31 -- autoload scs/copy-path and bind it on H-c p
 ;; fix: 2026-07-27 -- autoload howm-mode; expose async clipper cancellation
@@ -454,6 +455,34 @@ Intentionally not *scratch*; new frames land on persistent notes."
         (:name haproxy-mode
          :type github
          :pkgname "port19x/haproxy-mode")
+        ;; howm: stock upstream build (configure + make) including HTML docs
+        ;; under doc/.  Docs need `rd2` from the Ruby gem rdtool
+        ;; (gem install rdtool).  On SmartOS install host deps with
+        ;; bin/smartos-emacs-deps.sh.  early-init sets MAKEFLAGS SHELL=bash
+        ;; so make recipes are not run under ksh93 (echo -n / bcomp.el).
+        ;; The configure step fails this package only if rd2 is missing,
+        ;; without making rd2 a global Emacs startup dependency.
+        (:name howm
+         :website "https://kaorahi.github.io/howm/"
+         :description "Write fragmentarily and read collectively."
+         :type github
+         :pkgname "kaorahi/howm"
+         :build (("sh" "-c" "\
+set -e
+if ! command -v rd2 >/dev/null 2>&1; then
+  echo 'howm: rd2 not on PATH (needed for doc/*.html).' >&2
+  echo 'Install: gem install rdtool' >&2
+  echo 'Or on SmartOS: bin/smartos-emacs-deps.sh' >&2
+  exit 1
+fi
+em=$(command -v emacs)
+if [ -z \"$em\" ]; then
+  echo 'howm: emacs not on PATH for ./configure --with-emacs=' >&2
+  exit 1
+fi
+exec ./configure --with-emacs=\"$em\"
+")
+                 ("make")))
         ;; add: 2026-07-24 -- command hub deep docs (Transient catalog Describe)
         (:name dash
          :type github

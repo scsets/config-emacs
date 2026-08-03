@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-03 Mon 15:21
-#+UPDATE: 29
+#+LAST-UPDATED: 2026-08-03 Mon 16:34
+#+UPDATE: 30
 # $Id$
 
 * Document role
@@ -22,25 +22,24 @@ normalized to lowercase =changelog.org= on 2026-07-27.
   GNU helpers (gsed/gmake/gawk/gfind/ggrep/gls and unprefixed symlinks)
   win over thin SmartOS =/usr/bin= tools before package builds run.
 - =early-init.el= (~scs/setup-smartos-make-shell~): On SmartOS set
-  =MAKEFLAGS=SHELL=/usr/bin/bash= (and =shell-file-name=) so GNU make
-  recipes do not run under =/bin/sh= → ksh93.  Login bash does not help:
-  make ignores env =SHELL= and ksh93 =echo -n= breaks howm's =bcomp.el=
-  rule.  No per-package el-get recipe required.
-- =early-init.el= (~scs/require-smartos-gnu-tools~): On SmartOS/Illumos,
-  exit immediately with a stderr message unless =gsed=, =gmake=, =gawk=,
-  =gfind=, =ggrep=, and =gls= are on PATH after setup (plain =/usr/bin/sed=
-  must not satisfy the check).  PATH prepending still prefers unprefixed
-  GNU symlinks for Makefiles that call =sed=/=make= without the =g=.
+  =MAKEFLAGS=SHELL=bash= (and =shell-file-name=) so GNU make recipes do
+  not run under =/bin/sh= → ksh93.  Login bash does not help: make
+  ignores env =SHELL= and ksh93 =echo -n= breaks howm's =bcomp.el= rule.
+- =early-init.el= (~scs/require-smartos-gnu-tools~): On SmartOS, exit
+  unless =gsed= =gmake= =gawk= =gfind= =ggrep= =gls= are on PATH (not
+  =rd2= — that stays howm-only).
 - =early-init.el= (~scs/prefer-gnu-program~): Prefer =gls= / =gfind= /
   =ggrep= for =insert-directory-program=, =find-program=, and
   =grep-program= when those names exist.
-- =init.el= (~scs/apply-ui-theme~): Terminal frames (~emacs -nw~,
-  ~emacsclient -t~, SSH) load the built-in ~misterioso~ theme; GUI
-  frames keep ~adwaita~.  Applied at init and on
-  ~after-make-frame-functions~ so headless daemons get the TTY theme on
-  the first client.  Lives under Frame / UI next to
-  ~scs/apply-default-font~ (not ~early-init.el~, where
-  ~display-graphic-p~ is still nil before the initial frame exists).
+- =init.el= (el-get howm recipe): Isolated howm source — full
+  =configure= + =make= (including =doc/*.html=).  Configure fails this
+  package only if =rd2= is missing, with install hints; not a global
+  startup dependency.
+- =bin/smartos-emacs-deps.sh=: New host bootstrap for SmartOS — verify
+  GNU tools and =gem install rdtool= (=rd2=) for howm docs on the next
+  machine.
+- =init.el= (~scs/apply-ui-theme~): Terminal frames load ~misterioso~;
+  GUI keeps ~adwaita~ (Frame / UI; not early-init).
 
 * 2026-07-31  SCS  <scs@scs.re>
 

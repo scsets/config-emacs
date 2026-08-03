@@ -31,7 +31,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
-;; add: 2026-08-03 -- SmartOS MAKEFLAGS SHELL=bash for make recipes (howm)
+;; add: 2026-08-03 -- SmartOS MAKEFLAGS SHELL=bash for make recipes
 ;; add: 2026-08-03 -- SmartOS hard-fail if core GNU tools missing after PATH
 ;; add: 2026-08-03 -- prepend GNU/user tool dirs on PATH and exec-path
 ;; fix: 2026-07-24 -- teachable Commentary for SCS team
@@ -145,12 +145,17 @@ usual pkgsrc/tools prefixes so plain SVR4 hosts are not treated as SmartOS."
 
 (defvar scs/smartos-required-gnu-tools
   '("gsed" "gmake" "gawk" "gfind" "ggrep" "gls")
-  "GNU tool names that must exist on SmartOS after PATH setup.
+  "Core GNU tool names that must exist on SmartOS after PATH setup.
 
-Require the g-prefixed binaries explicitly.  Accepting plain sed/make/awk
-would pass on stock /usr/bin (illumos sed is not GNU and breaks howm make).
-/opt/tools usually also ships unprefixed symlinks (sed -> gsed); PATH
-prepending makes those work for Makefiles that call sed/make without the g.")
+Require g-prefixed binaries explicitly.  Accepting plain sed/make/awk
+would pass on stock /usr/bin (illumos sed is not GNU and breaks package
+builds that assume GNU tools).  /opt/tools usually also ships unprefixed
+symlinks (sed -> gsed); PATH prepending makes those work for Makefiles
+that call sed/make without the g.
+
+Optional howm HTML docs need `rd2' (Ruby gem rdtool) — that is *not*
+a global Emacs startup requirement; see the howm el-get recipe in
+init.el and bin/smartos-emacs-deps.sh.")
 
 (defun scs/gnu-tool-path (base)
   "Return absolute path of gBASE or BASE on `exec-path', or nil.
@@ -173,7 +178,7 @@ BASE is the unprefixed name (\"sed\", \"awk\", …).  Prefers gBASE."
 
 No-op on macOS, FreeBSD, and Linux.  Requires gsed, gmake, gawk, gfind,
 ggrep, and gls by those exact names so thin /usr/bin sed/awk cannot
-satisfy the check."
+satisfy the check.  Does not require rd2 (howm-only; see init.el)."
   (when (scs/smartos-p)
     (let ((missing
            (let (out)
@@ -189,6 +194,7 @@ satisfy the check."
           "restart Emacs.  Need at least: gsed gmake gawk gfind ggrep gls\n"
           "(unprefixed sed/make/awk/find/grep/ls symlinks are optional but\n"
           "recommended so Makefiles that call plain sed still get GNU).\n"
+          "Tip: run bin/smartos-emacs-deps.sh on a new SmartOS host.\n"
           "Current PATH=%s")
          (mapconcat #'identity missing ", ")
          (or (getenv "PATH") ""))))))
