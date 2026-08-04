@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-03 Mon 16:45
-#+UPDATE: 31
+#+LAST-UPDATED: 2026-08-04 Tue 18:27
+#+UPDATE: 32
 # $Id$
 
 * Document role
@@ -14,6 +14,18 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10, then
 normalized to lowercase =changelog.org= on 2026-07-27.
+
+* 2026-08-04  SCS  <scs@scs.re>
+
+- =init.el= / =lisp/scs-startup-state.el=: Turn off ~desktop-save-mode~
+  and its lock/EWW hygiene.  Graphic Emacs now applies a curated home
+  screen: restore frame-state label ~2048x1127+0+25~, open
+  =~/notes/progress-todo.org= left and =~/.config/emacs/init.el= right
+  (~scs/startup-state-files~ / ~scs/startup-state-frame-label~).
+  Terminal Emacs is unchanged.  Spec:
+  =docs/2026-08-04-startup-state-design.org=.
+- =test/scs-startup-state-test.el=: ERT for path resolve and the
+  once-per-session apply flag.
 
 * 2026-08-03  SCS  <scs@scs.re>
 

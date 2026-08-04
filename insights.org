@@ -6,13 +6,35 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-03-05 Thu 17:59
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-07-31 Fri 14:50
-#+UPDATE: 1
+#+LAST-UPDATED: 2026-08-04 Tue 18:27
+#+UPDATE: 2
 
 * Document role
 
 Durable technical lessons and incident notes.  Not current operator
 instructions (see =readme.org=) and not the open backlog (=tasks.org=).
+
+* Curated GUI startup (not desktop.el)
+
+~desktop-save-mode~ is off in this profile.  Graphic Emacs opens a
+small home screen from ~lisp/scs-startup-state.el~:
+
+- Restore one named entry from ~scs-frame-state~
+  (~scs/startup-state-frame-label~, default ~2048x1127+0+25~)
+- Visit ~scs/startup-state-files~ (seed: =~/notes/progress-todo.org=
+  and =~/.config/emacs/init.el=)
+- Left/right split for the first two existing files; further files
+  load with ~find-file-noselect~ only
+
+Terminal / ~emacs -nw~ skips the module (~display-graphic-p~ gate).
+Bookmarks stay for jumping only; they are not startup markers.
+
+Apply runs on ~window-setup-hook~ (and once for the first graphic
+~emacsclient~ frame via ~after-make-frame-functions~).  Re-run by hand
+with ~M-x scs/startup-state-apply~ (prefix arg forces after the
+once-per-session flag).
+
+Spec: =docs/2026-08-04-startup-state-design.org=.
 
 * Command hub: Transient + Helm + curated data
 
@@ -218,10 +240,12 @@ Emacs applies user frame settings late in startup:
    ~default-frame-alist~ to the initial frame)
 3. ~window-setup-hook~
 
-Geometry must run on ~window-setup-hook~ (and after ~desktop-read~ via
-~desktop-after-read-hook~ if desktop restore is enabled), not only on
-~emacs-startup-hook~. Scheduled retries (~run-at-time~ at 0–3 s) cover
-late monitor data on NS.
+Geometry and curated startup (~scs/startup-state-apply~) must run on
+~window-setup-hook~, not only on ~emacs-startup-hook~.  (Older notes
+mentioned ~desktop-after-read-hook~ when ~desktop-save-mode~ was on;
+desktop is no longer used -- see *Curated GUI startup* above.)
+Scheduled retries (~run-at-time~ at 0–3 s) cover late monitor data on
+NS when a half-screen helper is active.
 
 ** Resize API (~frame-resize-pixelwise t~)**
 

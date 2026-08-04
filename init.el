@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-03 Mon 16:45
-;; Update #: 29
+;; Last-Updated: 2026-08-04 Tue 18:27
+;; Update #: 30
 ;;
 ;;; Commentary:
 ;;
@@ -27,7 +27,8 @@
 ;;   General settings -- server, encoding, save hygiene, dired, search tools,
 ;;   input method.
 ;;   Custom file -- where Customize would write (we keep config in Git instead).
-;;   Settings formerly in custom.el -- desktop, migrated Customize values.
+;;   Settings formerly in custom.el -- migrated Customize values; GUI startup
+;;   uses scs-startup-state (not desktop.el).
 ;;   Frame / UI -- theme (GUI vs TTY), font, tool-bar.
 ;;   Keybindings -- Hyper chords (macOS), C-c prefixes, safety remaps.
 ;;   Packages -- use-package blocks, mostly alphabetical (see in-file notes).
@@ -46,6 +47,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-04 -- curated GUI startup (scs-startup-state); desktop-save-mode off
 ;; add: 2026-08-03 -- remove mail contacts package; gitea SSH; skip local clipper
 ;; add: 2026-08-03 -- howm el-get recipe (docs need rd2; not global dep)
 ;; add: 2026-08-03 -- TTY frames load misterioso; GUI keeps adwaita (Frame/UI)
@@ -321,6 +323,10 @@ Intentionally not *scratch*; new frames land on persistent notes."
   "Load and inspect saved frame geometry." t)
 (autoload 'scs/frame-state-restore "scs-frame-state"
   "Restore the selected frame's saved geometry." t)
+(autoload 'scs/startup-state-apply "scs-startup-state"
+  "Apply curated GUI startup buffers and frame geometry." t)
+(autoload 'scs/startup-state-enable "scs-startup-state"
+  "Enable curated GUI startup hooks." t)
 (autoload 'scs/convert "scs-convert"
   "Convert region or buffer via Pandoc (markdown -> org)." t)
 ;; add: 2026-07-20 -- mail lab (mu4e / notmuch / org-msg)
@@ -1263,44 +1269,15 @@ working; see comments above this function for the syntax split."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; Values that once lived in a persisted custom.el file, kept here so the
-;; repo remains the single source of truth.  Desktop save/load is part of
-;; daily session restore on this machine.  Theme lives under Frame / UI.
+;; repo remains the single source of truth.  Theme lives under Frame / UI.
+;; GUI home screen is curated by lisp/scs-startup-state.el (not desktop.el).
 
 (blink-cursor-mode -1)
-(with-eval-after-load 'desktop
-  ;; Stale desktop lock files after a crash can block session restore; remove
-  ;; them when the recorded PID is not a live Emacs process.
-  (defun scs/desktop-clear-stale-lock ()
-    "Remove a stale `.emacs.desktop.lock' left by a crashed session."
-    (when-let* ((_dir (and (boundp 'desktop-dirname) (stringp desktop-dirname)))
-                (lock (expand-file-name ".emacs.desktop.lock" desktop-dirname))
-                (_ (file-readable-p lock)))
-      (let ((pid (ignore-errors
-                   (string-to-number
-                    (string-trim (with-temp-buffer
-                                   (insert-file-contents lock)
-                                   (buffer-string)))))))
-        (when (or (not (natnump pid))
-                  (not (zerop
-                        (call-process "kill" nil nil nil "-0"
-                                      (number-to-string pid)))))
-          (delete-file lock)))))
-  (scs/desktop-clear-stale-lock)
-  ;; EWW buffers with nil history position break desktop save on quit; normalize
-  ;; before desktop writes buffer metadata.
-  (defun scs/desktop-sanitize-before-save ()
-    "Repair buffer state that breaks `desktop-buffer-info' during desktop save.
-
-EWW buffers with a nil `eww-history-position' make desktop save signal
-`wrong-type-argument' (integerp nil) when quitting Emacs."
-    (cl-loop for buf in (buffer-list)
-             when (eq (buffer-local-value 'major-mode buf) 'eww-mode)
-             do (with-current-buffer buf
-                  (unless (natnump eww-history-position)
-                    (setq eww-history-position 0)))))
-  (add-hook 'desktop-save-hook #'scs/desktop-sanitize-before-save))
-(desktop-save-mode t)
 (size-indication-mode t)
+
+;; Curated GUI home screen (not desktop.el).  Terminal Emacs no-ops
+;; inside scs/startup-state-apply via display-graphic-p.
+(scs/startup-state-enable)
 
 (setq byte-compile-error-on-warn nil)
 (setq org-ql-search-directories-files-recursive t)

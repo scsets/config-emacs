@@ -1,0 +1,141 @@
+#+TITLE: GUI startup state -- design
+#+FILENAME: 2026-08-04-startup-state-design.org
+#+DESCRIPTION: Replace desktop-save-mode with a curated GUI-only startup module
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-08-04 Tue 17:11
+#+VERSION: 0.1.0
+#+LAST-UPDATED: 2026-08-04 Tue 17:11
+#+UPDATE: 0
+
+* Summary
+
+Turn off Emacs ~desktop-save-mode~ and replace session restore with a
+small, data-first module (~lisp/scs-startup-state.el~) that applies
+only on graphic frames: restore one named ~scs-frame-state~ geometry
+label, open a plain file list, and show the first two files in a
+left/right split.  Terminal Emacs stays simple.  Bookmarks stay for
+jumping only and are not used as startup markers.
+
+* Goals
+
+- Predictable GUI home screen instead of "whatever was open last time"
+- Keep terminal / ~emacs -nw~ free of restore and forced splits
+- Reuse existing ~scs-frame-state~ for geometry; do not invent a second
+  geometry store
+- Keep the file list and frame label as inspectable ~defcustom~ data
+- Never abort init on missing files or a missing frame label
+
+* Non-goals
+
+- Bookmark-prefixed startup sets (rejected for now; plain list wins)
+- Automatic last-session save/restore (desktop replacement is curated,
+  not a session recorder)
+- Fancy tiling beyond one vertical split of the first two files
+- Changing interactive ~scs/frame-state-save~ / ~restore~ behavior
+- Auto-applying the layout again on every ~emacsclient~ graphic frame
+  after the first apply in a daemon session
+
+* Approach chosen
+
+**Approach 1 -- dedicated module** (approved):
+
+- New ~lisp/scs-startup-state.el~
+- ~init.el~ disables desktop and wires the module
+- Seed data in ~defcustom~ defaults
+
+Rejected for now:
+
+- Approach 2 -- inline-only in ~init.el~ (harder to teach and test)
+- Approach 3 -- bookmark-driven startup markers (user chose plain list)
+
+* Data model
+
+Two customizable values; this module does not write its own state file.
+
+| Variable | Meaning | Seed default |
+|----------|---------|--------------|
+| ~scs/startup-state-files~ | List of file path strings to visit | =~/notes/progress-todo.org=, =~/.config/emacs/init.el= |
+| ~scs/startup-state-frame-label~ | Label in ~var/frame-state.el~ | =2048x1127+0+25= |
+
+Layout rules derived from the list:
+
+- Empty list: restore frame (if label usable) and stop
+- One file: visit full-frame (no split)
+- Two or more: left = first, right = second; further entries load with
+  ~find-file-noselect~ only (not shown)
+- Missing file: skip with ~message~, continue
+- Missing / invalid frame label: skip geometry with ~message~, still
+  open files
+
+Bookmarks (~var/bookmark-default.el~) are out of scope for this module.
+
+* Runtime
+
+**Entry point:** ~scs/startup-state-apply~ (also interactive for manual
+re-run).
+
+**Gate:** return immediately unless ~(display-graphic-p)~ on the
+selected frame.
+
+**Hooks:**
+
+- ~window-setup-hook~ for normal GUI Emacs (frame is real; aligns with
+  the geometry timing notes in ~insights.org~)
+- ~after-make-frame-functions~ for the first graphic frame when a
+  daemon starts headless; guarded by an "already applied" flag so later
+  client frames do not re-split
+
+**Order inside apply:**
+
+1. Best-effort ~scs/frame-state-restore~ for ~scs/startup-state-frame-label~
+2. Expand paths; collect existing files; message on skips
+3. Visit first file in the selected window
+4. If a second file exists: ~split-window-right~, visit it in the new
+   window, then select the left window (focus on the first file)
+5. Remaining files: ~find-file-noselect~ only
+
+**Failure policy:** never signal hard enough to abort init.  Interactive
+re-run may use ~user-error~ only when the caller asked for a label or
+file that cannot be resolved and empty success would be confusing.
+
+* init.el changes
+
+- Remove ~(desktop-save-mode t)~
+- Remove the ~with-eval-after-load 'desktop~ hygiene block
+  (~scs/desktop-clear-stale-lock~, ~scs/desktop-sanitize-before-save~)
+- Autoload / require ~scs-startup-state~ beside the existing
+  ~scs-frame-state~ autoloads
+- Enable the startup-state hooks once
+
+Leave ~var/desktop/~ alone on disk (empty or leftover); no longer used.
+Optional cleanup of that directory can be a later chore, not required
+for correctness.
+
+* Verification
+
+| Check | Expectation |
+|-------|-------------|
+| GUI restart or ~M-x scs/startup-state-apply~ | Frame label ~2048x1127+0+25~ restored; ~progress-todo.org~ left; ~init.el~ right |
+| ~emacs -nw~ | No startup-state split or forced file open |
+| Rename one listed file temporarily | Startup completes; skip message in ~*Messages*~ |
+| Nonsense frame label | Files still open; geometry skip message |
+| Daemon: first graphic client | Layout applied once |
+| Daemon: second graphic client | No automatic re-apply |
+
+* Docs touch (implementation time)
+
+- Teachable Commentary on ~scs-startup-state.el~ (problem / solution /
+  how to check)
+- Short ~changelog.org~ or ~insights.org~ note that desktop is off and
+  startup is curated GUI-only
+- Keep this design Org as the canonical spec
+
+* Open points resolved in brainstorming
+
+- Startup kind: curated file list (A), not last-session
+- Bookmarks: not used for startup (C); jumping only
+- Presentation: left/right for first two (C then A for extras)
+- Geometry: restore named ~scs-frame-state~ label on GUI start (B)
+- Seed: progress-todo + init.el; label ~2048x1127+0+25~ (A)
+- Shape: dedicated ~lisp/scs-startup-state.el~ (Approach 1)

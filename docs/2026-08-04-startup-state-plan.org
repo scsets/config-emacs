@@ -1,0 +1,487 @@
+#+TITLE: GUI startup state -- implementation plan
+#+FILENAME: 2026-08-04-startup-state-plan.org
+#+DESCRIPTION: Step plan to replace desktop-save-mode with scs-startup-state
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-08-04 Tue 17:12
+#+VERSION: 0.1.0
+#+LAST-UPDATED: 2026-08-04 Tue 17:12
+#+UPDATE: 0
+
+* For agentic workers
+
+Spec: =docs/2026-08-04-startup-state-design.org=.
+Execute task-by-task **inline in this session** (workspace rule
+~inline-plan-execution~; do not offer subagent-vs-inline).  Do not
+~git commit~ unless SCS explicitly asks.  ASCII only.  Prefer Org for
+docs.  Update ~changelog.org~ when code lands.
+
+REQUIRED when implementing: teachable Commentary on new Elisp; soft
+why-comments; follow ~documented-code~ for API checks
+(~window-setup-hook~, ~display-graphic-p~, ~split-window-right~,
+~find-file-noselect~, ~scs/frame-state-load~, ~scs/frame-state-restore~).
+
+* Goal
+
+Disable ~desktop-save-mode~ and ship ~lisp/scs-startup-state.el~ so GUI
+Emacs restores one named frame-state label and opens a curated file
+list with a left/right split of the first two files; terminal stays
+untouched.
+
+* Architecture
+
+~scs-startup-state.el~ owns two ~defcustom~ values, pure helpers for
+path resolution, ~scs/startup-state-apply~ for geometry + windows, and
+~scs/startup-state-enable~ for hooks with a once-per-session flag.
+~init.el~ removes desktop wiring and enables the module.
+~scs-frame-state.el~ is unchanged; startup only calls its load/restore
+APIs.
+
+* Global constraints
+
+- Emacs 29.1+ (profile baseline).
+- Graphic only: ~(display-graphic-p)~ gate; ~emacs -nw~ must no-op.
+- Seed files: =~/notes/progress-todo.org=, =~/.config/emacs/init.el=.
+- Seed frame label: =2048x1127+0+25= (must already exist in
+  ~var/frame-state.el~).
+- Left/right for first two files; extras via ~find-file-noselect~ only.
+- Missing file or label: ~message~ and continue; never abort init.
+- Bookmarks are out of scope.
+- Do not rewrite ~scs-frame-state.el~.
+- Do not ~git commit~ unless SCS asks.
+
+* File map
+
+| Path | Action |
+|------|--------|
+| ~lisp/scs-startup-state.el~ | Create: defcustoms, helpers, apply, enable |
+| ~test/scs-startup-state-test.el~ | Create: ERT for resolve helpers + once flag |
+| ~init.el~ | Modify: drop desktop block; autoload + enable |
+| ~insights.org~ | Short note: desktop off; curated GUI startup |
+| ~changelog.org~ | Maintenance entry |
+| ~docs/2026-08-04-startup-state-design.org~ | Spec (already written; do not rewrite) |
+
+* Tasks
+
+** Task 1: Resolve-files helper + ERT (TDD)
+
+**Files:**
+- Create: ~lisp/scs-startup-state.el~ (skeleton + resolve helper)
+- Create: ~test/scs-startup-state-test.el~
+
+**Interfaces:**
+- Produces: ~scs/startup-state--resolve-files~ (FILES) -> list of
+  absolute existing paths; skips missing with ~message~; preserves
+  order of survivors
+- Produces: file header + Commentary stub; ~provide 'scs-startup-state~
+
+- [ ] Step 1: Create ~test/scs-startup-state-test.el~ with metadata
+  and this failing test shape (paths use ~make-temp-file~ so the suite
+  does not depend on ~~/notes~):
+
+#+begin_src emacs-lisp
+;;; scs-startup-state-test.el --- Tests for scs-startup-state  -*- lexical-binding: t; -*-
+
+;; Filename: scs-startup-state-test.el
+;; Description: ERT tests for lisp/scs-startup-state.el
+;; Author: SCS
+;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
+;; Created: 2026-08-04 Tue 17:12
+;; Version: 0.1.0
+;; Last-Updated: 2026-08-04 Tue 17:12
+;; Update #: 0
+
+;;; Commentary:
+;;
+;; Batch run (from repo root):
+;;
+;;   emacs -batch -L lisp -l ert -l lisp/scs-frame-state.el \
+;;     -l lisp/scs-startup-state.el -l test/scs-startup-state-test.el \
+;;     -f ert-run-tests-batch-and-exit
+
+(require 'ert)
+(require 'scs-startup-state)
+
+(ert-deftest scs/startup-state-resolve-files-skips-missing-keeps-order ()
+  "Existing paths expand and keep order; missing paths are dropped."
+  (let* ((a (make-temp-file "scs-startup-a-"))
+         (b (make-temp-file "scs-startup-b-"))
+         (missing (expand-file-name
+                   "definitely-missing-scs-startup.el"
+                   temporary-file-directory))
+         (got (scs/startup-state--resolve-files
+               (list a missing b))))
+    (unwind-protect
+        (progn
+          (should (equal got
+                         (list (expand-file-name a)
+                               (expand-file-name b))))
+          (should (= 2 (length got))))
+      (delete-file a)
+      (delete-file b))))
+
+(ert-deftest scs/startup-state-resolve-files-empty ()
+  "Nil or empty input yields nil."
+  (should (eq nil (scs/startup-state--resolve-files nil)))
+  (should (eq nil (scs/startup-state--resolve-files '()))))
+
+(provide 'scs-startup-state-test)
+;;; scs-startup-state-test.el ends here
+#+end_src
+
+- [ ] Step 2: Run the suite; expect FAIL (feature / function missing).
+
+Run:
+
+#+begin_example
+emacs -batch -L lisp -l ert -l lisp/scs-frame-state.el \
+  -l lisp/scs-startup-state.el -l test/scs-startup-state-test.el \
+  -f ert-run-tests-batch-and-exit
+#+end_example
+
+Expected: cannot open load file ~scs-startup-state~, or void-function
+~scs/startup-state--resolve-files~.
+
+- [ ] Step 3: Create ~lisp/scs-startup-state.el~ with metadata,
+  teachable Commentary (problem / solution / how to check), require
+  ~scs-cl~ and ~scs-frame-state~, and implement only the resolve
+  helper plus defgroup / empty defcustoms stubs for later tasks:
+
+#+begin_src emacs-lisp
+;;; scs-startup-state.el --- Curated GUI startup buffers and frame  -*- lexical-binding: t; -*-
+
+;; Filename: scs-startup-state.el
+;; Description: GUI-only curated file list + frame-state label at startup
+;; Author: SCS
+;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
+;; Created: 2026-08-04 Tue 17:12
+;; Version: 0.1.0
+;; Last-Updated: 2026-08-04 Tue 17:12
+;; Update #: 0
+;; Package-Requires: ((emacs "29.1"))
+
+;;; Commentary:
+;;
+;; Problem:
+;;   desktop-save-mode restores whatever was open last time.  That is
+;;   heavy for terminal Emacs and unpredictable for a daily GUI home
+;;   screen.  We want a small, explicit list instead.
+;;
+;; Solution:
+;;   On graphic frames only, restore one scs-frame-state label, visit
+;;   `scs/startup-state-files', split left/right for the first two,
+;;   and load any further files with find-file-noselect.  Terminal
+;;   Emacs skips this module entirely.
+;;
+;; How to check:
+;;   GUI: M-x scs/startup-state-apply RET (or restart Emacs).
+;;   Batch: see test/scs-startup-state-test.el commentary for the
+;;   emacs -batch ert command.
+
+;;; Change Log:
+;; Newest first.  File-local so readers need not dig through VCS.
+;; add: 2026-08-04 -- curated GUI startup; desktop-save-mode retired
+
+;;; Code:
+
+(require 'scs-cl)
+(require 'scs-frame-state)
+
+(defgroup scs-startup-state nil
+  "Curated GUI startup: frame geometry label and file list."
+  :group 'frames
+  :prefix "scs/startup-state-")
+
+(defcustom scs/startup-state-files
+  '("~/notes/progress-todo.org"
+    "~/.config/emacs/init.el")
+  "Files to open on graphic Emacs startup.
+
+The first existing file is shown on the left; the second on the right.
+Further existing entries are loaded with `find-file-noselect' only.
+Missing paths are skipped with a message."
+  :group 'scs-startup-state
+  :type '(repeat file))
+
+(defcustom scs/startup-state-frame-label "2048x1127+0+25"
+  "Label in `scs/frame-state-file' restored on graphic startup.
+
+When nil or empty, skip geometry restore.  When the label is missing
+from the frame-state store, skip with a message and still open files."
+  :group 'scs-startup-state
+  :type '(choice (const :tag "None" nil) string))
+
+(defun scs/startup-state--resolve-files (files)
+  "Return absolute paths from FILES that exist on disk, in order.
+
+Each entry is expanded with `expand-file-name'.  Missing files are
+skipped and reported with `message' so startup can continue."
+  (cl-loop for raw in files
+           for path = (and (stringp raw) (expand-file-name raw))
+           if (and path (file-exists-p path))
+           collect path
+           else if (stringp raw)
+           do (message "scs-startup-state: skip missing file %s" raw)))
+
+(provide 'scs-startup-state)
+;;; scs-startup-state.el ends here
+#+end_src
+
+- [ ] Step 4: Re-run the ERT command from Step 2.  Expected: both
+  tests PASS.
+
+** Task 2: Once-per-session flag + apply/enable (TDD then wire)
+
+**Files:**
+- Modify: ~lisp/scs-startup-state.el~
+- Modify: ~test/scs-startup-state-test.el~
+
+**Interfaces:**
+- Consumes: ~scs/startup-state--resolve-files~,
+  ~scs/frame-state-load~, ~scs/frame-state-restore~
+- Produces: ~scs/startup-state--applied~ (internal var),
+  ~scs/startup-state-apply~, ~scs/startup-state-enable~,
+  ~scs/startup-state--apply-layout~
+
+- [ ] Step 1: Add ERT for the once flag (does not need a graphic
+  display):
+
+#+begin_src emacs-lisp
+(ert-deftest scs/startup-state-apply-respects-once-flag ()
+  "When already applied, `scs/startup-state-apply' is a no-op."
+  (let ((scs/startup-state--applied t)
+        (scs/startup-state-files nil)
+        (scs/startup-state-frame-label nil)
+        (calls 0))
+    (cl-letf (((symbol-function 'display-graphic-p)
+               (lambda (&optional _frame) t))
+              ((symbol-function 'scs/startup-state--apply-layout)
+               (lambda (_files) (cl-incf calls))))
+      (scs/startup-state-apply)
+      (should (= 0 calls)))))
+#+end_src
+
+- [ ] Step 2: Run ERT; expect FAIL (void-function ~scs/startup-state-apply~
+  or void-variable ~scs/startup-state--applied~).
+
+- [ ] Step 3: Append to ~scs-startup-state.el~ (before ~provide~) the
+  apply/enable implementation.  Keep comments teaching why the graphic
+  gate and once-flag exist:
+
+#+begin_src emacs-lisp
+(defvar scs/startup-state--applied nil
+  "Non-nil after a successful GUI startup-state apply in this session.
+
+Daemon/emacsclient can create many graphic frames; we apply the curated
+layout once so later clients do not re-split an already arranged frame.")
+
+(defun scs/startup-state--restore-frame ()
+  "Best-effort restore of `scs/startup-state-frame-label'.
+
+Never signals to the caller: missing label or load errors become
+`message' lines so init can continue."
+  (let ((label scs/startup-state-frame-label))
+    (cond
+     ((or (null label) (and (stringp label) (string= label "")))
+      nil)
+     (t
+      (condition-case err
+          (scs/frame-state-restore
+           (scs/frame-state-load label)
+           (selected-frame))
+        (error
+         (message "scs-startup-state: skip frame label %S (%s)"
+                  label (error-message-string err))))))))
+
+(defun scs/startup-state--apply-layout (files)
+  "Show FILES in the selected frame: left/right for the first two.
+
+FILES must already be resolved existing absolute paths.  Extra entries
+are visited with `find-file-noselect' only."
+  (when files
+    (let ((left (car files))
+          (right (cadr files))
+          (rest (cddr files)))
+      (find-file left)
+      (when right
+        ;; One vertical split only: first file stays selected on the left.
+        (let ((new-win (split-window-right)))
+          (with-selected-window new-win
+            (find-file right))))
+      (dolist (path rest)
+        (find-file-noselect path)))))
+
+;;;###autoload
+(defun scs/startup-state-apply (&optional force)
+  "Apply curated GUI startup state to the selected frame.
+
+No-op on non-graphic frames.  No-op if already applied in this session
+unless FORCE is non-nil (interactive prefix argument forces re-apply)."
+  (interactive "P")
+  (unless (display-graphic-p)
+    (when (called-interactively-p 'interactive)
+      (user-error "scs-startup-state applies only on graphic frames"))
+    (cl-return-from scs/startup-state-apply nil))
+  ;; `cl-return-from' needs a named `cl-block'; use plain cond instead
+  ;; if the file avoids cl-block.  Prefer the cond form below in the
+  ;; actual file -- see corrected body in Step 3b.
+  )
+#+end_src
+
+Use this **corrected** ~scs/startup-state-apply~ body (no
+~cl-return-from~):
+
+#+begin_src emacs-lisp
+;;;###autoload
+(defun scs/startup-state-apply (&optional force)
+  "Apply curated GUI startup state to the selected frame.
+
+No-op on non-graphic frames.  No-op if already applied in this session
+unless FORCE is non-nil (interactive prefix argument forces re-apply)."
+  (interactive "P")
+  (cond
+   ((not (display-graphic-p))
+    (when (called-interactively-p 'interactive)
+      (user-error "scs-startup-state applies only on graphic frames"))
+    nil)
+   ((and scs/startup-state--applied (not force))
+    nil)
+   (t
+    (scs/startup-state--restore-frame)
+    (scs/startup-state--apply-layout
+     (scs/startup-state--resolve-files scs/startup-state-files))
+    (setq scs/startup-state--applied t)
+    t)))
+
+(defun scs/startup-state--on-frame (frame)
+  "Run `scs/startup-state-apply' when FRAME is a live graphic frame."
+  (when (and (frame-live-p frame) (display-graphic-p frame))
+    (with-selected-frame frame
+      (scs/startup-state-apply))))
+
+;;;###autoload
+(defun scs/startup-state-enable ()
+  "Install hooks so curated startup runs once on graphic Emacs."
+  (add-hook 'window-setup-hook #'scs/startup-state-apply)
+  (add-hook 'after-make-frame-functions #'scs/startup-state--on-frame))
+#+end_src
+
+- [ ] Step 4: Re-run ERT.  Expected: all tests PASS (resolve + once
+  flag).
+
+- [ ] Step 5: Optional interactive smoke in the running GUI Emacs
+  (not batch): ~M-x load-file~ the new library, set
+  ~scs/startup-state--applied~ to nil, then
+  ~M-x scs/startup-state-apply~.  Expect left
+  ~progress-todo.org~, right ~init.el~, wide frame.  Do not enable
+  hooks yet if desktop is still on -- that is Task 3.
+
+** Task 3: Wire init.el -- disable desktop, enable startup-state
+
+**Files:**
+- Modify: ~init.el~ (autoload block near ~scs-frame-state~ autoloads,
+  ~line ~316~ region; desktop block ~lines ~1261-1302~)
+
+**Interfaces:**
+- Consumes: ~scs/startup-state-enable~, ~scs/startup-state-apply~
+- Produces: no ~desktop-save-mode~; startup-state enabled at init
+
+- [ ] Step 1: Beside the ~scs-frame-state~ autoloads, add:
+
+#+begin_src emacs-lisp
+(autoload 'scs/startup-state-apply "scs-startup-state"
+  "Apply curated GUI startup buffers and frame geometry." t)
+(autoload 'scs/startup-state-enable "scs-startup-state"
+  "Enable curated GUI startup hooks." t)
+#+end_src
+
+- [ ] Step 2: Replace the desktop section.  Remove the whole
+  ~with-eval-after-load 'desktop~ block and ~(desktop-save-mode t)~.
+  Keep neighboring settings (~blink-cursor-mode~, ~size-indication-mode~).
+  Update the section comment so it no longer claims desktop is part of
+  daily restore.  After those neighbors, call:
+
+#+begin_src emacs-lisp
+;; Curated GUI home screen (not desktop.el).  Terminal Emacs no-ops
+;; inside scs/startup-state-apply via display-graphic-p.
+(scs/startup-state-enable)
+#+end_src
+
+Because ~scs/startup-state-enable~ is autoloaded, the first call loads
+the library.  Do **not** also ~require~ it unless something else needs
+symbols at top level.
+
+- [ ] Step 3: Update the file-local Change Log / header note in
+  ~init.el~ if that file keeps a Newest-first change list near the top
+  (match existing style: one ~add:~ / ~fix:~ line for this work).
+
+- [ ] Step 4: Sanity -- from shell, byte-compile or load check:
+
+#+begin_example
+emacs -batch -L lisp -l lisp/scs-startup-state.el --eval '(scs/startup-state-enable)' --eval '(message "ok")'
+#+end_example
+
+Expected: prints ~ok~, no error.  (Batch is non-graphic; enable only
+adds hooks.)
+
+- [ ] Step 5: Re-run ERT from Task 1.  Expected: PASS.
+
+** Task 4: Docs -- insights + changelog
+
+**Files:**
+- Modify: ~insights.org~ (near the half-screen / desktop-after-read
+  note around the geometry startup section)
+- Modify: ~changelog.org~ (newest-first entry)
+
+- [ ] Step 1: In ~insights.org~, add a short subsection that desktop
+  is off; curated startup lives in ~scs-startup-state~; geometry label
+  comes from ~scs-frame-state~; ~window-setup-hook~ still matters; TTY
+  is intentionally plain.  Do not leave advice that assumes
+  ~desktop-after-read-hook~ is required for daily use -- rephrase the
+  older geometry note so desktop is optional history, not current
+  policy.
+
+- [ ] Step 2: Add a ~changelog.org~ entry describing: desktop-save-mode
+  removed; ~scs-startup-state~ added; seed files and frame label.
+
+- [ ] Step 3: Manual verification checklist (human / GUI session):
+
+| Check | Expectation |
+|-------|-------------|
+| Restart GUI Emacs | Label ~2048x1127+0+25~; left progress-todo; right init.el |
+| ~emacs -nw~ | No forced split / no startup-state file visit |
+| ~M-x scs/startup-state-apply~ with prefix | Re-applies even if once-flag set |
+| Temporarily bad path in ~scs/startup-state-files~ | Skip message; other file still opens |
+| ~(setq scs/startup-state-frame-label "nope")~ then apply with force | Skip geometry message; files still open |
+
+* Spec coverage (self-review)
+
+| Spec item | Task |
+|-----------|------|
+| Disable desktop + remove hygiene | Task 3 |
+| New ~scs-startup-state.el~ module | Tasks 1-2 |
+| defcustoms seed files + label | Task 1 |
+| Resolve / skip missing files | Task 1 |
+| Frame restore best-effort | Task 2 |
+| Left/right + extras noselect | Task 2 |
+| Graphic gate + once flag + hooks | Task 2-3 |
+| insights / changelog | Task 4 |
+| Bookmarks unused | (non-goal; no task) |
+| Manual verification | Task 4 Step 3 |
+
+* Placeholder scan
+
+No TBD / "add appropriate error handling" / "similar to Task N"
+shortcuts.  Apply body uses the corrected ~cond~ form (not the broken
+~cl-return-from~ draft).
+
+* Execution handoff
+
+Plan saved to =docs/2026-08-04-startup-state-plan.org=.
+
+Per workspace ~inline-plan-execution~, implement **inline** in this
+session with executing-plans (checkpoints between tasks).  Say when to
+start Task 1, or ask for a plan tweak first.
+
+Design Org is still untracked (=docs/2026-08-04-startup-state-design.org=);
+commit design and/or plan only when you ask.
