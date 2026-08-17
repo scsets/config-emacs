@@ -5,9 +5,9 @@
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-08-17 Mon 12:45
-;; Version: 0.1.0
-;; Last-Updated: 2026-08-17 Mon 13:47
-;; Update #: 2
+;; Version: 0.1.1
+;; Last-Updated: 2026-08-17 Mon 17:52
+;; Update #: 3
 
 ;;; Commentary:
 ;;
@@ -18,6 +18,7 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; add: 2026-08-17 -- keep-set (deps included) is not leftover
 ;; add: 2026-08-17 -- git -C ROOT ERT
 ;; add: 2026-08-17 -- wanted-package and orphan-checkout ERT
 
@@ -55,6 +56,17 @@
     (should-not (scs/el-get-orphan-checkout-name-p "vertico" wanted))
     (should (scs/el-get-orphan-checkout-name-p "helm" wanted))
     (should (scs/el-get-orphan-checkout-name-p "wfnames" wanted))))
+
+(ert-deftest scs/el-get-orphan-checkout-name-p-keeps-dependencies ()
+  "Ghost removal must be given the keep set, including dependencies.
+
+htmlize is not declared at top level; org-msg depends on it.  If
+cleanup passed only declared names, htmlize would look like a leftover
+and get deleted every Emacs start."
+  (let ((keep '("org-msg" "htmlize" "vertico")))
+    (should-not (scs/el-get-orphan-checkout-name-p "htmlize" keep))
+    (should-not (scs/el-get-orphan-checkout-name-p "org-msg" keep))
+    (should (scs/el-get-orphan-checkout-name-p "helm" keep))))
 
 (ert-deftest scs/emacs-config-git-uses-minus-c ()
   "git -C a non-repo fails even when default-directory is a git tree.

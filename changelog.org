@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-17 Mon 15:18
-#+UPDATE: 42
+#+LAST-UPDATED: 2026-08-17 Mon 17:52
+#+UPDATE: 43
 # $Id$
 
 * Document role
@@ -16,6 +16,11 @@ Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10, then
 normalized to lowercase =changelog.org= on 2026-07-27.
 
 * 2026-08-17  SCS  <scs@scs.re>
+
+- =lisp/scs-config-sync.el=: Ghost checkout removal keeps dependency
+  packages (~htmlize~, ~cond-let~, ~simple-httpd~).  Passing only
+  declared names deleted those dirs every startup, then el-get
+  remove+reinstalled them.
 
 - =init.el=: ~C-c h~ in Org (and other editing buffers) falls back to
   ~consult-complex-command~ instead of erroring.  Eshell, Comint,

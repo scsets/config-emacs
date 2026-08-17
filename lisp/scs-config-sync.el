@@ -5,9 +5,9 @@
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-08-17 Mon 12:45
-;; Version: 0.1.1
-;; Last-Updated: 2026-08-17 Mon 13:47
-;; Update #: 2
+;; Version: 0.1.2
+;; Last-Updated: 2026-08-17 Mon 17:52
+;; Update #: 3
 ;; Keywords: convenience, el-get, tools
 ;; Package-Requires: ((emacs "29.1"))
 
@@ -37,6 +37,7 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-08-17 -- ghost checkout removal keeps dependencies (not only declared names)
 ;; add: 2026-08-17 -- git -C ROOT so pull does not use the output buffer cwd
 ;; add: 2026-08-17 -- git pull, el-get leftover cleanup, optional restart
 
@@ -127,6 +128,11 @@ entries, `el-get', and names in WANTED-NAMES are kept."
 (defun scs/el-get-remove-orphan-checkouts (wanted-symbols)
   "Delete `el-get-dir' subdirs not in WANTED-SYMBOLS (and not el-get).
 
+WANTED-SYMBOLS must be the keep set: declared packages plus their
+dependencies plus el-get.  Passing only declared names deletes
+dependency checkouts (htmlize, cond-let, ...) every startup; the
+next `el-get' sync then remove+reinstalls them as `required'.
+
 Catches ghost checkouts that are gone from `.status.el' but still on
 disk.  Never deletes `el-get' or dot files."
   (require 'el-get)
@@ -193,7 +199,11 @@ Return the list of package symbols `el-get-cleanup' removed, or nil."
         (scs/native-comp-purge-package pkg)))
     (when (fboundp 'scs/el-get-prune-status-orphans)
       (scs/el-get-prune-status-orphans))
-    (let ((ghosts (scs/el-get-remove-orphan-checkouts wanted)))
+    ;; Ghost dirs must use KEEP, not WANTED.  WANTED is declared names
+    ;; only; KEEP adds dependencies.  Using WANTED here deleted htmlize
+    ;; / cond-let / simple-httpd every start, then el-get reinstalled
+    ;; them as status `required'.
+    (let ((ghosts (scs/el-get-remove-orphan-checkouts keep)))
       (when ghosts
         (message "el-get: removed leftover checkouts: %s"
                  (mapconcat #'identity ghosts ", "))))

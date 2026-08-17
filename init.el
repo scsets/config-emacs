@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-17 Mon 15:18
-;; Update #: 39
+;; Last-Updated: 2026-08-17 Mon 17:52
+;; Update #: 40
 ;;
 ;;; Commentary:
 ;;
@@ -47,6 +47,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; fix: 2026-08-17 -- Emacs 31 when-let* (when-let is obsolete)
 ;; fix: 2026-08-17 -- C-c h in Org falls back to command history
 ;; add: 2026-08-17 -- vertico-repeat (Helm-resume analogue; not Counsel)
 ;; add: 2026-08-17 -- scs/sync-emacs-config: git pull, prune leftover el-get
@@ -1179,7 +1180,7 @@ git-commit buffers so we do not fight tools or mangle huge logs."
 ;; berkeley-unix while files.el loads, so SmartOS never gets that
 ;; default, and a thin early PATH can miss the macOS probe too.  Prefer
 ;; gls wherever it exists, then let Dired re-probe --dired next listing.
-(when-let ((gls (executable-find "gls")))
+(when-let* ((gls (executable-find "gls")))
   (setq insert-directory-program gls)
   (setq dired-use-ls-dired 'unspecified))
 
@@ -1278,13 +1279,13 @@ working; see comments above this function for the syntax split."
    ((executable-find "ugrep")
     ;; Fallback when rg is missing (older hosts); ugrep speaks its own flags.
     (setq xref-search-program 'ugrep)))
-  (when-let ((fd (scs/fd-executable)))
+  (when-let* ((fd (scs/fd-executable)))
     ;; fd-dired reads this; set whenever the feature is loaded.
     (setq fd-dired-program fd)))
 
 (scs/setup-search-tools)
 (with-eval-after-load 'fd-dired
-  (when-let ((fd (scs/fd-executable)))
+  (when-let* ((fd (scs/fd-executable)))
     (setq fd-dired-program fd)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
