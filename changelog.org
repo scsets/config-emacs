@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-04 Tue 18:27
-#+UPDATE: 32
+#+LAST-UPDATED: 2026-08-17 Mon 12:38
+#+UPDATE: 38
 # $Id$
 
 * Document role
@@ -14,6 +14,29 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10, then
 normalized to lowercase =changelog.org= on 2026-07-27.
+
+* 2026-08-17  SCS  <scs@scs.re>
+
+- =init.el=: Wire ~embark-consult~ so Consult searches can export to
+  grep/occur.  Enable wgrep on grep buffers (~C-c C-p~).  Turn
+  ~recentf-mode~ on during init (not after a 1s timer) so
+  ~consult-buffer~ Files narrowing has recents.  ~savehist-mode~ was
+  already on; it feeds ~consult-history~.
+
+- =init.el=: Vertico keeps a half-window panel for every completing-read
+  (including one hit).  Enable Marginalia for candidate descriptions.
+  which-key popup max height is 0.5 to match.
+
+- =init.el=: Remove Helm from startup, recipes, and keys.  Vertico owns
+  ~M-x~; Consult takes the clashing chords (~C-x b~, ~M-y~, ~C-x r b~,
+  ~C-c h~, ~H-b~, ~H-i~).  ~C-x C-f~ is vanilla ~find-file~ (path is a
+  string).  ~C-x f~ is ~set-fill-column~ again; ~M-s o~ is ~occur~.
+  Command hub catalog uses completing-read.  Deleted
+  =lisp/scs-command-hub-helm.el= and the Helm fd cache helpers.
+
+- =init.el=: Drop Fido/Ivy/Lusty trials, swiper and lusty-explorer
+  recipes, and =lisp/scs-find-file-trial.el=.  Consult keeps its README
+  maps (~M-g~ goto, ~M-s~ search, ~M-s d~ = ~consult-fd~).
 
 * 2026-08-04  SCS  <scs@scs.re>
 

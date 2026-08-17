@@ -13,9 +13,9 @@ Current verified health and known limitations.  Not a changelog or roadmap.
 | Startup            | OK     | Init completes on macOS GUI after font fix  |
 | el-get             | OK     | 5.2; packages via ~:el-get~ keyword; ~scs/el-get-report~ |
 | native-comp        | OK     | Homebrew ~gcc-*~ + ~libgccjit~; portable brew discovery |
-| helm               | OK     | Minibuffer UI; notes fd sync; other roots async |
-| fido/orderless     | GONE   | Replaced by helm                            |
-| marginalia         | GONE   | Replaced by helm                            |
+| helm               | GONE   | Dropped 2026-08-17; Vertico stack owns minibuffer |
+| vertico/orderless/consult | OK | Minibuffer UI + matching + commands; Embark ~C-.~ |
+| marginalia         | OK     | Annotates Vertico candidates; ~M-A~ cycles detail |
 | custom.el          | GONE   | Settings in init.el; custom-file disposable + never loaded |
 | org                | OK     | el-get builtin recipe; trusted-Org documented |
 | org-contrib        | OK     | el-get git (sr.ht); org-expiry              |
@@ -40,7 +40,7 @@ Current verified health and known limitations.  Not a changelog or roadmap.
 | tramp              | OK     | lisp/scs-tramp.el; C-c t prefix             |
 | quit (C-x C-c)     | OK     | scs/quit-prefix transient map               |
 | diff-hl            | PART   | global mode on; hunk navigation keys TODO   |
-| wgrep              | PART   | loaded; no hook or key yet (plan.org)       |
+| wgrep              | OK     | ~C-c C-p~ in grep; Consult export via embark-consult |
 | minions / keycast  | IDLE   | installed; not configured                   |
 | revision control   | OK     | Git (~scsets/config-emacs~); vc Git + SVN   |
 | gitignore (.elc)   | OK     | *.elc ignored                               |
@@ -62,11 +62,14 @@ Tested on Emacs 30.2 / 31.x (emacs-plus@31 on macOS Homebrew).
 
 * Last Verified
 
+[2026-08-17 Mon] - Helm removed.  Vertico + Orderless + Consult + Embark
+own the minibuffer.  Consult took the old Helm chords (~C-x b~, ~M-y~,
+~C-x r b~, ~C-c h~, ~H-b~, ~H-i~).  Restart Emacs after this change.
+
 [2026-07-10 Fri] - cursor-review fixes: disposable custom-file policy,
 trusted-Org docs, Org ID load-without-full-scan + rebuild/report commands,
-dynamic Homebrew GCC, Helm async for non-notes roots, TRAMP no-op removed,
-whitespace predicate, howm scoped to notes, duplicate Org IDs in zsmistare
-repaired.
+dynamic Homebrew GCC, TRAMP no-op removed, whitespace predicate, howm
+scoped to notes, duplicate Org IDs in zsmistare repaired.
 
 [2026-07-09 Thu] - Fixed startup timer errors (~recentf-load-list~ advice
 for Emacs 31 and missing close paren in =lisp/scs-org-tools.el=). Moved

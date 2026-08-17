@@ -1,15 +1,15 @@
-;;; scs-command-hub.el --- Curated command hub (Transient + Helm)  -*- lexical-binding: t; -*-
+;;; scs-command-hub.el --- Curated command hub (Transient + completing-read)  -*- lexical-binding: t; -*-
 
 ;; Filename: scs-command-hub.el
 ;; Description: C-c ? home base: catalog, workflows, describe
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-07-24 Fri 12:07
-;; Version: 0.1.3
-;; Last-Updated: 2026-07-24 Fri 18:05
-;; Update #: 4
-;; Keywords: convenience, helm, transient
-;; Package-Requires: ((emacs "29.1") (transient "0.5") (helm "3.0"))
+;; Version: 0.1.4
+;; Last-Updated: 2026-08-17 Mon 12:12
+;; Update #: 5
+;; Keywords: convenience, transient, completion
+;; Package-Requires: ((emacs "29.1") (transient "0.5"))
 
 ;;; Commentary:
 ;;
@@ -20,20 +20,20 @@
 ;;   docs beside a short summary.
 ;;
 ;; Solution:
-;;   A Transient home on C-c ? over a curated plist catalog.  Helm
-;;   browses the catalog (nice sectioned UI in scs-command-hub-helm.el);
-;;   nested Transients hold small workflows; helpful/describe opens
-;;   deep docs.  Catalog data is the source of truth for titles and
-;;   summaries.  :keys is a display hint only -- real bindings stay in
-;;   prefix maps and bind-key.
+;;   A Transient home on C-c ? over a curated plist catalog.
+;;   completing-read (Vertico) browses the catalog; nested Transients
+;;   hold small workflows; helpful/describe opens deep docs.  Catalog
+;;   data is the source of truth for titles and summaries.  :keys is a
+;;   display hint only -- real bindings stay in prefix maps and bind-key.
 ;;
 ;; Verify:
-;;   C-c ? or C-c / then c -- sectioned Helm catalog; RET to run.
+;;   C-c ? or C-c / then c -- catalog; RET to run.
 ;;   Batch: emacs -batch -L lisp -l ert -l lisp/scs-command-hub.el \
 ;;     -l test/scs-command-hub-test.el -f ert-run-tests-batch-and-exit
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; add: 2026-08-17 -- catalog uses completing-read (Vertico); drop Helm UI
 ;; add: 2026-07-24 -- require scs-command-hub-helm for catalog UI
 ;; add: 2026-07-24 -- q quits whole hub stack from every panel
 ;; add: 2026-07-24 -- C-c / twin binding (documented in Commentary)
@@ -129,7 +129,7 @@ it belongs here.")
   (scs/command-hub-entry-get entry :summary))
 
 (defun scs/command-hub-entry-candidate (entry)
-  "Return a Helm candidate string for ENTRY (title + summary)."
+  "Return a completion candidate string for ENTRY (title + summary)."
   (format "%s -- %s"
           (or (scs/command-hub-entry-title entry) "?")
           (or (scs/command-hub-entry-summary entry) "")))
@@ -169,13 +169,139 @@ it belongs here.")
     (call-interactively name)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Helm catalog UI (scs-command-hub-helm.el)
+;; Catalog presentation (completing-read / Vertico)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Section headers, column alignment, and faces live in the sibling
-;; module so trial-branch experiments can be dropped without losing
-;; the catalog presentation.
-(require 'scs-command-hub-helm)
+(defconst scs/command-hub-group-order
+  '((favorite . "Favorites")
+    (org . "Org / notes")
+    (tramp . "TRAMP")
+    (frame . "Frames")
+    (config . "Config")
+    (demo . "Demos")
+    (other . "Other"))
+  "Alist of (GROUP-SYMBOL . SECTION-HEADER) for catalog sections.")
+
+(defface scs/command-hub-candidate-title
+  '((((class color) (min-colors 88) (background light))
+     :foreground "#005faf" :weight bold)
+    (((class color) (min-colors 88) (background dark))
+     :foreground "#7dcfff" :weight bold)
+    (t :weight bold))
+  "Face for catalog command titles.")
+
+(defface scs/command-hub-candidate-keys
+  '((((class color) (min-colors 88) (background light))
+     :foreground "#875f00")
+    (((class color) (min-colors 88) (background dark))
+     :foreground "#e0af68")
+    (t :inherit shadow))
+  "Face for binding hints in the catalog.")
+
+(defface scs/command-hub-candidate-summary
+  '((((class color) (min-colors 88) (background light))
+     :foreground "#5f5f5f")
+    (((class color) (min-colors 88) (background dark))
+     :foreground "#a9b1d6")
+    (t :inherit shadow))
+  "Face for one-line summaries in the catalog.")
+
+(defun scs/command-hub-entry-keys (entry)
+  "Return the display :keys hint for ENTRY, or an empty string."
+  (or (scs/command-hub-entry-get entry :keys) ""))
+
+(defun scs/command-hub-entry-group (entry)
+  "Return the section symbol for ENTRY.
+
+Favorites win when `:tags' includes `favorite', so starred commands
+gather under one header.  Otherwise the first known domain tag wins."
+  (let ((tags (scs/command-hub-entry-get entry :tags)))
+    (cond
+     ((memq 'favorite tags) 'favorite)
+     ((memq 'org tags) 'org)
+     ((memq 'notes tags) 'org)
+     ((memq 'tramp tags) 'tramp)
+     ((memq 'frame tags) 'frame)
+     ((memq 'config tags) 'config)
+     ((or (memq 'demo tags) (memq 'hydra tags)) 'demo)
+     ((car tags) (car tags))
+     (t 'other))))
+
+(defun scs/command-hub--pad (string width)
+  "Pad STRING with spaces on the right to at least WIDTH columns."
+  (let* ((string (or string ""))
+         (pad (max 0 (- width (string-width string)))))
+    (concat string (make-string pad ?\s))))
+
+(defun scs/command-hub--column-widths (entries)
+  "Return (TITLE-WIDTH KEYS-WIDTH) for ENTRIES column alignment."
+  (list
+   (apply #'max 10
+          (mapcar (lambda (e)
+                    (string-width (or (scs/command-hub-entry-title e) "")))
+                  entries))
+   (apply #'max 6
+          (mapcar (lambda (e)
+                    (string-width (scs/command-hub-entry-keys e)))
+                  entries))))
+
+(defun scs/command-hub--format-candidate (entry title-width keys-width)
+  "Return a colored, column-aligned DISPLAY string for ENTRY."
+  (let* ((title (or (scs/command-hub-entry-title entry) "?"))
+         (keys (scs/command-hub-entry-keys entry))
+         (summary (or (scs/command-hub-entry-summary entry) "")))
+    (concat
+     (propertize (scs/command-hub--pad title title-width)
+                 'face 'scs/command-hub-candidate-title)
+     "  "
+     (propertize (scs/command-hub--pad keys keys-width)
+                 'face 'scs/command-hub-candidate-keys)
+     "  "
+     (propertize summary 'face 'scs/command-hub-candidate-summary))))
+
+(defun scs/command-hub--group-header (entry)
+  "Return the section header string for ENTRY."
+  (or (cdr (assq (scs/command-hub-entry-group entry)
+                 scs/command-hub-group-order))
+      "Other"))
+
+;;;###autoload
+(defun scs/command-hub-browse-catalog ()
+  "Browse the curated command catalog and run the chosen command.
+
+Uses `completing-read' so Vertico and Orderless own the UI.  RET
+runs the command.  Section headers come from catalog :tags."
+  (interactive)
+  (let* ((entries scs/command-hub-catalog)
+         (widths (scs/command-hub--column-widths entries))
+         (title-w (nth 0 widths))
+         (keys-w (nth 1 widths))
+         (table (make-hash-table :test #'equal))
+         (cands
+          (mapcar (lambda (entry)
+                    (let ((s (scs/command-hub--format-candidate
+                              entry title-w keys-w)))
+                      (puthash s entry table)
+                      s))
+                  entries))
+         (group-fn
+          (lambda (cand transform)
+            (if transform
+                cand
+              (scs/command-hub--group-header (gethash cand table)))))
+         (choice
+          (completing-read
+           "Command hub: "
+           (lambda (string pred action)
+             (if (eq action 'metadata)
+                 `(metadata (category . scs-command-hub)
+                            (group-function . ,group-fn))
+               (complete-with-action action cands string pred)))
+           nil t)))
+    (when (and choice (not (string= choice "")))
+      (scs/command-hub-run-entry
+       (or (gethash choice table)
+           (user-error "Unknown catalog candidate"))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Transient workflows

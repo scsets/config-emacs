@@ -10,9 +10,10 @@ Future work and keybinding proposals.  Open items should also appear in
 * Overview
 
 Improvement ideas and candidate keybindings for ~scsets/config-emacs~.
-Grounded in the current setup: Helm minibuffer, Company in-buffer,
-Hyper namespace on macOS (Karabiner Fn), ~C-c~ / ~C-c t~ / ~C-c .~
-prefix maps, Org/howm/org-id notes, TRAMP via ~lisp/scs-tramp.el~.
+Grounded in the current setup: Vertico minibuffer (Orderless + Consult
++ Embark), Company in-buffer, Hyper namespace on macOS (Karabiner Fn),
+~C-c~ / ~C-c t~ / ~C-c .~ prefix maps, Org/howm/org-id notes, TRAMP via
+~lisp/scs-tramp.el~.
 
 Priorities: keep Hyper for macOS-only ergonomics; add ~C-c~ chords for
 behaviour that must work on FreeBSD and SmartOS CLI too.
@@ -27,8 +28,8 @@ behaviour that must work on FreeBSD and SmartOS CLI too.
   native-comp, quit chord, ~plan.org~ tracked.
 - [X] *Dynamic Homebrew GCC in ~early-init.el~* — done 2026-07-10;
   portable ~brew~, one prefix call per package, ~gcc-*~ via wildcards.
-- [ ] *~wgrep~ workflow* — package is loaded but has no hook or key;
-  enable editable grep buffers after ~H-g~ / ~M-s o~ / ~C-c f~ searches.
+- [X] *~wgrep~ workflow* — ~C-c C-p~ in grep buffers; Consult path is
+  ~M-s r~ then Embark export (~C-. A~) via ~embark-consult~.
 - [ ] *~diff-hl~ navigation* — ~global-diff-hl-mode~ is on; add
   next/previous-hunk keys (see *Keybindings* below).
 
@@ -67,8 +68,7 @@ behaviour that must work on FreeBSD and SmartOS CLI too.
   enable if macOS kill-ring ↔ system clipboard integration is still wanted.
 - [ ] *Eln cache hygiene* — document ~rm -rf eln-cache/*~ after Emacs or
   GCC upgrades (~insights.org~ pointer).
-- [ ] *Helm project search* — consider ~helm-rgrep~ / ~helm-projectile~
-  (or ~ripgrep~ wrapper) for repo-scoped search alongside ~grep~ on ~H-g~.
+- [X] *Project search* — ~M-s r~ is ~consult-ripgrep~; ~H-g~ remains ~grep~.
 
 * Keybinding proposals
 
@@ -80,7 +80,7 @@ Existing prefix maps (do not collide without checking):
 | ~H-c~    | macOS org prefix   | ~c~ capture, ~d~ / ~H-d~ creation-date   |
 | ~C-c t~  | TRAMP              | ~f~ find, ~d~ dired, ~c~ cleanup, ~r~ revert |
 | ~C-c .~  | Cape completion    | ~p t d h f k s a l w …~                   |
-| ~C-c h~  | Helm               | (prefix only — room for subkeys)          |
+| ~C-c h~  | Consult            | ~consult-history~ (not a prefix)          |
 
 ** macOS Hyper — new single keys
 
@@ -89,7 +89,7 @@ guard as current Hyper block.
 
 | Chord | Command                     | Mnemonic / rationale                          |
 |-------+-----------------------------+-----------------------------------------------|
-| ~H-m~ | ~imenu-list-smart-toggle~   | *m*ap — sidebar outline (~H-i~ is Helm imenu) |
+| ~H-m~ | ~imenu-list-smart-toggle~   | *m*ap — sidebar outline (~H-i~ is ~consult-imenu~) |
 | ~H-f~ | ~fd-dired~                  | *f*ind files (fd); needs ~fd~ on PATH         |
 | ~H-u~ | ~undo~                      | *u*ndo                                        |
 | ~H-y~ | ~yank-pop~                  | *y*ank cycle (pairs with kill keys)           |
@@ -128,18 +128,15 @@ These should work on macOS CLI, FreeBSD, and SmartOS without Hyper.
 | ~C-c j w~   | ~avy-goto-word-or-subword-1~    | jump word                               |
 | ~C-c n h~   | ~howm-create~                   | *n*ote *h*owm (mirror ~C-f9~)            |
 | ~C-c n l~   | ~howm-list-all~                 | list notes (mirror ~F9~)                |
-| ~C-c SPC~   | ~counsel-mark-ring~ / ~helm-ring~ | mark jumps — *if* ring navigation wanted |
+| ~C-c SPC~   | ~consult-mark~         | mark jumps — *if* a dedicated chord is wanted |
 
 Define ~C-c v~ as a small prefix map (~define-prefix-command~), same
 style as ~scs/quit-map~, not Hydra.
 
-** ~C-c h~ — extend Helm prefix
+** ~C-c h~ is ~consult-history~
 
-| Chord       | Command            | Rationale                    |
-|-------------+--------------------+------------------------------|
-| ~C-c h r~   | ~helm-resume~      | resume last Helm session     |
-| ~C-c h m~   | ~helm-man-woman~   | man pages (when ~man~ exists) |
-| ~C-c h a~   | ~helm-ag~          | ripgrep/ag search *if* added |
+Do not grow a Helm-style prefix under ~C-c h~.  Resume the last Consult
+search from the command itself; ripgrep is ~M-s r~.
 
 ** Org mode (local, or global if preferred)
 
@@ -161,11 +158,14 @@ style as ~scs/quit-map~, not Hydra.
 
 ** Grep / project search
 
-| Chord       | Command              | Notes                                           |
-|-------------+----------------------+-------------------------------------------------|
-| ~C-c /~     | ~helm-occur~         | buffer occur (~M-s o~ exists — lower priority)  |
-| ~C-c p g~   | ~helm-rgrep~         | project grep *if* recipe added                  |
-| ~C-c p f~   | ~helm-find-files~    | project-scoped find *if* ~helm-projectile~ added |
+These already exist; do not steal ~C-c /~ (command hub).
+
+| Chord       | Command              | Notes                          |
+|-------------+----------------------+--------------------------------|
+| ~M-s l~     | ~consult-line~       | buffer lines                   |
+| ~M-s r~     | ~consult-ripgrep~    | project content                |
+| ~M-s d~     | ~consult-fd~         | jump by file name              |
+| ~H-g~       | ~grep~               | stock grep                     |
 
 * Implementation order (suggested)
 
@@ -180,8 +180,8 @@ style as ~scs/quit-map~, not Hydra.
 
 - *Hydra* for quit or small menus — current ~set-transient-map~ quit
   flow and prefix maps are enough (~readme.org~ / session 2026-07-08).
-- *Replacing Helm* with Vertico/Orderless — settled choice; extend Helm
-  prefix instead.
+- *Replacing Vertico* with another minibuffer UI — Helm is gone;
+  keep one stack.
 - *Replacing el-get* — large migration; only revisit if bootstrap pain
   grows.
 

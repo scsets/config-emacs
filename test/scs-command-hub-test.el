@@ -18,7 +18,7 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
-;; add: 2026-07-24 -- group/format ERT for Helm catalog UI
+;; add: 2026-07-24 -- group/format ERT for catalog UI
 ;; add: 2026-07-24 -- catalog accessor and validation ERT
 
 ;;; Code:

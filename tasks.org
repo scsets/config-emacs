@@ -24,7 +24,7 @@ See =plan.org= for rationale and proposed keybindings.
 ** High priority
 - [ ] Verify ~/lisp/lispworks/lw-console path exists (SLIME)
 - [X] Dynamic Homebrew GCC driver in ~early-init.el~ (not hard-coded ~gcc-16~)
-- [ ] ~wgrep~ workflow — hook or key after grep / occur
+- [X] ~wgrep~ workflow — ~C-c C-p~ after grep / Consult Embark export
 - [ ] ~diff-hl~ navigation keys (~C-c v~ prefix or similar)
 
 ** Medium priority
@@ -40,7 +40,7 @@ See =plan.org= for rationale and proposed keybindings.
 - [ ] ~impatient-mode~ — bind or remove from el-get
 - [ ] ~flyspell~ — enable with aspell guard or delete dead config
 - [ ] ~clipboard-kill-region~ on ~C-c k~ — enable or drop comment
-- [ ] Helm project search (~helm-rgrep~ / similar)
+- [X] Project search — ~consult-ripgrep~ on ~M-s r~ (2026-08-17)
 
 * DONE Fix init load, quit chord, native-comp, and repo rename
 CLOSED: [2026-07-08 Wed]

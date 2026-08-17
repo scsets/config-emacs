@@ -6,8 +6,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-03-05 Thu 17:59
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-07-31 Fri 14:50
-#+UPDATE: 1
+#+LAST-UPDATED: 2026-08-17 Mon 12:38
+#+UPDATE: 7
 
 * Document role
 
@@ -72,8 +72,7 @@ material.
 | Library | Loaded from | Purpose |
 |---------+-------------+---------|
 | =org-tools.el= | ~require~ after Org; Hyper prefix autoload | Buffer helpers (header, creation-date, zwsp, rename) + export (line-prefix, stationery, PDF/X) |
-| =scs-command-hub.el= | autoload ~scs/command-hub~; ~C-c ?~ / ~C-c /~ | Transient home: workflows, describe; opens Helm catalog |
-| =scs-command-hub-helm.el= | autoload ~scs/command-hub-browse-catalog~ | Sectioned / aligned / colored Helm catalog UI |
+| =scs-command-hub.el= | autoload ~scs/command-hub~; ~C-c ?~ / ~C-c /~ | Transient home: workflows, describe; Vertico catalog |
 | =scs-frame-state.el= | autoload | Frame geometry save/restore |
 | =scs-tramp.el= | TRAMP ~:config~ + autoload | Known hosts, cleanup, no-trace policy |
 | =flycheck-org-lint-workaround.el= | ~flycheck~ block | Advice for broken Flycheck/org-lint line-cell handling |
@@ -107,6 +106,14 @@ Control Center and Fn+H / Show Desktop.
 |------------------+---------|
 | ~C-c ?~ / ~C-c /~ / ~scs/command-hub~ | Command hub: curated catalog, workflows, describe |
 | ~C-c r~ / ~scs/reload-config~ | Reload =init.el=; prefix also re-applies early-init runtime bits |
+| ~C-x C-f~ | ~find-file~ under Vertico (path is a string; left arrow moves) |
+| ~C-x b~ / ~H-b~ | ~consult-buffer~ (buffers, recents, bookmarks, project) |
+| ~M-x~ / ~H-x~ | ~execute-extended-command~ under Vertico |
+| ~M-y~ | ~consult-yank-pop~ |
+| ~C-c h~ | ~consult-history~ |
+| ~M-g i~ / ~H-i~ | ~consult-imenu~ |
+| ~M-s l~ / ~M-s r~ / ~M-s d~ | Consult line / ripgrep / fd |
+| ~C-.~ | Embark act |
 | ~scs/frame-state-save~ / ~restore~ | Geometry across reboot |
 | ~C-c t f/d/c/r~ | TRAMP find / dired / cleanup / reopen |
 | ~scs/org-id-rebuild~ | Full Org ID rescan after external note moves |
@@ -116,13 +123,49 @@ Control Center and Fn+H / Show Desktop.
 | delete =eln-cache/= | After Emacs or Homebrew GCC upgrades |
 | el-get repair | Remove broken =el-get/<pkg>= checkout, restart Emacs (bootstrap/sync) |
 
-In Helm sessions, ~C-h~ is still delete (same as the rest of this
-profile).  Helm's own help is on ~?~; debug/customize live under
-~C-c C-d~ / ~C-c c~ / ~C-c d~ on ~helm-map~.  Emacs help remains on
-~F1~.
+Emacs help remains on ~F1~ (and ~C-^~).  ~C-h~ is rub-out.
+
+* Minibuffer (Vertico + Orderless + Consult + Embark)
+
+Helm is not loaded.  The minibuffer stack is Vertico (UI), Orderless
+(matching), Consult (commands), Embark (~C-.~ actions).
+
+| Job | Key | Command |
+|-----+-----+---------|
+| Open a path / new file | ~C-x C-f~ | ~find-file~ + Vertico |
+| Jump by file name | ~M-s d~ | ~consult-fd~ |
+| Switch buffer | ~C-x b~ / ~H-b~ | ~consult-buffer~ |
+| Imenu | ~M-g i~ / ~H-i~ | ~consult-imenu~ |
+| Line in this buffer | ~M-s l~ | ~consult-line~ |
+| Content in the tree | ~M-s r~ | ~consult-ripgrep~ |
+| Kill ring | ~M-y~ | ~consult-yank-pop~ |
+| M-x | ~M-x~ / ~H-x~ | ~execute-extended-command~ + Vertico |
+| Minibuffer history | ~C-c h~ | ~consult-history~ |
+| Actions on a candidate | ~C-.~ | ~embark-act~ |
+
+~C-x f~ is Emacs ~set-fill-column~ again.  ~M-s o~ is ~occur~; prefer ~M-s l~.
+~C-x C-b~ is ~ibuffer~ (remap of ~list-buffers~).
+
+Every Vertico prompt (Consult, ~M-x~, ~find-file~, the command hub
+catalog) keeps a panel about half the selected window, even for one
+hit.  Marginalia adds descriptions at the right; ~M-A~ in the
+minibuffer cycles how much detail.  which-key popups may use up to
+half the frame as well.
+
+Narrowing inside Consult: type ~<~ then a letter (see ~consult-narrow-key~).
+Orderless: space-separated tokens in any order, e.g. ~init el~.
+~consult-buffer~ Files (~f~ after ~<~) comes from ~recentf-mode~.
+~C-c h~ / minibuffer ~M-s~ history comes from ~savehist-mode~.
+
+Edit many grep hits: ~M-s r~ (or ~M-s g~), then ~C-.~ ~A~ to export a
+grep buffer, then ~C-c C-p~ for wgrep (or ~e~ for Emacs 31
+~grep-edit-mode~).  ~C-c C-e~ applies wgrep edits; ~C-c C-k~ aborts.
+~consult-line~ exports to occur the same way; ~e~ there is
+~occur-edit-mode~.
 
 In the command hub (~C-c ?~ / ~C-c /~), press ~q~ at any nesting level
 to leave the whole Transient stack.  ~C-g~ still backs up one level.
+Catalog browse (~c~) uses completing-read / Vertico.
 
 First-run note: if the =el-get/el-get= checkout is missing, startup clones
 it over the network.  That is intentional for a single-user profile.
@@ -133,7 +176,7 @@ it over the network.  That is intentional for a single-user profile.
 |------+-------+-------|
 | Git | required | el-get bootstrap and VC |
 | ~rg~ | optional | howm search; falls back to grep |
-| ~fd~ / ~fdfind~ | optional | Helm fuzzy file index |
+| ~fd~ / ~fdfind~ | optional | Consult ~consult-fd~; fd-dired |
 | ~ugrep~ | optional | ~xref-search-program~ when present |
 | aspell | optional | flyspell (currently idle in config) |
 | Homebrew + GCC + libgccjit | macOS native-comp | discovered in =early-init.el= |
@@ -206,7 +249,7 @@ bin/emacs-diagnostic
 
 * Key Packages
 
-- *Completion:* helm for minibuffer commands, company (with yasnippet) and cape for in-buffer completion
+- *Completion:* Vertico + Orderless + Consult + Marginalia + Embark for the minibuffer; company (with yasnippet) and cape for in-buffer completion
 - *Snippets:* yasnippet with personal templates in =snippets/= (Org, Emacs Lisp, Common Lisp, shared text-mode). Org triggers include ~meta~ (file ~#+title:~ / author / date), ~src~, ~props~, ~hd~; see =insights.org=.
 - *Shell:* eshell, eshell-toggle, eshell-z, eshell-up
 - *Org:* org-mode (el-get builtin), org-contrib (el-get git; org-expiry)

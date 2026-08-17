@@ -5,9 +5,9 @@
 #+AUTHOR: SCS
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-03-05 Thu 17:59
-#+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-04 Tue 18:27
-#+UPDATE: 2
+#+VERSION: 0.1.1
+#+LAST-UPDATED: 2026-08-17 Mon 12:17
+#+UPDATE: 3
 
 * Document role
 
@@ -36,26 +36,25 @@ once-per-session flag).
 
 Spec: =docs/2026-08-04-startup-state-design.org=.
 
-* Command hub: Transient + Helm + curated data
+* Command hub: Transient + curated data
 
 Remembering that a command exists is a different job from remembering
 the next key after a prefix.  which-key already covers the latter.
 For the former, this profile uses a Transient home on ~C-c ?~ or
 ~C-c /~ (same command; ~/~ needs no Shift) via ~lisp/scs-command-hub.el~
-over a curated plist catalog.  Helm
-searches titles and summaries; nested Transients hold small sticky
-workflows (Org, TRAMP, frames); helpful (with ~describe-*~ fallback)
-opens deeper docs.
+over a curated plist catalog.  completing-read (Vertico) searches
+titles and summaries; nested Transients hold small sticky workflows
+(Org, TRAMP, frames); helpful (with ~describe-*~ fallback) opens
+deeper docs.
 
 The catalog is plain data on purpose: Approach C (a thicker local
 dispatcher) or a later Hydra trial can reuse the same list without a
 rewrite.  Grow an entry when something is forgotten once.
 
-Helm used to teach a ~C-h~ help/debug prefix.  This profile maps
-~C-h~ / ~M-h~ to delete globally and keeps Emacs help on ~F1~.  So
-Helm help was moved to ~?~, and the old ~C-h ...~ family was cleared
-from ~helm-map~ (subkeys first, then the prefix -- the other order
-recreates a ~C-h~ keymap).
+This profile maps ~C-h~ / ~M-h~ to delete globally and keeps Emacs
+help on ~F1~.  Package UIs that want a help prefix must not steal
+~C-h~ (Embark during ~embark-act~ is the current example; Helm used
+to be another).
 
 Transient menus use a bottom side window with brighter heading/key
 faces so groups and semantic key colors (stay / exit / recurse) are
@@ -640,28 +639,24 @@ backends (dabbrev, file, history, etc.) that work with both company
 and corfu. The ~cape~ configuration in init.el is preserved and works
 with corfu unchanged.
 
-* Helm for minibuffer completion
+* Vertico for minibuffer completion
 
-Helm owns minibuffer completion in this configuration. It replaces the
-previous Fido/Orderless/Marginalia stack for commands that read from
-the minibuffer, while company handles in-buffer popup completion and
-cape supplies extra capf backends via ~C-c .~.
+Vertico owns the minibuffer completion UI.  Orderless is the matching
+style.  Consult adds commands on ~completing-read~ (buffers, fd,
+ripgrep, yank, history).  Embark (~C-.~) acts on the current
+candidate.  Company still handles in-buffer popup completion; cape
+supplies extra capf backends via ~C-c .~.
 
-Helm is installed from source through el-get with explicit recipes for
-its pure-Elisp dependencies, ~async~ and ~wfnames~. The configuration
-loads the Helm modules behind each bound command instead of relying on
-generated autoloads, which keeps fresh el-get checkouts predictable.
-
-Keep only one minibuffer completion UI active at a time. Helm's own
-documentation warns against stacking many completion UIs, and doing so
-can make completing-read behavior difficult to debug.
+Keep only one minibuffer completion UI active at a time.  Helm was
+removed on 2026-08-17 so it cannot steal ~completing-read~ or the
+chords Consult documents.
 
 * yasnippet and company-yasnippet
 
 Yasnippet expands templates in-buffer (usually Tab on a trigger key).
-Helm does /not/ integrate with yasnippet — there is no ~helm-yasnippet~
-in this config. Snippet names appear in the company popup via
-~company-yasnippet~; expansion still goes through yasnippet.
+Snippet names appear in the company popup via ~company-yasnippet~;
+expansion still goes through yasnippet.  The minibuffer stack does not
+drive snippets.
 
 Personal snippets live in =~/.config/emacs/snippets/~, one subdirectory
 per major mode (~org-mode~, ~emacs-lisp-mode~, ~lisp-mode~,

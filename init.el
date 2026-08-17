@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-04 Tue 18:27
-;; Update #: 30
+;; Last-Updated: 2026-08-17 Mon 12:38
+;; Update #: 36
 ;;
 ;;; Commentary:
 ;;
@@ -47,6 +47,11 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-17 -- embark-consult + wgrep; recentf on before first C-x b
+;; add: 2026-08-17 -- Vertico half-window always; enable Marginalia
+;; add: 2026-08-17 -- Consult Vertico list uses half the frame
+;; add: 2026-08-17 -- drop Helm; Consult takes clashing keys; catalog uses Vertico
+;; add: 2026-08-17 -- C-x C-f 1..4 find-file UI trials (Vertico/Fido/Ivy/Lusty)
 ;; add: 2026-08-04 -- curated GUI startup (scs-startup-state); desktop-save-mode off
 ;; add: 2026-08-03 -- remove mail contacts package; gitea SSH; skip local clipper
 ;; add: 2026-08-03 -- howm el-get recipe (docs need rd2; not global dep)
@@ -351,8 +356,8 @@ Intentionally not *scratch*; new frames land on persistent notes."
 ;; add: 2026-07-24 -- Transient command hub home on C-c ?
 (autoload 'scs/command-hub "scs-command-hub"
   "Open the SCS command hub (Transient home on C-c ?)." t)
-(autoload 'scs/command-hub-browse-catalog "scs-command-hub-helm"
-  "Browse the curated command catalog with Helm." t)
+(autoload 'scs/command-hub-browse-catalog "scs-command-hub"
+  "Browse the curated command catalog with completing-read." t)
 ;; add: 2026-07-31 -- DWIM path copy (file / Dired / TRAMP / formats)
 (autoload 'scs/copy-path "scs-copy-path"
   "Copy buffer/Dired/TRAMP path(s) to the kill ring and clipboard." t)
@@ -516,11 +521,6 @@ exec ./configure --with-emacs=\"$em\"
          :pkgname "Wilfred/helpful"
          :features helpful
          :depends (elisp-refs dash s f))
-        (:name helm
-         :type github
-         :pkgname "emacs-helm/helm"
-         :features helm
-         :depends (async wfnames))
         (:name hl-todo
          :type github
          :pkgname "tarsius/hl-todo"
@@ -590,11 +590,6 @@ exec ./configure --with-emacs=\"$em\"
          :description "Org-mode HTML compose for message-mode MUAs"
          :depends (htmlize)
          :features org-msg)
-        (:name wfnames
-         :type github
-         :pkgname "thierryvolpiatto/wfnames"
-         :branch "main"
-         :features wfnames)
         ;; add: 2026-07-24 -- Magit process editor helper
         (:name with-editor
          :type github
@@ -613,7 +608,25 @@ exec ./configure --with-emacs=\"$em\"
         (:name yasnippet
          :type github
          :pkgname "joaotavora/yasnippet"
-         :features yasnippet)))
+         :features yasnippet)
+        ;; Minibuffer stack: Vertico UI, Orderless matching, Consult
+        ;; commands, Marginalia annotations.
+        (:name consult
+         :type github
+         :pkgname "minad/consult"
+         :depends (compat))
+        (:name marginalia
+         :type github
+         :pkgname "minad/marginalia"
+         :depends (compat))
+        (:name orderless
+         :type github
+         :pkgname "oantolin/orderless"
+         :depends (compat))
+        (:name vertico
+         :type github
+         :pkgname "minad/vertico"
+         :depends (compat))))
 
 (defun scs/el-get-bootstrap ()
   "Clone el-get into `user-emacs-directory' when no checkout is present.
@@ -1123,7 +1136,8 @@ git-commit buffers so we do not fight tools or mangle huge logs."
 ;; Minibuffer completion
 ;; ----------------------------------------------------------
 
-;; Helm owns minibuffer completion; keep built-in Fido inactive.
+;; Vertico owns minibuffer completion (see the vertico use-package
+;; block).  Keep built-in Fido off so it cannot fight Vertico.
 (when (fboundp 'fido-vertical-mode)
   (fido-vertical-mode -1))
 
@@ -1202,7 +1216,7 @@ git-commit buffers so we do not fight tools or mangle huge logs."
 ;; grep/find drop-ins.  Syntax boundaries we honor:
 ;; - rgrep still builds find(1) -name/-path/-prune expressions; fd speaks
 ;;   a different language (-e/-t/-g, regex by default).  Keep find-program
-;;   as "find" for rgrep/find-dired; use fd only via fd-dired and Helm.
+;;   as "find" for rgrep/find-dired; use fd only via fd-dired and consult-fd.
 ;; - xref-search-program 'ripgrep uses the rg-shaped entry in
 ;;   xref-search-program-alist (not grep -r flags).
 ;; - grep/rgrep templates below keep find for file selection and swap only
@@ -1240,18 +1254,13 @@ working; see comments above this function for the syntax split."
     ;; Fallback when rg is missing (older hosts); ugrep speaks its own flags.
     (setq xref-search-program 'ugrep)))
   (when-let ((fd (scs/fd-executable)))
-    ;; fd-dired and helm-fd read these; set whenever the feature is loaded.
-    (setq fd-dired-program fd)
-    (when (boundp 'helm-fd-executable)
-      (setq helm-fd-executable fd))))
+    ;; fd-dired reads this; set whenever the feature is loaded.
+    (setq fd-dired-program fd)))
 
 (scs/setup-search-tools)
 (with-eval-after-load 'fd-dired
   (when-let ((fd (scs/fd-executable)))
     (setq fd-dired-program fd)))
-(with-eval-after-load 'helm-fd
-  (when-let ((fd (scs/fd-executable)))
-    (setq helm-fd-executable fd)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Custom file
@@ -1368,8 +1377,8 @@ was nil during daemon startup, so font must be applied per frame."
 
 (when (eq system-type 'darwin)
   ;;              key          command                   ;; mnemonic
-  (global-set-key (kbd "H-x") 'helm-M-x)                 ;; eXecute
-  (global-set-key (kbd "H-b") 'helm-mini)                ;; Buffer
+  (global-set-key (kbd "H-x") #'execute-extended-command) ;; eXecute (Vertico)
+  (global-set-key (kbd "H-b") #'consult-buffer)           ;; Buffer
   (global-set-key (kbd "H-k") 'kill-current-buffer)      ;; Kill
   (global-set-key (kbd "H-h") #'scs/hyper-h-rubout)     ;; rub out sentence, then line
   (global-set-key (kbd "H-s") 'save-buffer)              ;; Save
@@ -1398,7 +1407,7 @@ was nil during daemon startup, so font must be applied per frame."
   (define-key scs/hyper-c-prefix-map (kbd "p") #'scs/copy-path) ;; Path
   (global-set-key (kbd "H-a") 'org-agenda)               ;; Agenda
   (global-set-key (kbd "H-l") 'org-store-link)           ;; Link
-  (global-set-key (kbd "H-i") 'helm-imenu)               ;; Imenu
+  (global-set-key (kbd "H-i") #'consult-imenu)            ;; Imenu
   (global-set-key (kbd "H-j") 'avy-goto-char-timer))     ;; Jump (avy)
 
 ;; ----------------------------------------------------------
@@ -1443,14 +1452,6 @@ was nil during daemon startup, so font must be applied per frame."
 ;;    C-\\ is already toggle-input-method here, so use C-^ instead.
 ;; 2. Bind C-h in the global map to rub-out.  Active minor/local maps that
 ;;    bind C-h (Embark, etc.) override this while they are active.
-;; 3. Keep full help on F1 (and ? / <help> via help-event-list).
-;; 4. Keep M-h -> M-DEL translation; that does not collide with C-h help.
-;; 5. Bind Delete keys to `scs/delete-forward' (chew whitespace runs after
-;;    point).  Do not put that behavior on rub-out keys.
-;;
-;; Helm still clears its own C-h prefix so C-h remains rub-out inside Helm
-;; (help stays on ? there).  See the helm :config block.
-;;
 ;; tip: Tab is available as C-i
 ;;      RET is available as C-j or C-m
 ;;      ESC is available as C-[
@@ -1622,7 +1623,7 @@ was nil during daemon startup, so font must be applied per frame."
   (yas-global-mode 1))
 
 ;; ----------------------------------------------------------
-;; company (active in-buffer completion UI; helm owns the minibuffer)
+;; company (active in-buffer completion UI; Vertico owns the minibuffer)
 ;; ----------------------------------------------------------
 
 (use-package company
@@ -1894,298 +1895,126 @@ the local instance."
                              helpful-key helpful-command))
 
 ;; ----------------------------------------------------------
-;; helm
+;; vertico + orderless + consult (minibuffer stack)
 ;; ----------------------------------------------------------
+;;
+;; Vertico is the completion UI.  Orderless is the matching style.
+;; Consult is extra commands on completing-read (preview, fd, ripgrep).
+;; Marginalia annotates candidates (docstrings, file bits, modes).
+;; Embark act stays on C-.  Helm is not loaded.
+;;
+;; Consult README keys that used to be Helm now belong here: C-x b,
+;; M-y, C-x r b, C-c h.  M-x is vanilla execute-extended-command
+;; (Vertico).  C-x f is Emacs set-fill-column again.  M-s o is occur.
 
-;; https://emacs-helm.github.io/helm/
-(use-package helm
+(defun scs/vertico-half-window ()
+  "Keep the Vertico list at about half the selected window height.
+
+`vertico-count' is a line count, not a fraction.  Vertico already
+lets the minibuffer grow (`vertico--resize-window' sets
+`max-mini-window-height' locally to 1.0).  With `vertico-resize'
+nil, that count is also the floor, so one hit still occupies the
+same panel as a long list.  Height follows the window that opened
+the minibuffer, not the whole frame, so a split stays consistent."
+  (let ((win (or (minibuffer-selected-window) (selected-window))))
+    (setq-local vertico-count (max 10 (/ (window-body-height win) 2)))))
+
+(use-package vertico
   :el-get t
-  :commands
-  (helm-M-x helm-find-files helm-mini helm-buffers-list
-            helm-filtered-bookmarks helm-show-kill-ring helm-occur
-            helm-command-prefix helm-imenu helm-multi-files)
   :init
-  (setq helm-M-x-fuzzy-match t)
-  (setq helm-buffers-fuzzy-matching t)
-  (setq helm-recentf-fuzzy-match t)
-  (setq helm-move-to-line-cycle-in-source t)
-  (setq helm-split-window-inside-p t)
-  (setq helm-autoresize-max-height 40)
-  (setq helm-autoresize-min-height 10)
-  :bind
-  (("M-x"       . helm-M-x)
-   ("C-x C-f"   . helm-multi-files) ; name search (buffers/recent/fd)
-   ("C-x f"     . helm-find-files)  ; path browser (was C-x C-f)
-   ("C-x b"     . helm-mini)
-   ("C-x C-b"   . helm-buffers-list)
-   ("C-x r b"   . helm-filtered-bookmarks)
-   ("M-y"       . helm-show-kill-ring)
-   ("M-s o"     . helm-occur)
-   ("C-c h"     . helm-command-prefix))
+  (vertico-mode)
   :config
-  (require 'helm-mode)
-  (require 'helm-command)
-  (require 'helm-files)
-  (require 'helm-buffers)
-  (require 'helm-bookmark)
-  (require 'helm-ring)
-  (require 'helm-imenu)
-  (require 'helm-occur)
-  (require 'helm-for-files)
-  (helm-mode 1)
-  (helm-autoresize-mode 1)
+  ;; Fixed panel: do not shrink when there are few candidates.
+  (setq vertico-resize nil)
+  (add-hook 'minibuffer-setup-hook #'scs/vertico-half-window)
+  (keymap-global-set "C-x C-f" #'find-file))
 
-  ;; C-h is delete globally in this profile (see Keybindings).  Do not
-  ;; leave Helm's help/debug family on a C-h prefix -- inside Helm we
-  ;; want the global delete binding, not a nested help map.  Clear the
-  ;; C-h *subkeys first*, then drop the prefix itself (the other order
-  ;; recreates a C-h keymap).  Helm help is on ? ; debug/customize move
-  ;; under C-c on helm-map.
-  (define-key helm-map (kbd "C-h C-h") nil)
-  (define-key helm-map (kbd "C-h h") nil)
-  (define-key helm-map (kbd "C-h C-d") nil)
-  (define-key helm-map (kbd "C-h c") nil)
-  (define-key helm-map (kbd "C-h d") nil)
-  (define-key helm-map (kbd "C-h") nil)
-  (define-key helm-map (kbd "?") #'helm-help)
-  (define-key helm-map (kbd "C-c C-d") #'helm-enable-or-switch-to-debug)
-  (define-key helm-map (kbd "C-c c") #'helm-customize-group)
-  (define-key helm-map (kbd "C-c d") #'helm-debug-output)
+(use-package orderless
+  :el-get t
+  :demand t
+  :config
+  ;; Load first so the `orderless' completion style exists, then select
+  ;; it.  orderless README: basic as fallback; partial-completion for
+  ;; files so /u/s/e can expand.  completion-pcm-leading-wildcard is
+  ;; Emacs 31.
+  (setq completion-styles '(orderless basic)
+        completion-category-defaults nil
+        completion-category-overrides '((file (styles partial-completion)))
+        completion-pcm-leading-wildcard t))
 
-  ;; helm-fd (C-/ in helm-find-files) is async and cannot fuzzy-match; it also
-  ;; feeds the pattern to fd as literal substrings.  Replace with an in-buffer
-  ;; source: list files once via fd, then use Helm fuzzy + space-separated tokens
-  ;; (e.g. "thing illumos" -> illumos-notes-something.org).
-  (defvar scs/helm-fuzzy-fd--cache (make-hash-table :test 'equal)
-    "Cache mapping fd root directories to expanded file-name lists.")
-  (defvar scs/helm-multi-files--fd-root nil
-    "Current fd root used by `scs/helm-multi-files'.")
-  (defvar scs/helm-source-fd-fuzzy nil
-    "Helm source object for the current fuzzy fd file list.")
-  (defvar scs/helm-multi-files--fd-on nil
-    "Non-nil when the fuzzy fd source is active in `scs/helm-multi-files'.")
+(use-package marginalia
+  :el-get t
+  :bind (:map minibuffer-local-map
+              ("M-A" . marginalia-cycle))
+  :init
+  ;; README: enable in :init so the mode is on before the first prompt.
+  (marginalia-mode))
 
-  (defun scs/helm-fd-executable ()
-    "Return the fd executable Helm should use, or nil when unavailable."
-    (or (and (boundp 'helm-fd-executable) helm-fd-executable)
-        (executable-find "fdfind")
-        (executable-find "fd")))
+(use-package consult
+  :el-get t
+  :bind
+  (;; Consult README.  Keys that used to be Helm are included on purpose.
+   ("C-x b" . consult-buffer)
+   ("C-x 4 b" . consult-buffer-other-window)
+   ("C-x 5 b" . consult-buffer-other-frame)
+   ("C-x t b" . consult-buffer-other-tab)
+   ("C-x r b" . consult-bookmark)
+   ("C-x p b" . consult-project-buffer)
+   ("C-x M-:" . consult-complex-command)
+   ("C-c h" . consult-history)
+   ("C-c M-x" . consult-mode-command)
+   ("C-c k" . consult-kmacro)
+   ;; C-c i stays imenu-list (later in this file).  consult-info is
+   ;; still on Info-search via the remap below.  C-c m is the mail lab.
+   ("M-y" . consult-yank-pop)
+   ("M-g e" . consult-compile-error)
+   ("M-g g" . consult-goto-line)
+   ("M-g M-g" . consult-goto-line)
+   ("M-g o" . consult-outline)
+   ("M-g m" . consult-mark)
+   ("M-g k" . consult-global-mark)
+   ("M-g i" . consult-imenu)
+   ("M-g I" . consult-imenu-multi)
+   ("M-s d" . consult-fd)
+   ("M-s c" . consult-locate)
+   ("M-s g" . consult-grep)
+   ("M-s G" . consult-git-grep)
+   ("M-s r" . consult-ripgrep)
+   ("M-s l" . consult-line)
+   ("M-s L" . consult-line-multi)
+   ("M-s k" . consult-keep-lines)
+   ("M-s u" . consult-focus-lines)
+   ("M-s e" . consult-isearch-history)
+   ([remap Info-search] . consult-info)
+   :map isearch-mode-map
+   ("M-e" . consult-isearch-history)
+   ("M-s e" . consult-isearch-history)
+   ("M-s l" . consult-line)
+   ("M-s L" . consult-line-multi)
+   :map minibuffer-local-map
+   ("M-s" . consult-history)
+   ("M-r" . consult-history))
+  :config
+  ;; Consult README: register preview, xref locations, live preview debounce.
+  ;; Kept in :config so el-get autoloads need not exist yet at init parse.
+  (advice-add #'register-preview :override #'consult-register-window)
+  (setq register-preview-delay 0.5)
+  (setq xref-show-xrefs-function #'consult-xref
+        xref-show-definitions-function #'consult-xref)
+  (setq consult-narrow-key "<")
+  (consult-customize
+   consult-theme :preview-key '(:debounce 0.2 any)
+   consult-ripgrep consult-git-grep consult-grep
+   consult-bookmark consult-recent-file consult-xref
+   consult-source-bookmark consult-source-file-register
+   consult-source-recent-file consult-source-project-recent-file
+   :preview-key '(:debounce 0.4 any)))
 
-  (defun scs/helm-fd-root-unsafe-p (directory)
-    "True when DIRECTORY is too broad to index synchronously (e.g. $HOME)."
-    (let ((dir (file-name-as-directory (expand-file-name directory)))
-          (home (file-name-as-directory (expand-file-name "~"))))
-      (or (file-remote-p dir)
-          (string= dir "/")
-          (string= dir home))))
-
-  (defun scs/helm-multi-files-fd-root (&optional arg)
-    "Pick a safe fd root for `scs/helm-multi-files'.
-Without ARG prefer notes (`howm-directory' or ~/notes); with ARG use `default-directory'."
-    (let* ((notes (expand-file-name
-                   (or (and (boundp 'howm-directory) howm-directory)
-                       "~/notes")))
-           (requested (expand-file-name
-                       (if arg default-directory notes))))
-      (cond
-       ((not (scs/helm-fd-root-unsafe-p requested)) requested)
-       ((not (scs/helm-fd-root-unsafe-p notes)) notes)
-       (t (user-error "Refusing to index %s; open a narrower directory or set howm-directory"
-                      requested)))))
-
-  (defun scs/helm-fuzzy-fd--parse-buffer (_directory buffer)
-    "Return existing files listed one per line in BUFFER."
-    (with-current-buffer buffer
-      (cl-loop for line in (split-string (buffer-string) "\n" t)
-               when (file-exists-p line)
-               collect (expand-file-name line))))
-
-  ;; add: 2026-07-10
-  (defun scs/helm-fuzzy-fd--notes-root-p (directory)
-    "Return non-nil when DIRECTORY is the howm/notes tree (safe to sync-index)."
-    (let ((dir (file-name-as-directory (expand-file-name directory)))
-          (notes (file-name-as-directory
-                  (expand-file-name
-                   (or (and (boundp 'howm-directory) howm-directory)
-                       "~/notes")))))
-      (string= dir notes)))
-
-  ;; add: 2026-07-10
-  (defun scs/helm-fuzzy-fd--invalidate (directory)
-    "Drop the fuzzy fd cache entry for DIRECTORY, if any."
-    (remhash (expand-file-name directory) scs/helm-fuzzy-fd--cache))
-
-  (defun scs/helm-fuzzy-fd--populate-cache-sync (directory)
-    "Synchronously populate and return the fuzzy fd cache for DIRECTORY."
-    (unless (gethash directory scs/helm-fuzzy-fd--cache)
-      (let ((fd (scs/helm-fd-executable)))
-        (cl-assert fd nil "Could not find fd executable")
-        (puthash directory
-                 (or (with-temp-buffer
-                       (call-process fd nil (current-buffer) nil
-                                     "--hidden" "--type" "f" "--glob" "*"
-                                     directory)
-                       (scs/helm-fuzzy-fd--parse-buffer directory (current-buffer)))
-                     '())
-                 scs/helm-fuzzy-fd--cache)))
-    (gethash directory scs/helm-fuzzy-fd--cache))
-
-  (defun scs/helm-fuzzy-fd--index-async (directory callback)
-    "Run fd in the background; call CALLBACK when DIRECTORY is cached."
-    (if (gethash directory scs/helm-fuzzy-fd--cache)
-        (funcall callback)
-      (let ((fd (scs/helm-fd-executable)))
-        (unless fd
-          (user-error "Could not find fd executable"))
-        (let ((buf (generate-new-buffer " *scs-fd-index*")))
-          (message "Indexing files under %s…" (abbreviate-file-name directory))
-          (make-process
-           :name "scs-fd-index"
-           :buffer buf
-           :noquery t
-           :command (list fd "--hidden" "--type" "f" "--glob" "*" directory)
-           :sentinel
-           (lambda (_proc event)
-             (if (string-match-p "finished\\|exited" event)
-                 (puthash directory
-                          (scs/helm-fuzzy-fd--parse-buffer directory buf)
-                          scs/helm-fuzzy-fd--cache)
-               (message "Fd indexing failed: %s" event))
-             (when (buffer-live-p buf)
-               (kill-buffer buf))
-             (funcall callback)))))))
-
-  (defun scs/helm-fuzzy-fd--file-list (directory)
-    "Return cached fuzzy fd file names for DIRECTORY, or an empty list."
-    (or (gethash directory scs/helm-fuzzy-fd--cache) '()))
-
-  (defun scs/helm-rebuild-fd-fuzzy-source (directory)
-    "Rebuild `scs/helm-source-fd-fuzzy' for DIRECTORY."
-    (require 'helm-fd)
-    (setq scs/helm-source-fd-fuzzy
-          (helm-make-source "Fd fuzzy"
-            'helm-source-in-buffer
-            :requires-pattern 1
-            :data (lambda ()
-                    (or (gethash directory scs/helm-fuzzy-fd--cache) '()))
-            :fuzzy-match helm-ff-fuzzy-matching
-            :multimatch t
-            :header-name
-            (lambda (name)
-              (format "%s (%s)"
-                      name (abbreviate-file-name directory)))
-            :action 'helm-type-file-actions
-            :keymap 'helm-fd-map)))
-
-  (defun scs/helm-make-fd-fuzzy-source (directory)
-    "Return a Helm source for fuzzy fd search under DIRECTORY."
-    (scs/helm-rebuild-fd-fuzzy-source directory)
-    scs/helm-source-fd-fuzzy)
-
-  (defun scs/helm-fuzzy-fd-1 (directory)
-    "Fuzzy file search under DIRECTORY (replacement for `helm-fd-1')."
-    (require 'helm-fd)
-    (let ((directory (expand-file-name directory)))
-      (cl-assert (scs/helm-fd-executable) nil "Could not find fd executable")
-      (cl-assert (not (file-remote-p directory))
-                 nil "Fd not supported on remote directories")
-      (when (scs/helm-fd-root-unsafe-p directory)
-        (user-error "Directory too broad for fuzzy fd (%s); cd into a subdir first"
-                    directory))
-      (when helm-current-prefix-arg
-        (scs/helm-fuzzy-fd--invalidate directory))
-      (scs/helm-fuzzy-fd--populate-cache-sync directory)
-      (scs/helm-rebuild-fd-fuzzy-source directory)
-      (let ((default-directory directory))
-        (helm :sources 'scs/helm-source-fd-fuzzy
-              :buffer "*helm fd*"
-              :ff-transformer-show-only-basename nil))))
-
-  ;; Replace built-in helm-fd-1 with our synchronous cache + Helm fuzzy matcher
-  ;; so C-/ inside find-files can match space-separated tokens on a fixed root.
-  (advice-add 'helm-fd-1 :override #'scs/helm-fuzzy-fd-1)
-
-  (defun scs/helm-multi-files--fd-present-p ()
-    "Return non-nil when the fuzzy fd source is in `helm-sources'."
-    (with-helm-buffer
-      (cl-loop for src in helm-sources
-               thereis (equal (assoc-default 'name src) "Fd fuzzy"))))
-
-  (defun scs/helm-multi-files-enable-fd ()
-    "Add the fuzzy fd source to the live Helm multi-files session."
-    (when (and helm-buffer (get-buffer helm-buffer))
-      (with-helm-buffer
-        (unless (scs/helm-multi-files--fd-present-p)
-          (scs/helm-rebuild-fd-fuzzy-source scs/helm-multi-files--fd-root)
-          (helm-set-sources (append helm-sources (list scs/helm-source-fd-fuzzy)))
-          (setq scs/helm-multi-files--fd-on t)
-          (helm-update)))))
-
-  (defun scs/helm-multi-files-disable-fd ()
-    "Remove the fuzzy fd source from the live Helm multi-files session."
-    (with-helm-alive-p
-      (with-helm-buffer
-        (setq helm-sources
-              (cl-remove-if (lambda (src)
-                              (equal (assoc-default 'name src) "Fd fuzzy"))
-                            helm-sources)
-              scs/helm-multi-files--fd-on nil)
-        (helm-set-source-filter nil)
-        (helm-update))))
-
-  (defun scs/helm-multi-files-toggle-fd ()
-    "Toggle fuzzy fd source in `scs/helm-multi-files' (HFF `C-/')."
-    (interactive)
-    (with-helm-alive-p
-      (if scs/helm-multi-files--fd-on
-          (scs/helm-multi-files-disable-fd)
-        (if (gethash scs/helm-multi-files--fd-root scs/helm-fuzzy-fd--cache)
-            (scs/helm-multi-files-enable-fd)
-          (scs/helm-fuzzy-fd--index-async
-           scs/helm-multi-files--fd-root
-           #'scs/helm-multi-files-enable-fd)))))
-  (put 'scs/helm-multi-files-toggle-fd 'helm-only t)
-
-  ;; Notes root: sync index (measured ~10ms).  Other roots: open Helm
-  ;; immediately and attach fd when the async index finishes.  C-/ toggles
-  ;; fd off/on.  C-u uses `default-directory' and refreshes the fd cache.
-  ;; fix: 2026-07-10 — async cold-cache for non-notes roots
-  (defun scs/helm-multi-files (&optional arg)
-    "Like `helm-multi-files' with fuzzy fd (HFF `C-/') under notes by default."
-    (interactive "P")
-    (require 'helm-for-files)
-    (require 'helm-x-files)
-    (unless helm-source-buffers-list
-      (setq helm-source-buffers-list
-            (helm-make-source "Buffers" 'helm-source-buffers)))
-    (setq scs/helm-multi-files--fd-root (scs/helm-multi-files-fd-root arg)
-          scs/helm-multi-files--fd-on nil)
-    (when arg (scs/helm-fuzzy-fd--invalidate scs/helm-multi-files--fd-root))
-    (let* ((root scs/helm-multi-files--fd-root)
-           (safe (not (scs/helm-fd-root-unsafe-p root)))
-           (cached (and safe (gethash root scs/helm-fuzzy-fd--cache)))
-           (sync-ok (and safe (or cached (scs/helm-fuzzy-fd--notes-root-p root))))
-           (sources (remove 'helm-source-locate helm-for-files-preferred-list))
-           (old-key (lookup-key helm-map (kbd "C-/"))))
-      (when (and safe sync-ok)
-        (scs/helm-fuzzy-fd--populate-cache-sync root)
-        (scs/helm-rebuild-fd-fuzzy-source root)
-        (setq sources (append sources '(scs/helm-source-fd-fuzzy))
-              scs/helm-multi-files--fd-on t))
-      (when (and safe (not sync-ok))
-        (scs/helm-fuzzy-fd--index-async root #'scs/helm-multi-files-enable-fd))
-      (unwind-protect
-          (progn
-            (define-key helm-map (kbd "C-/") #'scs/helm-multi-files-toggle-fd)
-            (helm :sources sources
-                  :buffer "*helm multi files*"
-                  :ff-transformer-show-only-basename nil
-                  :truncate-lines helm-buffers-truncate-lines))
-        (if old-key
-            (define-key helm-map (kbd "C-/") old-key)
-          (define-key helm-map (kbd "C-/") nil)))))
-
-  (advice-add 'helm-multi-files :override #'scs/helm-multi-files))
+;; Embark README: same checkout as embark; loads exporters so
+;; consult-ripgrep can embark-export to a grep buffer (then wgrep).
+(use-package embark-consult
+  :after (embark consult)
+  :demand t)
 
 ;; ----------------------------------------------------------
 ;; hl-todo
@@ -2347,10 +2176,8 @@ Default suggestion comes from #TITLE:/#+TITLE:, else the first * heading."
           (user-error "Target file already exists: %s" basename))
         (rename-file buffer-file-name new-path)
         (set-visited-file-name new-path t t)
-        ;; add: 2026-07-10 — keep org-id + fd cache in sync after rename
+        ;; Keep org-id locations in sync after rename.
         (scs/org-id-update-current-file)
-        (when (fboundp 'scs/helm-fuzzy-fd--invalidate)
-          (scs/helm-fuzzy-fd--invalidate howm-directory))
         (message "Renamed to %s" basename))))
 
   (defalias 'howm-rename-to-slug #'scs/howm-rename-note)
@@ -2446,17 +2273,14 @@ With prefix arg, treat the pattern as a fixed string."
 (defun scs/org-id-update-current-file ()
   "Merge this buffer's Org IDs into the persisted locations table.
 
-No-op outside `howm-directory'.  Invalidates the Helm fd cache for notes
-when IDs change so filename search stays consistent."
+No-op outside `howm-directory'."
   (when (and buffer-file-name
              (string-match-p "\\.org\\'" buffer-file-name)
              (boundp 'howm-directory)
              (file-directory-p howm-directory)
              (file-in-directory-p buffer-file-name howm-directory))
     (scs/org-id--configure-locations-file)
-    (org-id-update-id-locations (list buffer-file-name) t)
-    (when (fboundp 'scs/helm-fuzzy-fd--invalidate)
-      (scs/helm-fuzzy-fd--invalidate howm-directory))))
+    (org-id-update-id-locations (list buffer-file-name) t)))
 
 ;; add: 2026-07-10
 (defun scs/org-id-report-duplicates ()
@@ -2542,12 +2366,12 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
                0))))
 
 ;; New notes get IDs at creation; startup loads the persisted table; each save
-;; updates only the current file's entries and refreshes Helm's fd cache.
+;; updates only the current file's org-id entries.
 (add-hook 'howm-create-hook #'scs/howm-add-org-id)
 (add-hook 'emacs-startup-hook #'scs/org-id-init 100)
 ;; add: 2026-07-10
 (defun scs/howm-setup-id-on-save ()
-  "Buffer-local after-save hook: sync org-id and fd cache for this note."
+  "Buffer-local after-save hook: sync org-id locations for this note."
   (add-hook 'after-save-hook #'scs/org-id-update-current-file nil t))
 (add-hook 'howm-mode-hook #'scs/howm-setup-id-on-save)
 
@@ -2792,10 +2616,13 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
 ;; ----------------------------------------------------------
 ;; recentf
 ;; ----------------------------------------------------------
+;;
+;; Consult's buffer list Files source (narrow with f) reads this list.
+;; Enable during init, not after a timer, so the first C-x b already
+;; sees recents.  no-littering owns the save file under var/.
 
 ;; jwiegley
 (use-package recentf
-  :defer 1
   :commands (recentf-mode
              recentf-add-file
              recentf-apply-filename-handlers)
@@ -2859,6 +2686,10 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
 ;; ----------------------------------------------------------
 ;; savehist
 ;; ----------------------------------------------------------
+;;
+;; Persist minibuffer histories across sessions.  Consult's
+;; consult-history (C-c h, and M-s / M-r in the minibuffer) reads
+;; whatever `minibuffer-history-variable' savehist restored.
 
 (use-package savehist
   :unless noninteractive
@@ -3168,6 +2999,8 @@ Side effects: may call `enlarge-window' on WINDOW."
   :el-get t
   :defer 1
   :config
+  ;; Same visual budget as Vertico: up to half the frame.
+  (setq which-key-side-window-max-height 0.5)
   (which-key-mode t))
 
 ;; ----------------------------------------------------------
@@ -3232,9 +3065,18 @@ Side effects: may call `enlarge-window' on WINDOW."
 ;; ----------------------------------------------------------
 ;; wgrep
 ;; ----------------------------------------------------------
+;;
+;; Edit grep hits in place, then write them back to the files.
+;; Consult ripgrep/grep do not produce a *grep* buffer themselves:
+;; C-. A (embark-export) via embark-consult does.  Then C-c C-p
+;; enters wgrep.  Emacs 31 also offers `e' for grep-edit-mode in
+;; the same buffer; pick one editor per session.
 
-;; Edit grep results in-place and apply changes back to files
-(use-package wgrep :el-get t)
+(use-package wgrep
+  :el-get t
+  :hook (grep-setup . wgrep-setup)
+  :bind (:map grep-mode-map
+              ("C-c C-p" . wgrep-change-to-wgrep-mode)))
 
 
 ;; ----------------------------------------------------------
