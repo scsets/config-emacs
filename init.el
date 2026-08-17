@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-17 Mon 12:45
-;; Update #: 37
+;; Last-Updated: 2026-08-17 Mon 15:18
+;; Update #: 39
 ;;
 ;;; Commentary:
 ;;
@@ -47,6 +47,8 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; fix: 2026-08-17 -- C-c h in Org falls back to command history
+;; add: 2026-08-17 -- vertico-repeat (Helm-resume analogue; not Counsel)
 ;; add: 2026-08-17 -- scs/sync-emacs-config: git pull, prune leftover el-get
 ;; add: 2026-08-17 -- embark-consult + wgrep; recentf on before first C-x b
 ;; add: 2026-08-17 -- Vertico half-window always; enable Marginalia
@@ -634,6 +636,7 @@ exec ./configure --with-emacs=\"$em\"
         (:name vertico
          :type github
          :pkgname "minad/vertico"
+         :load-path ("." "extensions")
          :depends (compat))))
 
 ;; Packages installed with use-package :el-get using stock el-get
@@ -1929,6 +1932,26 @@ the local instance."
 ;; M-y, C-x r b, C-c h.  M-x is vanilla execute-extended-command
 ;; (Vertico).  C-x f is Emacs set-fill-column again.  M-s o is occur.
 
+(defun scs/consult-history ()
+  "Insert from a buffer input ring, or pick a previous command.
+
+`consult-history' only knows Eshell, Comint, Term, and the
+minibuffer (`consult-mode-histories').  Org and most editing
+buffers have no input ring, so the stock command errors there.
+In those buffers this command runs `consult-complex-command'
+instead: pick a previous command (with its arguments) and run it
+again.  That is the closest analogue to Helm remembering the last
+M-x."
+  (interactive)
+  (require 'consult)
+  (if (or (minibufferp)
+          (seq-find (lambda (h)
+                      (and (derived-mode-p (car h))
+                           (boundp (if (consp (cdr h)) (cadr h) (cdr h)))))
+                    consult-mode-histories))
+      (call-interactively #'consult-history)
+    (call-interactively #'consult-complex-command)))
+
 (defun scs/vertico-half-window ()
   "Keep the Vertico list at about half the selected window height.
 
@@ -1949,6 +1972,22 @@ the minibuffer, not the whole frame, so a split stays consistent."
   ;; Fixed panel: do not shrink when there are few candidates.
   (setq vertico-resize nil)
   (add-hook 'minibuffer-setup-hook #'scs/vertico-half-window)
+  ;; Extensions live in vertico/extensions/.  el-get load-path lists
+  ;; that dir after a fresh sync; add it here so this session finds
+  ;; vertico-repeat without waiting for a reinstall.
+  (let ((ext (expand-file-name "extensions"
+                               (file-name-directory (locate-library "vertico")))))
+    (when (file-directory-p ext)
+      (add-to-list 'load-path ext)))
+  ;; Helm-resume analogue: restore the last Vertico session (input and
+  ;; selected candidate).  Not Counsel/ivy-resume -- Counsel is Ivy's
+  ;; command pack; this profile uses Consult.  M-x itself is filtered
+  ;; out of this history (upstream default); last M-x commands still
+  ;; sort to the top of a new M-x via `extended-command-history'.
+  (require 'vertico-repeat)
+  (add-hook 'minibuffer-setup-hook #'vertico-repeat-save)
+  (keymap-global-set "M-R" #'vertico-repeat)
+  (keymap-set vertico-map "M-P" #'vertico-repeat-previous)
   (keymap-global-set "C-x C-f" #'find-file))
 
 (use-package orderless
@@ -1983,7 +2022,7 @@ the minibuffer, not the whole frame, so a split stays consistent."
    ("C-x r b" . consult-bookmark)
    ("C-x p b" . consult-project-buffer)
    ("C-x M-:" . consult-complex-command)
-   ("C-c h" . consult-history)
+   ("C-c h" . scs/consult-history)
    ("C-c M-x" . consult-mode-command)
    ("C-c k" . consult-kmacro)
    ;; C-c i stays imenu-list (later in this file).  consult-info is
@@ -2710,8 +2749,10 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
 ;; ----------------------------------------------------------
 ;;
 ;; Persist minibuffer histories across sessions.  Consult's
-;; consult-history (C-c h, and M-s / M-r in the minibuffer) reads
-;; whatever `minibuffer-history-variable' savehist restored.
+;; consult-history (M-s / M-r in the minibuffer) reads whatever
+;; `minibuffer-history-variable' savehist restored.  Global C-c h
+;; is `scs/consult-history', which falls back to command history
+;; in Org and other editing buffers.
 
 (use-package savehist
   :unless noninteractive
@@ -2720,7 +2761,8 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
    '(file-name-history
      kmacro-ring
      compile-history
-     compile-command))
+     compile-command
+     vertico-repeat-history))
   (savehist-autosave-interval 60)
   (savehist-ignored-variables
    '(load-history
