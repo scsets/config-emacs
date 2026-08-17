@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-17 Mon 12:38
-;; Update #: 36
+;; Last-Updated: 2026-08-17 Mon 12:45
+;; Update #: 37
 ;;
 ;;; Commentary:
 ;;
@@ -47,6 +47,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-17 -- scs/sync-emacs-config: git pull, prune leftover el-get
 ;; add: 2026-08-17 -- embark-consult + wgrep; recentf on before first C-x b
 ;; add: 2026-08-17 -- Vertico half-window always; enable Marginalia
 ;; add: 2026-08-17 -- Consult Vertico list uses half the frame
@@ -366,6 +367,13 @@ Intentionally not *scratch*; new frames land on persistent notes."
 (autoload 'scs/copy-path-project "scs-copy-path" nil t)
 (autoload 'scs/copy-path-truename "scs-copy-path" nil t)
 (autoload 'scs/copy-path-local-name "scs-copy-path" nil t)
+;; add: 2026-08-17 -- git pull this repo, prune leftover el-get, maybe restart
+(autoload 'scs/sync-emacs-config "scs-config-sync"
+  "git pull this Emacs repo, prune leftover el-get packages, maybe restart." t)
+(autoload 'scs/el-get-cleanup-unwanted "scs-config-sync"
+  "Remove el-get packages this profile no longer declares." t)
+(autoload 'scs/restart-emacs "scs-config-sync"
+  "Exit this Emacs after spawning a waiter that starts a new process." t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -628,6 +636,15 @@ exec ./configure --with-emacs=\"$em\"
          :pkgname "minad/vertico"
          :depends (compat))))
 
+;; Packages installed with use-package :el-get using stock el-get
+;; recipes (no plist in `scs/el-get-local-sources').  Cleanup keeps
+;; these plus local sources and their dependencies.
+(defconst scs/el-get-extra-keep-packages
+  '(avy diff-hl exec-path-from-shell flycheck reveal-in-osx-finder
+    slime sly sly-asdf sly-macrostep sly-repl-ansi-color unfill
+    wgrep which-key)
+  "el-get packages declared via use-package :el-get without a local recipe.")
+
 (defun scs/el-get-bootstrap ()
   "Clone el-get into `user-emacs-directory' when no checkout is present.
 
@@ -808,8 +825,8 @@ packages that were later removed from sources), without calling
 
 Arguments: PACKAGES are optional package names; omit to sync all.
 Return value: nil.
-Side effects: may prune orphans, install/update packages, and emit a
-warning if sync still fails.
+Side effects: may prune orphans and leftover packages, install/update
+packages, and emit a warning if sync still fails.
 
 This is the durable fix for \"init died before load-theme\": el-get must
 never `error' out of init.el.  Prefer messages/warnings and keep going.
@@ -822,6 +839,11 @@ remove the recipe / clear status) to stop the loop."
   (let ((el-get-is-lazy t))
     (scs/el-get-skip-unavailable-local-packages)
     (scs/el-get-prune-status-orphans)
+    (condition-case err
+        (scs/el-get-cleanup-unwanted)
+      (error
+       (message "el-get leftover cleanup failed (init continues): %s"
+                (error-message-string err))))
     (condition-case err
         (apply #'el-get 'sync packages)
       (error

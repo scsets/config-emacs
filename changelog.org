@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-17 Mon 12:38
-#+UPDATE: 38
+#+LAST-UPDATED: 2026-08-17 Mon 12:45
+#+UPDATE: 39
 # $Id$
 
 * Document role
@@ -16,6 +16,12 @@ Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10, then
 normalized to lowercase =changelog.org= on 2026-07-27.
 
 * 2026-08-17  SCS  <scs@scs.re>
+
+- =lisp/scs-config-sync.el=: ~scs/sync-emacs-config~ git-pulls this
+  repo (~--ff-only~), reloads init, and prunes el-get packages that
+  are no longer declared (checkouts, ~.status.el~, autoloads, matching
+  ~.eln~ files).  Prefix argument restarts Emacs.  Init also runs the
+  prune on every start so leftovers like Helm go away after a restart.
 
 - =init.el=: Wire ~embark-consult~ so Consult searches can export to
   grep/occur.  Enable wgrep on grep buffers (~C-c C-p~).  Turn

@@ -5,9 +5,9 @@
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-07-24 Fri 12:07
-;; Version: 0.1.4
-;; Last-Updated: 2026-08-17 Mon 12:12
-;; Update #: 5
+;; Version: 0.1.5
+;; Last-Updated: 2026-08-17 Mon 12:45
+;; Update #: 6
 ;; Keywords: convenience, transient, completion
 ;; Package-Requires: ((emacs "29.1") (transient "0.5"))
 
@@ -33,6 +33,7 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; add: 2026-08-17 -- catalog entry for scs/sync-emacs-config
 ;; add: 2026-08-17 -- catalog uses completing-read (Vertico); drop Helm UI
 ;; add: 2026-07-24 -- require scs-command-hub-helm for catalog UI
 ;; add: 2026-07-24 -- q quits whole hub stack from every panel
@@ -102,7 +103,12 @@
      :title "el-get report"
      :summary "Show package name, source, and installed revision"
      :tags (config)
-     :keys "M-x scs/el-get-report"))
+     :keys "M-x scs/el-get-report")
+    (:name scs/sync-emacs-config
+     :title "Sync Emacs config"
+     :summary "git pull this repo, prune leftover el-get packages; prefix restarts"
+     :tags (config favorite)
+     :keys "M-x scs/sync-emacs-config"))
   "Curated command catalog for the SCS command hub.
 
 Each entry is a plist with :name, :title, :summary, and optional

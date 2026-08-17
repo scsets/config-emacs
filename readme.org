@@ -6,8 +6,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-03-05 Thu 17:59
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-17 Mon 12:38
-#+UPDATE: 7
+#+LAST-UPDATED: 2026-08-17 Mon 12:45
+#+UPDATE: 8
 
 * Document role
 
@@ -73,6 +73,7 @@ material.
 |---------+-------------+---------|
 | =org-tools.el= | ~require~ after Org; Hyper prefix autoload | Buffer helpers (header, creation-date, zwsp, rename) + export (line-prefix, stationery, PDF/X) |
 | =scs-command-hub.el= | autoload ~scs/command-hub~; ~C-c ?~ / ~C-c /~ | Transient home: workflows, describe; Vertico catalog |
+| =scs-config-sync.el= | autoload ~scs/sync-emacs-config~ | git pull this repo, prune leftover el-get, optional restart |
 | =scs-frame-state.el= | autoload | Frame geometry save/restore |
 | =scs-tramp.el= | TRAMP ~:config~ + autoload | Known hosts, cleanup, no-trace policy |
 | =flycheck-org-lint-workaround.el= | ~flycheck~ block | Advice for broken Flycheck/org-lint line-cell handling |
@@ -106,6 +107,7 @@ Control Center and Fn+H / Show Desktop.
 |------------------+---------|
 | ~C-c ?~ / ~C-c /~ / ~scs/command-hub~ | Command hub: curated catalog, workflows, describe |
 | ~C-c r~ / ~scs/reload-config~ | Reload =init.el=; prefix also re-applies early-init runtime bits |
+| ~scs/sync-emacs-config~ | git pull this repo, prune leftover el-get packages; ~C-u~ restarts Emacs |
 | ~C-x C-f~ | ~find-file~ under Vertico (path is a string; left arrow moves) |
 | ~C-x b~ / ~H-b~ | ~consult-buffer~ (buffers, recents, bookmarks, project) |
 | ~M-x~ / ~H-x~ | ~execute-extended-command~ under Vertico |
