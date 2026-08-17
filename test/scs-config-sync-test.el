@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-08-17 Mon 12:45
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-17 Mon 12:45
-;; Update #: 1
+;; Last-Updated: 2026-08-17 Mon 13:47
+;; Update #: 2
 
 ;;; Commentary:
 ;;
@@ -18,6 +18,7 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; add: 2026-08-17 -- git -C ROOT ERT
 ;; add: 2026-08-17 -- wanted-package and orphan-checkout ERT
 
 ;;; Code:
@@ -54,6 +55,21 @@
     (should-not (scs/el-get-orphan-checkout-name-p "vertico" wanted))
     (should (scs/el-get-orphan-checkout-name-p "helm" wanted))
     (should (scs/el-get-orphan-checkout-name-p "wfnames" wanted))))
+
+(ert-deftest scs/emacs-config-git-uses-minus-c ()
+  "git -C a non-repo fails even when default-directory is a git tree.
+
+Without `-C', `call-process' would use `default-directory' and this
+would succeed if Emacs was started from the config repo."
+  (skip-unless (executable-find "git"))
+  (let ((default-directory (expand-file-name user-emacs-directory))
+        (empty (make-temp-file "scs-git-c-" t)))
+    (unwind-protect
+        (with-temp-buffer
+          (should-not
+           (zerop (scs/emacs-config-git empty "rev-parse"
+                                        "--is-inside-work-tree"))))
+      (delete-directory empty t))))
 
 (provide 'scs-config-sync-test)
 ;;; scs-config-sync-test.el ends here

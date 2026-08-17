@@ -5,9 +5,9 @@
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-08-17 Mon 12:45
-;; Version: 0.1.0
-;; Last-Updated: 2026-08-17 Mon 12:45
-;; Update #: 1
+;; Version: 0.1.1
+;; Last-Updated: 2026-08-17 Mon 13:47
+;; Update #: 2
 ;; Keywords: convenience, el-get, tools
 ;; Package-Requires: ((emacs "29.1"))
 
@@ -37,6 +37,7 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; add: 2026-08-17 -- git -C ROOT so pull does not use the output buffer cwd
 ;; add: 2026-08-17 -- git pull, el-get leftover cleanup, optional restart
 
 ;;; Code:
@@ -208,6 +209,17 @@ Return the list of package symbols `el-get-cleanup' removed, or nil."
 ;; Git pull
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun scs/emacs-config-git (root &rest args)
+  "Run git -C ROOT ARGS and insert output in the current buffer.
+
+Return the process exit status.  Always pass `-C' so the working
+directory is ROOT.  `call-process' otherwise uses the current
+buffer's `default-directory', which is buffer-local -- the
+`*scs config git*' output buffer is not the config tree."
+  (apply #'call-process "git" nil t nil "-C"
+         (directory-file-name (expand-file-name root))
+         args))
+
 (defun scs/emacs-config-git-root ()
   "Return `user-emacs-directory' if it is a git working tree, else nil."
   (let* ((root (file-name-as-directory
@@ -218,9 +230,10 @@ Return the list of package symbols `el-get-cleanup' removed, or nil."
 
 (defun scs/emacs-config-git-dirty-p (root)
   "Return non-nil when git ROOT has uncommitted changes."
-  (let ((default-directory root))
-    (with-temp-buffer
-      (call-process "git" nil t nil "status" "--porcelain")
+  (with-temp-buffer
+    (let ((status (scs/emacs-config-git root "status" "--porcelain")))
+      (unless (zerop status)
+        (user-error "git status failed in %s" root))
       (> (buffer-size) 0))))
 
 (defun scs/emacs-config-git-pull ()
@@ -237,13 +250,13 @@ local edits stay in the worktree."
                (not (y-or-n-p
                      "Config worktree has local changes.  git pull --ff-only anyway? ")))
       (user-error "Pull cancelled (dirty worktree)"))
-    (let ((default-directory root)
-          (buf (get-buffer-create "*scs config git*")))
+    (let ((buf (get-buffer-create "*scs config git*"))
+          (root-arg (directory-file-name (expand-file-name root))))
       (with-current-buffer buf
         (let ((inhibit-read-only t))
           (erase-buffer)
-          (insert (format "git -C %s pull --ff-only\n\n" root)))
-        (let ((status (call-process "git" nil t nil "pull" "--ff-only")))
+          (insert (format "git -C %s pull --ff-only\n\n" root-arg)))
+        (let ((status (scs/emacs-config-git root "pull" "--ff-only")))
           (unless (zerop status)
             (display-buffer buf)
             (user-error "git pull failed (exit %s); see %s"
