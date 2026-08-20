@@ -370,6 +370,9 @@ Intentionally not *scratch*; new frames land on persistent notes."
 (autoload 'scs/copy-path-project "scs-copy-path" nil t)
 (autoload 'scs/copy-path-truename "scs-copy-path" nil t)
 (autoload 'scs/copy-path-local-name "scs-copy-path" nil t)
+;; add: 2026-08-20 -- sort pipe-separated fields on the current line
+(autoload 'scs/sort-line-fields "scs-sort-line-fields"
+  "Sort pipe-separated fields on this line alphabetically." t)
 ;; add: 2026-08-17 -- git pull this repo, prune leftover el-get, maybe restart
 (autoload 'scs/sync-emacs-config "scs-config-sync"
   "git pull this Emacs repo, prune leftover el-get packages, maybe restart." t)
