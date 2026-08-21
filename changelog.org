@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-21 Fri 12:48
-#+UPDATE: 49
+#+LAST-UPDATED: 2026-08-21 Fri 13:53
+#+UPDATE: 51
 # $Id$
 
 * Document role
@@ -16,6 +16,11 @@ Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10, then
 normalized to lowercase =changelog.org= on 2026-07-27.
 
 * 2026-08-21  SCS  <scs@scs.re>
+
+- =init.el=: howm no longer steals Tab from Org.  Tab is ~org-cycle~
+  again.  Link jump is ~s-<tab>~ (physical Ctrl-Tab on this Mac, where
+  ~mac-control-modifier~ is Super); ~s-S-<tab>~ / ~s-<backtab>~ is the
+  previous link.  Shift-Tab stays with Org.
 
 - =spell/=: Track personal word lists in Git (=en_GB-ise.dic=,
   =it_IT.dic=, =en.prepl=).  =lisp/scs-spell-dicts.el= installs them:

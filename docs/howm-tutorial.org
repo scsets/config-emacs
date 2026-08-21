@@ -1,0 +1,225 @@
+#+TITLE: howm tutorial (this Emacs profile)
+#+FILENAME: howm-tutorial.org
+#+DESCRIPTION: Learn howm basics as wired for Org notes under ~/notes on this Mac profile
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-08-21 Fri 13:59
+#+VERSION: 0.2.0
+#+LAST-UPDATED: 2026-08-21 Fri 14:00
+#+UPDATE: 1
+
+* Document role
+
+Hands-on tutorial for howm in *this* Emacs profile.  Stock howm docs
+assume plain text and ~C-c ,~ everywhere; here notes are Org under
+=~/notes=, ~howm-mode~ turns on only in that tree, and some keys are
+remapped so Org can keep Tab and RET.
+
+Config source of truth: the ~howm~ use-package block in =init.el=.
+
+* Mental model
+
+howm's motto is roughly: write in small fragments, read them together.
+
+- Each note is one Org file under =~/notes=.
+- Links are mostly *search*, not a separate database.  A tag like
+  ~#garden~ means "find other notes that contain that text."
+- You do not need a perfect folder scheme.  Titles, tags, and search
+  carry the structure.
+- Org still does headings, todo keywords, and fold/unfold.  howm adds
+  capture, list/search UI, and clickable "action-lock" spans.
+
+If you already know Org-roam: howm is looser and more grep-shaped.
+That is intentional.
+
+* Where things live
+
+| Path | Role |
+|------|------|
+| =~/notes/= | Note files (~howm-directory~) |
+| =~/.config/emacs/var/howm/keys= | howm keyword file (no-littering) |
+| =~/.config/emacs/var/howm/history= | howm history |
+| =~/.config/emacs/var/org/id-locations.el= | Org ID map for notes |
+
+~howm-mode~ is enabled only when the visited file sits under
+=~/notes=.  Opening =init.el= as Org does *not* turn howm on.
+
+* Mac modifiers (why Ctrl-Tab is s-TAB)
+
+On this Mac build, physical keys are remapped before Emacs commands see
+them (=early-init.el=):
+
+| Physical key | Emacs modifier |
+|--------------+----------------|
+| Control      | Super (~s-~)   |
+| Command      | Control (~C-~) |
+| Option       | Meta           |
+| Fn           | Hyper          |
+
+So the chord you press as Ctrl-Tab arrives as Emacs ~s-<tab>~.  Command
+is the key that sends Control into Emacs.
+
+* First 15 minutes
+
+Do these once with a throwaway note.  Prefer the profile shortcuts;
+stock ~C-c ,~ keys still work inside howm buffers and are listed later.
+
+** 1. Create a note
+
+Press ~C-f9~ (or ~C-c , c~).
+
+You get a new file named like ~2026-08-21-140000.org~ with a template:
+
+#+begin_example
+* Title here
+<timestamp> [[file:...]]
+#TITLE:
+#+filetags:
+
+#+end_example
+
+Type a short title on the ~*~ heading (and optionally on ~#TITLE:~).
+Save (~C-x C-s~ / ~H-s~).
+
+On first save of a timestamp-named file, Emacs may ask to rename the
+note to a slug from the title (e.g. ~my-topic.org~).  That is
+~scs/howm-maybe-offer-rename~.  You can rename later with ~C-c n r~.
+
+New notes also receive an Org ~:ID:~ property (~scs/howm-add-org-id~)
+so ~org-id-goto~ can find them later.
+
+** 2. List all notes
+
+Press ~<f9>~ (or ~C-c , a~).
+
+You get a howm summary (recently touched notes first) and a contents
+preview beside it (~howm-view-split-horizontally~).  Move with ~n~ /
+~p~ (or the usual keys), press RET to open a note.  The summary can
+stay visible (~howm-view-summary-persistent~).
+
+** 3. Search
+
+Press ~C-c n g~ or ~H-/~ (Hyper-slash).
+
+Type a regexp howm/ripgrep understands.  With a prefix argument
+(~C-u C-c n g~), the pattern is fixed-string instead.
+
+Results use the same summary + preview UI as "list all."
+
+** 4. Add a tag and follow it
+
+In a note, write a tag on its own word boundary, for example:
+
+#+begin_example
+#garden
+#+end_example
+
+Also supported by this profile:
+
+| Form | Intended use |
+|------+--------------|
+| ~#tag~ | topic / category |
+| ~+tag~ | project / group |
+| ~@name~ or ~@@tag~ | person, file, resource |
+
+Move point onto the tag.  Follow it with ~C-c , RET~ (not plain RET;
+Org owns RET).  That runs a fixed-string search for that text across
+=~/notes=.
+
+Jump between action-lock spans without leaving the keyboard:
+
+| Chord (what you press) | Emacs event | Command |
+|------------------------+-------------+---------|
+| Ctrl-Tab | ~s-<tab>~ | next howm link |
+| Ctrl-Shift-Tab | ~s-S-<tab>~ | previous howm link |
+
+** 5. Fold headings as usual
+
+Tab on a heading runs ~org-cycle~ (fold/unfold).  Shift-Tab runs
+~org-shifttab~ (global visibility).  howm does *not* steal those keys
+in this profile.
+
+* Everyday commands (profile)
+
+| Goal | Key | Command |
+|------+-----+---------|
+| List all notes | ~<f9>~ | ~howm-list-all~ |
+| Create note | ~C-f9~ | ~howm-create~ |
+| Search notes | ~C-c n g~ / ~H-/~ | ~scs/notes-search~ |
+| Fixed-string search | ~C-u C-c n g~ | ~howm-list-grep-fixed~ |
+| Rename this note | ~C-c n r~ | ~scs/howm-rename-note~ |
+| Follow action-lock at point | ~C-c , RET~ | ~action-lock-magic-return~ |
+| Next / previous link | Ctrl-Tab / Ctrl-Shift-Tab | ~action-lock-goto-next/previous-link~ |
+| Fold heading | Tab | ~org-cycle~ |
+| Rebuild note ID map | ~M-x scs/org-id-rebuild~ | after big moves outside Emacs |
+
+* Stock howm prefix (still available)
+
+Inside a howm buffer, the usual ~C-c ,~ map still exists.  Useful
+entries:
+
+| Key | Command |
+|-----+---------|
+| ~C-c , ,~ | ~howm-menu~ (menu buffer: recent, todo, schedule) |
+| ~C-c , c~ | ~howm-create~ |
+| ~C-c , a~ | ~howm-list-all~ |
+| ~C-c , g~ | ~howm-list-grep~ |
+| ~C-c , s~ | search (stock; prefer ~C-c n g~ in this profile) |
+
+Explore with ~C-h m~ in a howm note, or ~C-c , C-h~ for the prefix
+help.
+
+* Menu, todos, and dates
+
+~C-c , ,~ opens the howm menu.  This profile widens the windows a bit:
+
+- recent / todo counts: 30
+- schedule: 3 days back, 30 days ahead
+
+howm reminders use mark-up in the note text (see upstream docs for
+~[ ]~ / date marks).  Your notes are Org, so you can *also* use Org
+TODO keywords and ~org-agenda~ if you prefer; howm menu and Org agenda
+are separate tools that can coexist.
+
+* Tab and link keys (detail)
+
+Org needs Tab for fold/unfold.  howm action-lock links use Super-Tab.
+Follow a link with ~C-c , RET~.
+
+| Chord (what you press) | Emacs event   | Command              |
+|------------------------+---------------+----------------------|
+| Tab                    | Tab           | ~org-cycle~          |
+| Ctrl-Tab               | ~s-<tab>~     | next howm link       |
+| Ctrl-Shift-Tab         | ~s-S-<tab>~   | previous howm link   |
+| Shift-Tab              | ~<backtab>~   | ~org-shifttab~       |
+
+Bindings live on ~howm-mode-map~ in =init.el=.
+
+* Small habits that pay off
+
+1. Put a clear ~*~ title (and ~#TITLE:~ if you like renames) at the top.
+2. Tag lightly: a few ~#~ / ~+~ / ~@~ tokens beat deep folder trees.
+3. Prefer search (~C-c n g~) over remembering paths.
+4. After bulk file moves outside Emacs, run ~scs/org-id-rebuild~.
+5. Keep throwaway captures; rename when a note earns a stable name.
+
+* What this profile changes vs stock howm
+
+| Topic | Stock howm (typical) | This profile |
+|-------+----------------------+--------------|
+| Format | often ~.txt~ | Org ~.org~ under =~/notes= |
+| Title line | format-dependent | ~*~ heading (~howm-view-title-header~) |
+| howm-mode | often global / wiki-wide | only files under =~/notes= |
+| Create / list | ~C-c , c~ / ~C-c , a~ | also ~C-f9~ / ~<f9>~ |
+| Search | ~C-c , g~ | also ~C-c n g~, ~H-/~, ripgrep when installed |
+| Follow link | often RET | ~C-c , RET~ (Org keeps RET) |
+| Next link | often Tab | Ctrl-Tab (~s-<tab>~) |
+| Filenames | timestamp forever | offer slug rename on first save; ~C-c n r~ |
+| IDs | optional | Org ID on create + save-time update |
+
+* Further reading
+
+- Upstream howm: https://kaorahi.github.io/howm/
+- Longer third-party tutorial: https://emacs101.github.io/howm.html
+- Profile notes: =insights.org= (org-id for howm, rename behaviour)
+- Key bindings in code: =init.el= (~howm~ use-package)

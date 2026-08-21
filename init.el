@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-21 Fri 12:48
-;; Update #: 46
+;; Last-Updated: 2026-08-21 Fri 13:53
+;; Update #: 48
 ;;
 ;;; Commentary:
 ;;
@@ -47,6 +47,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-21 -- howm link jump on s-TAB (physical Ctrl-Tab)
 ;; add: 2026-08-21 -- spell/ personal dicts in Git; scs/spell-dicts-install
 ;; add: 2026-08-21 -- jinx (en_GB-ise it_IT); keep idle flyspell/aspell
 ;; add: 2026-08-17 -- H-f is find-file (toggle)
@@ -2398,11 +2399,24 @@ With prefix arg, treat the pattern as a fixed string."
   (add-hook 'howm-mode-hook #'scs--howm-add-tag-rules)
   (add-hook 'howm-mode-hook #'scs/howm-setup-rename-offer)
 
-  ;; Org steals RET; use C-c , RET to follow action-lock links in howm notes.
+  ;; Org needs Tab for org-cycle (fold/unfold).  howm steals RET, so
+  ;; follow action-lock links with C-c , RET.
+  ;;
+  ;; Link jump uses Super-Tab (Emacs `s-<tab>').  On this Mac profile
+  ;; early-init maps the physical Control key to Super
+  ;; (`mac-control-modifier' -> super), so the chord you press is
+  ;; Ctrl-Tab.  Physical Command is Emacs Control; Shift-Tab stays
+  ;; with Org (`org-shifttab').
   (define-key howm-mode-map (kbd "C-c , RET") 'action-lock-magic-return)
   (define-key howm-mode-map (kbd "C-c , <return>") 'action-lock-magic-return)
-  (define-key howm-mode-map (kbd "<tab>") 'action-lock-goto-next-link)
-  (define-key howm-mode-map (kbd "<backtab>") 'action-lock-goto-previous-link))
+  (keymap-unset howm-mode-map "<tab>" t)
+  (keymap-unset howm-mode-map "S-<tab>" t)
+  (keymap-unset howm-mode-map "<backtab>" t)
+  (keymap-unset howm-mode-map "C-c , S-<tab>" t)
+  (keymap-unset howm-mode-map "C-c , <backtab>" t)
+  (define-key howm-mode-map (kbd "s-<tab>") 'action-lock-goto-next-link)
+  (define-key howm-mode-map (kbd "s-<backtab>") 'action-lock-goto-previous-link)
+  (define-key howm-mode-map (kbd "s-S-<tab>") 'action-lock-goto-previous-link))
 
 ;; ----------------------------------------------------------
 ;; org-id (find howm notes by ID)
