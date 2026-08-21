@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-21 Fri 12:27
-#+UPDATE: 47
+#+LAST-UPDATED: 2026-08-21 Fri 12:48
+#+UPDATE: 49
 # $Id$
 
 * Document role
@@ -17,8 +17,16 @@ normalized to lowercase =changelog.org= on 2026-07-27.
 
 * 2026-08-21  SCS  <scs@scs.re>
 
+- =spell/=: Track personal word lists in Git (=en_GB-ise.dic=,
+  =it_IT.dic=, =en.prepl=).  =lisp/scs-spell-dicts.el= installs them:
+  Enchant files under =~/.config/enchant/= are symlinks into =spell/=
+  (so jinx "save personal" edits the working tree); aspell
+  =~/.aspell.*.pws= files are rebuilt from the same lists.  jinx
+  ~:config~ runs ~scs/spell-dicts-install~.
+
 - =init.el=: Add ~jinx~ (Enchant) as the day-to-day spell checker with
-  ~jinx-languages~ ~en_GB it_IT~ (en-uk / it-it).  ~M-$~ is
+  ~jinx-languages~ ~en_GB-ise it_IT~ (same British -ise dictionary as
+  the idle aspell/ispell setup, plus Italian).  ~M-$~ is
   ~jinx-correct~, ~C-M-$~ is ~jinx-languages~.  Enable
   ~global-jinx-mode~ at startup.  Keep aspell/ispell settings and the
   idle ~flyspell~ use-package so the previous stack remains available.

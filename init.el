@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-21 Fri 12:27
-;; Update #: 44
+;; Last-Updated: 2026-08-21 Fri 12:48
+;; Update #: 46
 ;;
 ;;; Commentary:
 ;;
@@ -47,7 +47,8 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
-;; add: 2026-08-21 -- jinx (en_GB it_IT); keep idle flyspell/aspell
+;; add: 2026-08-21 -- spell/ personal dicts in Git; scs/spell-dicts-install
+;; add: 2026-08-21 -- jinx (en_GB-ise it_IT); keep idle flyspell/aspell
 ;; add: 2026-08-17 -- H-f is find-file (toggle)
 ;; add: 2026-08-17 -- second M-x / Consult press quits that minibuffer
 ;; add: 2026-08-17 -- H-g is keyboard-escape-quit; H-b toggles consult-buffer
@@ -384,6 +385,9 @@ Intentionally not *scratch*; new frames land on persistent notes."
   "Remove el-get packages this profile no longer declares." t)
 (autoload 'scs/restart-emacs "scs-config-sync"
   "Exit this Emacs after spawning a waiter that starts a new process." t)
+;; add: 2026-08-21 -- install versioned spell/ word lists for jinx/Enchant
+(autoload 'scs/spell-dicts-install "scs-spell-dicts"
+  "Install spell/ personal word lists into Enchant and aspell paths." t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2569,9 +2573,14 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
   :bind (("M-$" . jinx-correct)
          ("C-M-$" . jinx-languages))
   :custom
-  ;; en-uk -> en_GB (ISO; there is no en_UK tag).  it-it -> it_IT.
-  ;; Space separated; Enchant opens one dictionary per code.
-  (jinx-languages "en_GB it_IT"))
+  ;; Same British -ise dictionary as the ispell/aspell setup above
+  ;; (en_GB-ise), plus Italian.  Whitespace separated; Enchant opens
+  ;; one dictionary per code.
+  (jinx-languages "en_GB-ise it_IT")
+  :config
+  ;; spell/ is the Git-tracked source; install links Enchant and rebuilds
+  ;; aspell personal files so both backends see the same words.
+  (scs/spell-dicts-install))
 
 ;; ----------------------------------------------------------
 ;; keycast

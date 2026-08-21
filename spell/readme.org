@@ -1,0 +1,57 @@
+#+TITLE: Personal spell dictionaries
+#+FILENAME: spell/readme.org
+#+DESCRIPTION: Versioned personal word lists for jinx / Enchant / aspell
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-08-21 Fri 12:48
+#+VERSION: 0.1.0
+#+LAST-UPDATED: 2026-08-21 Fri 12:48
+#+UPDATE: 0
+
+* Problem
+
+Personal spell words lived only under the home directory
+(=~/.aspell.*.pws=, =~/.config/enchant/*.dic=).  Those paths are outside
+this Git tree, so a new machine or a wiped home loses them, and there
+is no reviewable history of additions.
+
+* Solution
+
+This directory is the canonical data:
+
+| File | Role |
+|------+------|
+| =en_GB-ise.dic= | English personal words (British =-ise=), one word per line |
+| =it_IT.dic= | Italian personal words, one word per line |
+| =en.prepl= | Aspell-style replacements: ~misspelling correction~ per line |
+
+Enchant format is intentional: plain lines, optional ~#~ comments.
+~scs/spell-dicts-install~ (see =lisp/scs-spell-dicts.el=) installs
+them for day-to-day use:
+
+1. Symlinks =~/.config/enchant/en_GB-ise.dic= and =it_IT.dic= here, so
+   jinx "save to personal dictionary" writes into this working tree.
+2. Rebuilds =~/.aspell.en.pws= and =~/.aspell.it.pws= from the same
+   lists (Aspell header included), because Enchant's English backend
+   is Aspell and still reads those files.
+3. Writes =~/.aspell.en.prepl= from =en.prepl=.
+
+* How it works
+
+1. Edit a =.dic= (or accept a word in jinx while the Enchant file is
+   the symlink into =spell/=).
+2. Commit the =.dic= change with the rest of this config.
+3. On another host: clone/pull, start Emacs (install runs from the
+   jinx block), or run ~M-x scs/spell-dicts-install~.
+
+* Quickstart
+
+#+begin_src elisp
+M-x scs/spell-dicts-install
+;; Then check:
+;;   ~/.config/enchant/en_GB-ise.dic  -> symlink into spell/
+;;   ~/.aspell.en.pws                 -> rebuilt from en_GB-ise.dic
+#+end_src
+
+Do not commit =~/.config/enchant/import-backup-*=; those are local
+backups from the one-time merge of old home/aum/argo lists.
