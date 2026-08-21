@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-17 Mon 17:52
-#+UPDATE: 43
+#+LAST-UPDATED: 2026-08-21 Fri 12:27
+#+UPDATE: 47
 # $Id$
 
 * Document role
@@ -15,7 +15,26 @@ Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10, then
 normalized to lowercase =changelog.org= on 2026-07-27.
 
+* 2026-08-21  SCS  <scs@scs.re>
+
+- =init.el=: Add ~jinx~ (Enchant) as the day-to-day spell checker with
+  ~jinx-languages~ ~en_GB it_IT~ (en-uk / it-it).  ~M-$~ is
+  ~jinx-correct~, ~C-M-$~ is ~jinx-languages~.  Enable
+  ~global-jinx-mode~ at startup.  Keep aspell/ispell settings and the
+  idle ~flyspell~ use-package so the previous stack remains available.
+  Vertico uses ~vertico-multiform-mode~ for category ~jinx~ (grid,
+  annotate 20, count 4); half-window sizing skips that category.
+
 * 2026-08-17  SCS  <scs@scs.re>
+
+- =init.el=: ~H-f~ is ~find-file~ and toggles like M-x / Consult.
+
+- =init.el=: A second press of M-x or the same Consult command quits
+  that minibuffer.  A different command from inside a prompt (M-s
+  history, Embark) still runs.
+
+- =init.el=: ~H-g~ is ~keyboard-escape-quit~ (same as ESC ESC ESC).
+  ~H-b~ toggles ~consult-buffer~: a second press aborts that minibuffer.
 
 - =lisp/scs-config-sync.el=: Ghost checkout removal keeps dependency
   packages (~htmlize~, ~cond-let~, ~simple-httpd~).  Passing only

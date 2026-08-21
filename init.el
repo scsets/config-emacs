@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-17 Mon 17:52
-;; Update #: 40
+;; Last-Updated: 2026-08-21 Fri 12:27
+;; Update #: 44
 ;;
 ;;; Commentary:
 ;;
@@ -47,6 +47,10 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-21 -- jinx (en_GB it_IT); keep idle flyspell/aspell
+;; add: 2026-08-17 -- H-f is find-file (toggle)
+;; add: 2026-08-17 -- second M-x / Consult press quits that minibuffer
+;; add: 2026-08-17 -- H-g is keyboard-escape-quit; H-b toggles consult-buffer
 ;; fix: 2026-08-17 -- Emacs 31 when-let* (when-let is obsolete)
 ;; fix: 2026-08-17 -- C-c h in Org falls back to command history
 ;; add: 2026-08-17 -- vertico-repeat (Helm-resume analogue; not Counsel)
@@ -546,6 +550,12 @@ exec ./configure --with-emacs=\"$em\"
          :type github
          :pkgname "skeeto/impatient-mode"
          :depends (htmlize simple-httpd))
+        ;; Spell-check via Enchant (libenchant); builds jinx-mod at install.
+        ;; Host needs enchant + pkgconf (macOS: brew install enchant pkgconf).
+        (:name jinx
+         :type github
+         :pkgname "minad/jinx"
+         :depends (compat))
         (:name keycast
          :type github
          :pkgname "tarsius/keycast"
@@ -1226,6 +1236,9 @@ git-commit buffers so we do not fight tools or mangle huge logs."
 ;; ----------------------------------------------------------
 ;; External tools (aspell, ripgrep, fd)
 ;; ----------------------------------------------------------
+;; aspell remains the ispell/flyspell backend when those are invoked by
+;; hand.  Day-to-day checking is jinx + Enchant (see the jinx
+;; use-package block).  Keep both so the older path stays usable.
 
 (when (executable-find "aspell")
   (setq ispell-program-name "aspell"
@@ -1404,15 +1417,67 @@ was nil during daemon startup, so font must be applied per frame."
 ;; Hyper key shortcuts (macOS only, via Karabiner)
 ;; ----------------------------------------------------------
 
+(defvar scs/minibuffer-allow-repeat-commands nil
+  "Commands that may re-enter their own minibuffer instead of quitting.
+
+The default policy is: a second press of the same M-x, find-file,
+or Consult command dismisses that prompt.  A *different* command
+from inside a prompt still runs -- so minibuffer M-s
+(`consult-history') works during M-x, because
+`current-minibuffer-command' is not `consult-history'.  Put a
+symbol here only if that command must nest *itself*.")
+
+(defun scs/minibuffer-toggle-command-p (command)
+  "Return non-nil when COMMAND is M-x, find-file, or a Consult command.
+
+Internal `consult--...' helpers are excluded: they are not keys.
+`scs/consult-history' is included so C-c h toggles like the rest."
+  (and (symbolp command)
+       (not (memq command scs/minibuffer-allow-repeat-commands))
+       (or (memq command '(execute-extended-command
+                           execute-extended-command-for-buffer
+                           find-file
+                           scs/consult-history))
+           (let ((name (symbol-name command)))
+             (and (string-prefix-p "consult-" name)
+                  (not (string-prefix-p "consult--" name)))))))
+
+(defun scs/minibuffer-same-command-p (this owner)
+  "Return non-nil if THIS is a second press of OWNER's minibuffer command.
+
+Wrappers share an identity with the command they run: C-c h and
+minibuffer M-s both count as `consult-history'."
+  (or (eq this owner)
+      (and (memq this '(consult-history scs/consult-history))
+           (memq owner '(consult-history scs/consult-history)))))
+
+(defun scs/quit-duplicate-minibuffer-command ()
+  "Quit when the user re-invokes the command that owns this minibuffer.
+
+Runs from `pre-command-hook'.  M-x, find-file, and Consult-style
+commands are included (see `scs/minibuffer-toggle-command-p').
+Invoking a different command from inside a prompt (history,
+Embark) is left alone."
+  (when (and (minibufferp)
+             (scs/minibuffer-toggle-command-p current-minibuffer-command)
+             (scs/minibuffer-same-command-p this-command
+                                            current-minibuffer-command))
+    (abort-minibuffers)))
+
+(add-hook 'pre-command-hook #'scs/quit-duplicate-minibuffer-command)
+
 (when (eq system-type 'darwin)
   ;;              key          command                   ;; mnemonic
   (global-set-key (kbd "H-x") #'execute-extended-command) ;; eXecute (Vertico)
-  (global-set-key (kbd "H-b") #'consult-buffer)           ;; Buffer
+  (global-set-key (kbd "H-f") #'find-file)                ;; File (toggle)
+  (global-set-key (kbd "H-b") #'consult-buffer)           ;; Buffer (toggle)
   (global-set-key (kbd "H-k") 'kill-current-buffer)      ;; Kill
   (global-set-key (kbd "H-h") #'scs/hyper-h-rubout)     ;; rub out sentence, then line
   (global-set-key (kbd "H-s") 'save-buffer)              ;; Save
   (global-set-key (kbd "H-r") 'revert-buffer-quick)      ;; Revert
-  (global-set-key (kbd "H-g") 'grep)                     ;; Grep
+  ;; Same command as ESC ESC ESC.  Also deactivates the region and can
+  ;; delete other windows; that is stock `keyboard-escape-quit'.
+  (global-set-key (kbd "H-g") #'keyboard-escape-quit)    ;; Get out
   (global-set-key (kbd "H-n") 'next-error)               ;; Next
   (global-set-key (kbd "H-p") 'previous-error)           ;; Previous
   (global-set-key (kbd "H-z") 'eshell-toggle)            ;; Z-shell
@@ -1956,6 +2021,21 @@ M-x."
       (call-interactively #'consult-history)
     (call-interactively #'consult-complex-command)))
 
+(defun scs/vertico--completion-category ()
+  "Return the current minibuffer completion category, or nil.
+
+Used so category-specific Vertico layouts (for example jinx grid)
+are not overwritten by the default half-window panel."
+  (when (and (minibufferp) minibuffer-completion-table)
+    (compat-call completion-metadata-get
+                 (completion-metadata
+                  (buffer-substring-no-properties
+                   (minibuffer-prompt-end)
+                   (max (minibuffer-prompt-end) (point)))
+                  minibuffer-completion-table
+                  minibuffer-completion-predicate)
+                 'category)))
+
 (defun scs/vertico-half-window ()
   "Keep the Vertico list at about half the selected window height.
 
@@ -1964,9 +2044,14 @@ lets the minibuffer grow (`vertico--resize-window' sets
 `max-mini-window-height' locally to 1.0).  With `vertico-resize'
 nil, that count is also the floor, so one hit still occupies the
 same panel as a long list.  Height follows the window that opened
-the minibuffer, not the whole frame, so a split stays consistent."
-  (let ((win (or (minibuffer-selected-window) (selected-window))))
-    (setq-local vertico-count (max 10 (/ (window-body-height win) 2)))))
+the minibuffer, not the whole frame, so a split stays consistent.
+
+Skip the jinx category: `vertico-multiform-categories' sets a
+small grid there, and this hook would otherwise overwrite that
+count (both run on `minibuffer-setup-hook')."
+  (unless (eq (scs/vertico--completion-category) 'jinx)
+    (let ((win (or (minibuffer-selected-window) (selected-window))))
+      (setq-local vertico-count (max 10 (/ (window-body-height win) 2))))))
 
 (use-package vertico
   :el-get t
@@ -1992,7 +2077,15 @@ the minibuffer, not the whole frame, so a split stays consistent."
   (add-hook 'minibuffer-setup-hook #'vertico-repeat-save)
   (keymap-global-set "M-R" #'vertico-repeat)
   (keymap-set vertico-map "M-P" #'vertico-repeat-previous)
-  (keymap-global-set "C-x C-f" #'find-file))
+  (keymap-global-set "C-x C-f" #'find-file)
+  ;; jinx README: grid + annotations for correction candidates so more
+  ;; suggestions fit.  Require extensions before enabling multiform so
+  ;; `intern-soft' finds vertico-grid-mode.
+  (require 'vertico-grid)
+  (require 'vertico-multiform)
+  (add-to-list 'vertico-multiform-categories
+               '(jinx grid (vertico-grid-annotate . 20) (vertico-count . 4)))
+  (vertico-multiform-mode 1))
 
 (use-package orderless
   :el-get t
@@ -2459,6 +2552,26 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
 ;; ----------------------------------------------------------
 
 (use-package impatient-mode :el-get t)
+
+;; ----------------------------------------------------------
+;; jinx
+;; ----------------------------------------------------------
+;; https://github.com/minad/jinx
+;; Just-in-time spell-check via Enchant.  Replaces day-to-day use of
+;; flyspell/ispell (M-$), but those packages stay configured so they
+;; can still be turned on by hand.  Needs libenchant at compile time
+;; (macOS: brew install enchant pkgconf).
+
+(use-package jinx
+  :el-get t
+  :unless (eq window-system 'w32)
+  :hook (emacs-startup . global-jinx-mode)
+  :bind (("M-$" . jinx-correct)
+         ("C-M-$" . jinx-languages))
+  :custom
+  ;; en-uk -> en_GB (ISO; there is no en_UK tag).  it-it -> it_IT.
+  ;; Space separated; Enchant opens one dictionary per code.
+  (jinx-languages "en_GB it_IT"))
 
 ;; ----------------------------------------------------------
 ;; keycast

@@ -6,8 +6,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-03-05 Thu 17:59
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-17 Mon 15:18
-#+UPDATE: 10
+#+LAST-UPDATED: 2026-08-21 Fri 12:27
+#+UPDATE: 14
 
 * Document role
 
@@ -108,9 +108,10 @@ Control Center and Fn+H / Show Desktop.
 | ~C-c ?~ / ~C-c /~ / ~scs/command-hub~ | Command hub: curated catalog, workflows, describe |
 | ~C-c r~ / ~scs/reload-config~ | Reload =init.el=; prefix also re-applies early-init runtime bits |
 | ~scs/sync-emacs-config~ | git pull this repo, prune leftover el-get packages; ~C-u~ restarts Emacs |
-| ~C-x C-f~ | ~find-file~ under Vertico (path is a string; left arrow moves) |
-| ~C-x b~ / ~H-b~ | ~consult-buffer~ (buffers, recents, bookmarks, project) |
-| ~M-x~ / ~H-x~ | ~execute-extended-command~ under Vertico |
+| ~C-x C-f~ / ~H-f~ | ~find-file~ under Vertico (second press quits) |
+| ~C-x b~ / ~H-b~ | ~consult-buffer~ (second press of the same command quits) |
+| ~H-g~ | ~keyboard-escape-quit~ (same as ESC ESC ESC) |
+| ~M-x~ / ~H-x~ | ~execute-extended-command~ (second press quits) |
 | ~M-y~ | ~consult-yank-pop~ |
 | ~C-c h~ | ~scs/consult-history~ (command history in Org; input history in Eshell / minibuffer) |
 | ~M-g i~ / ~H-i~ | ~consult-imenu~ |
@@ -134,14 +135,14 @@ Helm is not loaded.  The minibuffer stack is Vertico (UI), Orderless
 
 | Job | Key | Command |
 |-----+-----+---------|
-| Open a path / new file | ~C-x C-f~ | ~find-file~ + Vertico |
+| Open a path / new file | ~C-x C-f~ / ~H-f~ | ~find-file~ + Vertico (second press quits) |
 | Jump by file name | ~M-s d~ | ~consult-fd~ |
-| Switch buffer | ~C-x b~ / ~H-b~ | ~consult-buffer~ |
-| Imenu | ~M-g i~ / ~H-i~ | ~consult-imenu~ |
-| Line in this buffer | ~M-s l~ | ~consult-line~ |
-| Content in the tree | ~M-s r~ | ~consult-ripgrep~ |
+| Switch buffer | ~C-x b~ / ~H-b~ | ~consult-buffer~ (second press quits) |
+| Imenu | ~M-g i~ / ~H-i~ | ~consult-imenu~ (second press quits) |
+| Line in this buffer | ~M-s l~ | ~consult-line~ (second press quits) |
+| Content in the tree | ~M-s r~ | ~consult-ripgrep~ (second press quits) |
 | Kill ring | ~M-y~ | ~consult-yank-pop~ |
-| M-x | ~M-x~ / ~H-x~ | ~execute-extended-command~ + Vertico |
+| M-x | ~M-x~ / ~H-x~ | ~execute-extended-command~ (second press quits) |
 | Minibuffer history | ~M-s~ / ~M-r~ in a prompt | ~consult-history~ |
 | Last command (with args) | ~C-c h~ / ~C-x M-:~ | ~scs/consult-history~ / ~consult-complex-command~ |
 | Actions on a candidate | ~C-.~ | ~embark-act~ |
@@ -159,6 +160,11 @@ half the frame as well.
 Narrowing inside Consult: type ~<~ then a letter (see ~consult-narrow-key~).
 Orderless: space-separated tokens in any order, e.g. ~init el~.
 ~consult-buffer~ Files (~f~ after ~<~) comes from ~recentf-mode~.
+A second press of M-x, ~find-file~, or the same Consult command
+dismisses that prompt.  A different command from inside a prompt still runs
+(minibuffer ~M-s~ history, Embark).  ~H-g~ is
+~keyboard-escape-quit~ (same as ESC ESC ESC).  Project search is
+~M-s r~; stock ~grep~ is ~M-x grep~.
 Minibuffer ~M-s~ / ~M-r~ history comes from ~savehist-mode~.
 ~C-c h~ in Eshell or a prompt is ~consult-history~.  In Org and other
 editing buffers it is ~consult-complex-command~ (replay a command with
@@ -186,7 +192,8 @@ it over the network.  That is intentional for a single-user profile.
 | ~rg~ | optional | howm search; falls back to grep |
 | ~fd~ / ~fdfind~ | optional | Consult ~consult-fd~; fd-dired |
 | ~ugrep~ | optional | ~xref-search-program~ when present |
-| aspell | optional | flyspell (currently idle in config) |
+| enchant + pkgconf | required for jinx | macOS: ~brew install enchant pkgconf~; builds ~jinx-mod~ |
+| aspell | optional | ispell/flyspell fallback (hooks stay idle); also an Enchant backend |
 | Homebrew + GCC + libgccjit | macOS native-comp | discovered in =early-init.el= |
 | Karabiner | macOS Hyper | Fn → Hyper; Fn+C / Fn+H proxies |
 | ~mmdc~ | feature | Mermaid Babel |
@@ -263,6 +270,7 @@ bin/emacs-diagnostic
 - *Org:* org-mode (el-get builtin), org-contrib (el-get git; org-expiry)
 - *Notes:* howm (=~/notes=, semantic filenames), org-id (ID linking)
 - *Lint:* flycheck (with local org-lint workaround in =lisp/=)
+- *Spell:* jinx (Enchant; ~en_GB it_IT~); flyspell/ispell kept idle as fallback
 - *Lisp:* slime (LispWorks)
 - *UI:* hl-todo, delight, which-key, minions
 - *Files:* no-littering, recentf
