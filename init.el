@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-29 Sat 15:22
-;; Update #: 50
+;; Last-Updated: 2026-08-29 Sat 15:47
+;; Update #: 54
 ;;
 ;;; Commentary:
 ;;
@@ -47,6 +47,10 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; fix: 2026-08-29 -- demand consult-dir; recursive minibuffers for C-x C-d
+;; fix: 2026-08-29 -- scs/consult-dir: active-minibuffer-window for Vertico
+;; fix: 2026-08-29 -- rebind C-x C-d/C-r on setup; C-x C-r aborts then picks
+;; fix: 2026-08-29 -- nested Vertico height; no preview on C-x C-r
 ;; add: 2026-08-29 -- C-x C-r in find-file prompt: scs/consult-recent-file
 ;; fix: 2026-08-29 -- recentf :demand t so C-x b <f> works on first prompt
 ;; add: 2026-08-29 -- scs/reveal-file: Finder or TTY Dired; copy path; C-c M-v
@@ -2064,6 +2068,26 @@ are not overwritten by the default half-window panel."
                   minibuffer-completion-predicate)
                  'category)))
 
+(defun scs/vertico--height-window ()
+  "Return the editing window used to size the Vertico panel.
+
+`minibuffer-selected-window' is the window that was current when
+this minibuffer opened.  For a nested prompt (C-x C-r during
+find-file) that is the outer minibuffer, whose body is already a
+short list.  Halving that again shows only about 13 candidates.
+Walk out until we reach a normal editing window."
+  (let ((win (or (minibuffer-selected-window) (selected-window)))
+        seen)
+    (while (and win
+                (window-minibuffer-p win)
+                (not (memq win seen)))
+      (push win seen)
+      (setq win (with-selected-window win
+                  (minibuffer-selected-window))))
+    (if (and win (not (window-minibuffer-p win)))
+        win
+      (selected-window))))
+
 (defun scs/vertico-half-window ()
   "Keep the Vertico list at about half the selected window height.
 
@@ -2078,7 +2102,7 @@ Skip the jinx category: `vertico-multiform-categories' sets a
 small grid there, and this hook would otherwise overwrite that
 count (both run on `minibuffer-setup-hook')."
   (unless (eq (scs/vertico--completion-category) 'jinx)
-    (let ((win (or (minibuffer-selected-window) (selected-window))))
+    (let ((win (scs/vertico--height-window)))
       (setq-local vertico-count (max 10 (/ (window-body-height win) 2))))))
 
 (use-package vertico
@@ -2106,6 +2130,11 @@ count (both run on `minibuffer-setup-hook')."
   (keymap-global-set "M-R" #'vertico-repeat)
   (keymap-set vertico-map "M-P" #'vertico-repeat-previous)
   (keymap-global-set "C-x C-f" #'find-file)
+  ;; Vertico README: nested minibuffers so C-x C-d / C-x C-r can run
+  ;; from find-file.  Depth indicator shows when more than one prompt
+  ;; is open.
+  (setq enable-recursive-minibuffers t)
+  (minibuffer-depth-indicate-mode 1)
   ;; jinx README: grid + annotations for correction candidates so more
   ;; suggestions fit.  Require extensions before enabling multiform so
   ;; `intern-soft' finds vertico-grid-mode.
@@ -2203,40 +2232,97 @@ count (both run on `minibuffer-setup-hook')."
   :demand t)
 
 ;; ----------------------------------------------------------
-;; scs/consult-recent-file (find-file prompt companion)
+;; find-file prompt helpers (consult-dir + recentf)
 ;; ----------------------------------------------------------
 ;;
-;; Like `consult-dir' (C-x C-d) but for full paths from recentf.
-;; Bound on vertico-map only so global C-x C-r stays revert-buffer.
+;; Vertico keeps the active prompt in `active-minibuffer-window' even when
+;; `(minibufferp)' is nil in the selected window.  Stock `consult-dir' only
+;; checks `(minibufferp)', opens a nested prompt, and errors.  These wrappers
+;; run insert logic in the active minibuffer window instead.
+;;
+;; C-x C-d and C-x C-r are on vertico-map (and global C-x C-d for dirs).
+;; C-x C-r stays off global-map so revert-buffer keeps C-x C-r.
+
+(defun scs/consult-dir ()
+  "Choose a directory; insert into the active prompt or run `find-file'."
+  (interactive)
+  (require 'consult-dir)
+  (if (or (minibufferp) (active-minibuffer-window))
+      (with-selected-window (or (active-minibuffer-window)
+                                (selected-window))
+        (let* ((enable-recursive-minibuffers t)
+               (file-name (file-name-nondirectory
+                           (minibuffer-contents-no-properties)))
+               (new-dir (consult-dir--pick))
+               (new-full-name (concat (file-name-as-directory new-dir)
+                                      file-name)))
+          (when new-dir
+            (if consult-dir-shadow-filenames
+                (insert "/" new-full-name)
+              (delete-minibuffer-contents)
+              (insert new-full-name)))))
+    (let ((default-directory (consult-dir--pick "In directory: ")))
+      (call-interactively consult-dir-default-command))))
+
+(defun scs/consult-dir-jump-file ()
+  "Jump to a file under the directory in the active minibuffer prompt."
+  (interactive)
+  (require 'consult-dir)
+  (unless (active-minibuffer-window)
+    (user-error "Not in a minibuffer prompt"))
+  (with-selected-window (active-minibuffer-window)
+    (call-interactively #'consult-dir-jump-file)))
 
 (defun scs/consult-recent-file ()
-  "Pick a recent file; insert its path in the minibuffer or visit it.
+  "Pick a recent file and visit it.
 
-When `minibufferp' is true (for example during `find-file' under
-Vertico), offer the same recent-file list as `consult-recent-file',
-with preview, and replace the prompt contents with the chosen path.
-You can still edit before RET.
-
-Outside the minibuffer, delegate to `consult-recent-file'."
+From a minibuffer (find-file), abort that prompt first, then offer
+`recentf-list' in a fresh minibuffer.  Nested completing-read was
+short, previewed files, and dropped keys after reload.  This matches
+`consult-dir-jump-file': `run-at-time' plus `abort-recursive-edit'.
+Preview stays off."
   (interactive)
   (require 'consult)
   (if (minibufferp)
-      (let* ((enable-recursive-minibuffers t)
-             (file (consult--read
-                    (or (mapcar #'consult--fast-abbreviate-file-name
-                                (bound-and-true-p recentf-list))
-                        (user-error "No recent files, `recentf-mode' is %s"
-                                    (if recentf-mode "enabled" "disabled")))
-                    :prompt "Recent file: "
-                    :sort nil
-                    :require-match t
-                    :category 'file
-                    :state (consult--file-preview)
-                    :history 'file-name-history)))
-        (when file
-          (delete-minibuffer-contents)
-          (insert (substitute-in-file-name file))))
-    (call-interactively #'consult-recent-file)))
+      (progn
+        (run-at-time 0 nil #'scs/consult-recent-file--visit)
+        (abort-recursive-edit))
+    (scs/consult-recent-file--visit)))
+
+(defun scs/consult-recent-file--visit ()
+  "Read a recent path with no preview and visit it."
+  (let ((file (scs/consult-recent-file--read)))
+    (when file
+      (find-file file))))
+
+(defun scs/consult-recent-file--read ()
+  "Read a path from `recentf-list' with no live preview."
+  (consult--read
+   (or (mapcar #'consult--fast-abbreviate-file-name
+               (bound-and-true-p recentf-list))
+       (user-error "No recent files, `recentf-mode' is %s"
+                   (if recentf-mode "enabled" "disabled")))
+   :prompt "Recent file: "
+   :sort nil
+   :require-match t
+   :category 'file
+   :preview-key nil
+   :history 'file-name-history))
+
+(defun scs/vertico-bind-file-helpers ()
+  "Put find-file helpers on `vertico-map' and global C-x C-d.
+
+`consult-dir' :config does not run again on `scs/reload-config',
+and Vertico's C-x prefix (history up/down) shadows parent maps.
+Re-apply the three chords whenever a minibuffer starts."
+  (keymap-global-set "C-x C-d" #'scs/consult-dir)
+  (when (boundp 'vertico-map)
+    (keymap-set vertico-map "C-x C-d" #'scs/consult-dir)
+    (keymap-set vertico-map "C-x C-j" #'scs/consult-dir-jump-file)
+    (keymap-set vertico-map "C-x C-r" #'scs/consult-recent-file)))
+
+(scs/vertico-bind-file-helpers)
+(add-hook 'minibuffer-setup-hook #'scs/vertico-bind-file-helpers)
 
 ;; ----------------------------------------------------------
 ;; consult-dir
@@ -2244,21 +2330,17 @@ Outside the minibuffer, delegate to `consult-recent-file'."
 ;;
 ;; Insert a directory path into the active minibuffer prompt (dired
 ;; copy targets, find-file, consult-grep with a prefix arg, and so
-;; on).  In find-file, C-x C-d picks a directory; C-x C-r (vertico-map
-;; only) runs `scs/consult-recent-file' for recentf file paths.  Outside
-;; the minibuffer, pick a directory then run
-;; `consult-dir-default-command' (find-file by default).  Sources:
+;; on).  In find-file, C-x C-d runs `scs/consult-dir'; C-x C-r runs
+;; `scs/consult-recent-file' (vertico-map only).  Outside the minibuffer,
+;; pick a directory then run `consult-dir-default-command' (find-file
+;; by default).  Sources:
 ;; bookmarks, recentf dirs, project.el roots, `scs/tramp-hosts', and
 ;; ~/.ssh/config hosts.  `recentf-mode' is already on in this init.
 
 (use-package consult-dir
   :el-get t
+  :demand t
   :after (consult vertico)
-  :bind (("C-x C-d" . consult-dir)
-         :map vertico-map
-         ("C-x C-d" . consult-dir)
-         ("C-x C-j" . consult-dir-jump-file)
-         ("C-x C-r" . scs/consult-recent-file))
   :init
   ;; Set before consult-dir.el loads so `consult-dir--source-tramp-local'
   ;; splices the host list at defvar time.
@@ -2269,7 +2351,13 @@ Outside the minibuffer, delegate to `consult-recent-file'."
   ;; README: optional SSH config source (narrow with s).
   (add-to-list 'consult-dir-sources 'consult-dir--source-tramp-ssh t)
   ;; Match M-s d: fd-backed async find under the prompt directory.
-  (setq consult-dir-jump-file-command #'consult-fd))
+  (setq consult-dir-jump-file-command #'consult-fd)
+  (scs/vertico-bind-file-helpers)
+  (dolist (cmd '(scs/consult-dir
+                 scs/consult-dir-jump-file
+                 scs/consult-recent-file
+                 consult-dir))
+    (put cmd 'enable-recursive-minibuffers t)))
 
 ;; ----------------------------------------------------------
 ;; hl-todo

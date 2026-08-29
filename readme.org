@@ -138,8 +138,8 @@ Helm is not loaded.  The minibuffer stack is Vertico (UI), Orderless
 | Job | Key | Command |
 |-----+-----+---------|
 | Open a path / new file | ~C-x C-f~ / ~H-f~ | ~find-file~ + Vertico (second press quits) |
-| Recent file in find-file prompt | ~C-x C-r~ in prompt | ~scs/consult-recent-file~ (recentf, preview) |
-| Pick directory in find-file prompt | ~C-x C-d~ in prompt | ~consult-dir~ |
+| Recent file from find-file | ~C-x C-r~ in prompt | ~scs/consult-recent-file~ (aborts, then recentf, no preview) |
+| Pick directory in find-file prompt | ~C-x C-d~ in prompt | ~scs/consult-dir~ |
 | Jump by file name | ~M-s d~ | ~consult-fd~ |
 | Switch buffer | ~C-x b~ / ~H-b~ | ~consult-buffer~ (second press quits) |
 | Imenu | ~M-g i~ / ~H-i~ | ~consult-imenu~ (second press quits) |
