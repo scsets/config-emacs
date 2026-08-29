@@ -5,13 +5,14 @@
 # Copyright: Copyright (C) 2026, SCS, all rights reserved.
 # Created: 2026-07-27 Mon 06:24
 # Version: 0.1.0
-# Last-Updated: 2026-07-31 Fri 14:50
-# Update #: 2
+# Last-Updated: 2026-08-29 Sat 16:34
+# Update #: 3
 #
 # Run from any directory.  The explicit load-prefer-newer setting makes
 # project source win when an untracked .elc file is older than its .el file.
 #
 # Change Log:
+# add: 2026-08-29 -- run scs-backward-kill-word regression tests
 # add: 2026-07-31 -- run scs-copy-path regression tests
 # add: 2026-07-27 -- include focused Org capture policy and behavior tests
 # add: 2026-07-27 -- run all ERT suites with source-newer loading enabled
@@ -70,6 +71,7 @@ case ${1-} in
             --eval '(setq load-prefer-newer t)' \
             -L "$SCS_TEST_ROOT/lisp" \
             -l ert \
+            -l test/scs-backward-kill-word-test.el \
             -l test/scs-copy-path-test.el \
             -l test/scs-command-hub-test.el \
             -l test/scs-file-header-test.el \

@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-29 Sat 15:47
-;; Update #: 54
+;; Last-Updated: 2026-08-29 Sat 16:34
+;; Update #: 55
 ;;
 ;;; Commentary:
 ;;
@@ -47,6 +47,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-29 -- scs/backward-kill-word: blank line is its own M-DEL
 ;; fix: 2026-08-29 -- demand consult-dir; recursive minibuffers for C-x C-d
 ;; fix: 2026-08-29 -- scs/consult-dir: active-minibuffer-window for Vertico
 ;; fix: 2026-08-29 -- rebind C-x C-d/C-r on setup; C-x C-r aborts then picks
@@ -400,6 +401,9 @@ Intentionally not *scratch*; new frames land on persistent notes."
 ;; add: 2026-08-21 -- install versioned spell/ word lists for jinx/Enchant
 (autoload 'scs/spell-dicts-install "scs-spell-dicts"
   "Install spell/ personal word lists into Enchant and aspell paths." t)
+;; add: 2026-08-29 -- M-DEL kills a word, then a blank line, then the word above
+(autoload 'scs/backward-kill-word "scs-backward-kill-word"
+  "Kill backward by a small visible unit; do not skip a blank line." t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1591,6 +1595,12 @@ Embark) is left alone."
 (global-set-key (kbd "C-d") #'scs/delete-forward)
 (global-set-key (kbd "<deletechar>") #'scs/delete-forward)
 (global-set-key (kbd "<delete>") #'scs/delete-forward)
+
+;; Word rub-out: do not skip a blank line to eat the word above it.
+;; M-h is translated to M-DEL below, so it follows this command too.
+(global-set-key (kbd "M-DEL") #'scs/backward-kill-word)
+(global-set-key (kbd "M-<backspace>") #'scs/backward-kill-word)
+(global-set-key (kbd "C-<backspace>") #'scs/backward-kill-word)
 
 ;; map M-h [mark-paragraph] to M-backspace
 (define-key key-translation-map [?\M-h] [?\M-\d])

@@ -5,9 +5,9 @@
 #+AUTHOR: SCS
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-03-05 Thu 17:59
-#+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-21 Fri 12:48
-#+UPDATE: 16
+#+VERSION: 0.1.1
+#+LAST-UPDATED: 2026-08-29 Sat 16:34
+#+UPDATE: 17
 
 * Document role
 
@@ -78,6 +78,7 @@ material.
 | =scs-spell-dicts.el= | jinx ~:config~ / ~scs/spell-dicts-install~ | Install =spell/= word lists into Enchant + aspell |
 | =scs-frame-state.el= | autoload | Frame geometry save/restore |
 | =scs-tramp.el= | TRAMP ~:config~ + autoload | Known hosts, cleanup, no-trace policy |
+| =scs-backward-kill-word.el= | autoload; ~M-DEL~ / ~C-<backspace>~ | Word rub-out that treats a blank line as its own unit |
 | =flycheck-org-lint-workaround.el= | ~flycheck~ block | Advice for broken Flycheck/org-lint line-cell handling |
 
 ** Frame Geometry Save/Restore
