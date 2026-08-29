@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-21 Fri 13:53
-;; Update #: 48
+;; Last-Updated: 2026-08-29 Sat 15:22
+;; Update #: 50
 ;;
 ;;; Commentary:
 ;;
@@ -47,6 +47,8 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-29 -- C-x C-r in find-file prompt: scs/consult-recent-file
+;; fix: 2026-08-29 -- recentf :demand t so C-x b <f> works on first prompt
 ;; add: 2026-08-29 -- scs/reveal-file: Finder or TTY Dired; copy path; C-c M-v
 ;; add: 2026-08-22 -- consult-dir (C-x C-d, C-x C-j); TRAMP + SSH sources
 ;; add: 2026-08-21 -- howm link jump on s-TAB (physical Ctrl-Tab)
@@ -2201,12 +2203,50 @@ count (both run on `minibuffer-setup-hook')."
   :demand t)
 
 ;; ----------------------------------------------------------
+;; scs/consult-recent-file (find-file prompt companion)
+;; ----------------------------------------------------------
+;;
+;; Like `consult-dir' (C-x C-d) but for full paths from recentf.
+;; Bound on vertico-map only so global C-x C-r stays revert-buffer.
+
+(defun scs/consult-recent-file ()
+  "Pick a recent file; insert its path in the minibuffer or visit it.
+
+When `minibufferp' is true (for example during `find-file' under
+Vertico), offer the same recent-file list as `consult-recent-file',
+with preview, and replace the prompt contents with the chosen path.
+You can still edit before RET.
+
+Outside the minibuffer, delegate to `consult-recent-file'."
+  (interactive)
+  (require 'consult)
+  (if (minibufferp)
+      (let* ((enable-recursive-minibuffers t)
+             (file (consult--read
+                    (or (mapcar #'consult--fast-abbreviate-file-name
+                                (bound-and-true-p recentf-list))
+                        (user-error "No recent files, `recentf-mode' is %s"
+                                    (if recentf-mode "enabled" "disabled")))
+                    :prompt "Recent file: "
+                    :sort nil
+                    :require-match t
+                    :category 'file
+                    :state (consult--file-preview)
+                    :history 'file-name-history)))
+        (when file
+          (delete-minibuffer-contents)
+          (insert (substitute-in-file-name file))))
+    (call-interactively #'consult-recent-file)))
+
+;; ----------------------------------------------------------
 ;; consult-dir
 ;; ----------------------------------------------------------
 ;;
 ;; Insert a directory path into the active minibuffer prompt (dired
 ;; copy targets, find-file, consult-grep with a prefix arg, and so
-;; on).  Outside the minibuffer, pick a directory then run
+;; on).  In find-file, C-x C-d picks a directory; C-x C-r (vertico-map
+;; only) runs `scs/consult-recent-file' for recentf file paths.  Outside
+;; the minibuffer, pick a directory then run
 ;; `consult-dir-default-command' (find-file by default).  Sources:
 ;; bookmarks, recentf dirs, project.el roots, `scs/tramp-hosts', and
 ;; ~/.ssh/config hosts.  `recentf-mode' is already on in this init.
@@ -2217,7 +2257,8 @@ count (both run on `minibuffer-setup-hook')."
   :bind (("C-x C-d" . consult-dir)
          :map vertico-map
          ("C-x C-d" . consult-dir)
-         ("C-x C-j" . consult-dir-jump-file))
+         ("C-x C-j" . consult-dir-jump-file)
+         ("C-x C-r" . scs/consult-recent-file))
   :init
   ;; Set before consult-dir.el loads so `consult-dir--source-tramp-local'
   ;; splices the host list at defvar time.
@@ -2875,6 +2916,9 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
 
 ;; jwiegley
 (use-package recentf
+  :demand t
+  ;; :commands deferred :config; without :demand, recentf-mode stayed off until
+  ;; an autoload ran, so consult-buffer dropped the File narrow key (< f).
   :commands (recentf-mode
              recentf-add-file
              recentf-apply-filename-handlers)
