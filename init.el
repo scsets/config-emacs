@@ -1182,8 +1182,17 @@ git-commit buffers so we do not fight tools or mangle huge logs."
 ;; ----------------------------------------------------------
 ;; History length
 ;; ----------------------------------------------------------
+;;
+;; Minibuffer histories honor `history-length'.  The rings below
+;; have their own max variables; keep each at least 1000 so savehist
+;; can restore a useful slice of kill, mark, and search state.
 
 (setq-default history-length 10000)
+
+(setq kill-ring-max 1000
+      mark-ring-max 1000
+      search-ring-max 1000
+      regexp-search-ring-max 1000)
 
 ;; ----------------------------------------------------------
 ;; Minibuffer completion
@@ -2929,6 +2938,9 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
 ;; `minibuffer-history-variable' savehist restored.  Global C-c h
 ;; is `scs/consult-history', which falls back to command history
 ;; in Org and other editing buffers.
+;;
+;; Also persist kill, mark, and incremental-search rings (see the
+;; History length block for ring max sizes).
 
 (use-package savehist
   :unless noninteractive
@@ -2938,7 +2950,11 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
      kmacro-ring
      compile-history
      compile-command
-     vertico-repeat-history))
+     vertico-repeat-history
+     kill-ring
+     mark-ring
+     search-ring
+     regexp-search-ring))
   (savehist-autosave-interval 60)
   (savehist-ignored-variables
    '(load-history
@@ -2947,8 +2963,7 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
      magit-revision-history
      org-read-date-history
      query-replace-history
-     yes-or-no-p-history
-     kill-ring))
+     yes-or-no-p-history))
   (savehist-mode t))
 
 ;; ----------------------------------------------------------
