@@ -15,14 +15,18 @@
 ;; before libraries like libgccjit load.
 ;;
 ;; What lives here (in order):
+;;   - user-emacs-directory anchor for this Git tree
 ;;   - Temporary GC and handler tweaks for faster startup, restored on
-;;     emacs-startup-hook
+;;     emacs-startup-hook (handler merge preserves init-time additions)
+;;   - GUI-only redisplay/load-file silencing to avoid startup flash
 ;;   - Prefer GNU/user tool prefixes on PATH (SmartOS /opt/tools, pkgsrc,
 ;;     Homebrew, FreeBSD ports) before thin system /usr/bin; on SmartOS
 ;;     exit immediately if core GNU tools are still missing
 ;;   - Homebrew paths for native compilation on macOS (LIBRARY_PATH, CC)
+;;   - Native-comp eln-cache/, quiet async warnings, deferred compilation
 ;;   - Quiet warnings during normal startup (use bin/emacs-diagnostic to debug)
 ;;   - Frame defaults, macOS modifier remapping, package.el archives
+;;   - GUI: *scratch* as initial buffer (single window enforced in startup-state)
 ;;
 ;; The no-byte-compile cookie is intentional: do not leave early-init.elc in
 ;; the tree; stale bytecode here is painful to diagnose.
@@ -31,6 +35,10 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; fix: 2026-08-22 -- use scratch-buffer (not get-buffer-create) for welcome text
+;; fix: 2026-08-22 -- drop initial-scratch-message nil (restore Emacs default text)
+;; add: 2026-08-22 -- tier 2 borrow: scroll/cursor perf; scratch-only GUI startup
+;; add: 2026-08-22 -- karthink early-init borrow: redisplay guard, native-comp quiet, bidi
 ;; add: 2026-08-03 -- SmartOS MAKEFLAGS SHELL=bash for make recipes
 ;; add: 2026-08-03 -- SmartOS hard-fail if core GNU tools missing after PATH
 ;; add: 2026-08-03 -- prepend GNU/user tool dirs on PATH and exec-path
@@ -42,6 +50,10 @@
 ;; add: 2026-03-23 -- initial early-init
 ;;
 ;;; Code:
+
+;; Anchor the config tree before anything uses `user-emacs-directory'
+;; (load-path, eln-cache, no-littering paths in init.el).
+(setq user-emacs-directory (file-name-directory (or load-file-name buffer-file-name)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -56,10 +68,21 @@
 (setq gc-cons-threshold most-positive-fixnum
       gc-cons-percentage 0.5)
 
+;; karthink/setup-core and .emacs.d early-init: cheaper scrolling and cursors
+;; on LTR-only editing; skip domain-name pings in ffap.
+(setq-default bidi-display-reordering 'left-to-right)
+(setq-default cursor-in-non-selected-windows nil)
+(setq highlight-nonselected-windows nil)
+(setq fast-but-imprecise-scrolling t
+      ffap-machine-p-known 'reject)
+(when (> emacs-major-version 27)
+  (setq redisplay-skip-fontification-on-input t))
+
 ;; file-name-handler-alist and vc-handled-backends add hooks around file I/O
 ;; and version control.  Disabling them for init avoids extra work on every
 ;; path operation while packages load.  Save the defaults first so we can put
-;; them back once startup finishes.
+;; them back once startup finishes (merge handlers so init-time additions are
+;; kept -- pattern from karthink/.emacs.d early-init).
 
 ;; Saved default value of file-name-handler-alist for post-init restore.
 (defvar scs--file-name-handler-alist file-name-handler-alist)
@@ -67,15 +90,45 @@
 ;; Saved default value of vc-handled-backends for post-init restore.
 (defvar scs--vc-handled-backends vc-handled-backends)
 
-(setq file-name-handler-alist nil
-      vc-handled-backends nil)
+;; Saved `load-suffixes' for post-init restore (GUI startup only).
+(defvar scs--load-suffixes (default-toplevel-value 'load-suffixes))
+
+(setq vc-handled-backends nil)
+
+(if (or (daemonp) noninteractive)
+    (setq file-name-handler-alist nil)
+  ;; Interactive GUI: trim handlers and suffixes (karthink/.emacs.d early-init).
+  (set-default-toplevel-value
+   'file-name-handler-alist
+   (if (eval-when-compile (locate-file-internal "calc-loaddefs.el" load-path))
+       nil
+     (list (rassq 'jka-compr-handler scs--file-name-handler-alist))))
+  (set-default-toplevel-value 'load-suffixes '(".elc" ".el"))
+  (setq-default inhibit-redisplay t
+                inhibit-message t)
+  (add-hook 'window-setup-hook
+            (lambda ()
+              (setq-default inhibit-redisplay nil
+                            inhibit-message nil)
+              (redisplay)))
+  ;; Site init and el-get load many files; "Loading ..." forces redisplay and
+  ;; can flash an unstyled frame.  Silence only until init.el is about to load.
+  (define-advice load-file (:override (file) silence)
+    (load file nil 'nomessage))
+  (define-advice startup--load-user-init-file (:before (&rest _) nomessage-remove)
+    (advice-remove #'load-file #'load-file@silence)))
 
 (add-hook 'emacs-startup-hook
           (lambda ()
             (setq gc-cons-threshold (* 1024 1024 20)
                   gc-cons-percentage 0.2
-                  file-name-handler-alist scs--file-name-handler-alist
-                  vc-handled-backends scs--vc-handled-backends)))
+                  vc-handled-backends scs--vc-handled-backends)
+            (set-default-toplevel-value
+             'file-name-handler-alist
+             (delete-dups (append file-name-handler-alist
+                                  scs--file-name-handler-alist)))
+            (unless (or (daemonp) noninteractive)
+              (set-default-toplevel-value 'load-suffixes scs--load-suffixes))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -346,10 +399,29 @@ path loads libgccjit.  No-op on non-Darwin systems."
 ;; Must run before package-native-compile / libgccjit is invoked.
 (scs/setup-macos-native-comp)
 
+;; Native compilation (Emacs 28+): quiet async reports, defer compile until
+;; idle, and keep .eln files under this tree's gitignored eln-cache/ (not
+;; karthink's ~/.cache/emacs/, which would split cache away from the repo).
+(unless (version-list-<
+         (version-to-list emacs-version)
+         '(28 0 1 0))
+  (when (boundp 'native-comp-eln-load-path)
+    (add-to-list 'native-comp-eln-load-path
+                 (expand-file-name "eln-cache/" user-emacs-directory))
+    (setq native-comp-async-report-warnings-errors 'silent
+          native-comp-deferred-compilation t)))
+
+(when (version< emacs-version "31")
+  (setq load-path-filter-function #'load-path-filter-cache-directory-files))
+
 ;; Normal interactive sessions stay quiet; bin/emacs-diagnostic lowers this to
 ;; :warning when you need to see compile or init warnings.
 (setq warning-minimum-level :emergency)
 (setq byte-compile-warnings '(not free-vars obsolete cl-functions lexical))
+(setq jka-compr-verbose init-file-debug)
+(setq auto-mode-case-fold nil)
+;; LTR-only editing (en/it); skip bidirectional paragraph analysis cost.
+(setq bidi-inhibit-bpa t)
 ;; Prefer newer source over stale .elc during init (especially under lisp/).
 (setq load-prefer-newer t)
 
@@ -368,9 +440,25 @@ path loads libgccjit.  No-op on non-Darwin systems."
       inhibit-splash-screen t
       inhibit-startup-screen t
       inhibit-x-resources t
+      inhibit-default-init t
+      initial-buffer-choice #'scratch-buffer
+      initial-major-mode 'fundamental-mode
       ;; Emacs can show a startup message in the echo area; this silences it.
       inhibit-startup-echo-area-message user-login-name
       inhibit-startup-buffer-menu t)
+
+(advice-add #'display-startup-screen :override #'ignore)
+(fset #'display-startup-echo-area-message #'ignore)
+
+;; Scroll bars off in the first frame alist reduces GUI flash; menu-bar stays
+;; on for demos (see readme.org).  Toolbar lines zero here; tool-bar-mode -1
+;; below is the active toggle on graphic frames.
+(when (display-graphic-p)
+  (add-to-list 'default-frame-alist '(vertical-scroll-bars . nil))
+  (add-to-list 'default-frame-alist '(horizontal-scroll-bars . nil))
+  (add-to-list 'default-frame-alist '(tool-bar-lines . 0))
+  (when (fboundp 'horizontal-scroll-bar-mode)
+    (horizontal-scroll-bar-mode -1)))
 
 ;; menu-bar and scroll-bar stay available for demos; toolbar is off on GUI
 ;; frames because this config is keyboard-first.  Beginners should keep those
@@ -398,12 +486,10 @@ path loads libgccjit.  No-op on non-Darwin systems."
 ;; Package setup
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; When early-init is loaded by file, anchor user-emacs-directory to this tree.
-(setq user-emacs-directory (file-name-directory (or load-file-name buffer-file-name)))
-
 (require 'package)
 ;; MELPA packages may replace Emacs-bundled versions when upgrades require it.
-(setq package-install-upgrade-built-in t)
+(setq package-install-upgrade-built-in t
+      package-quickstart nil)
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (when (string-match "NATIVE_COMP" system-configuration-features)
   (setq package-native-compile t))

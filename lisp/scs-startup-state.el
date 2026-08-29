@@ -5,9 +5,9 @@
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-08-04 Tue 18:27
-;; Version: 0.1.0
-;; Last-Updated: 2026-08-04 Tue 18:27
-;; Update #: 0
+;; Version: 0.1.1
+;; Last-Updated: 2026-08-22 Sat 17:51
+;; Update #: 1
 ;; Package-Requires: ((emacs "29.1"))
 
 ;;; Commentary:
@@ -18,10 +18,11 @@
 ;;   screen.  We want a small, explicit list instead.
 ;;
 ;; Solution:
-;;   On graphic frames only, restore one scs-frame-state label, visit
-;;   `scs/startup-state-files', split left/right for the first two,
-;;   and load any further files with find-file-noselect.  Terminal
-;;   Emacs skips this module entirely.
+;;   On graphic frames only, restore one scs-frame-state label, show
+;;   *scratch* in a single window (`delete-other-windows'), and skip the
+;;   old left/right file split on normal startup.  Prefix arg to
+;;   `scs/startup-state-apply' still opens `scs/startup-state-files' in
+;;   the curated split for manual recall.  Terminal Emacs skips this module.
 ;;
 ;; How to check:
 ;;   GUI: M-x scs/startup-state-apply RET (or restart Emacs).
@@ -30,6 +31,7 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; fix: 2026-08-22 -- scratch-buffer for welcome text; drop initial-scratch-message nil
 ;; add: 2026-08-04 -- curated GUI startup; desktop-save-mode retired
 
 ;;; Code:
@@ -45,11 +47,11 @@
 (defcustom scs/startup-state-files
   '("~/notes/progress-todo.org"
     "~/.config/emacs/init.el")
-  "Files to open on graphic Emacs startup.
+  "Files to open when `scs/startup-state-apply' is called with a prefix arg.
 
-The first existing file is shown on the left; the second on the right.
-Further existing entries are loaded with `find-file-noselect' only.
-Missing paths are skipped with a message."
+Normal GUI startup shows *scratch* in one window only.  Use
+\\[scs/startup-state-apply] with a prefix argument to restore this
+curated split: first file left, second right, further files noselect."
   :group 'scs-startup-state
   :type '(repeat file))
 
@@ -97,6 +99,14 @@ Never signals to the caller: missing label or load errors become
          (message "scs-startup-state: skip frame label %S (%s)"
                   label (error-message-string err))))))))
 
+(defun scs/startup-state--show-scratch-window ()
+  "Select *scratch* as the only window in the selected frame.
+
+Uses `scratch-buffer' so `initial-scratch-message' is inserted on a new
+buffer, not `get-buffer-create' which leaves *scratch* empty."
+  (scratch-buffer)
+  (delete-other-windows))
+
 (defun scs/startup-state--apply-layout (files)
   "Show FILES in the selected frame: left/right for the first two.
 
@@ -120,7 +130,11 @@ are visited with `find-file-noselect' only."
   "Apply curated GUI startup state to the selected frame.
 
 No-op on non-graphic frames.  No-op if already applied in this session
-unless FORCE is non-nil (interactive prefix argument forces re-apply)."
+unless FORCE is non-nil (interactive prefix argument forces re-apply).
+
+Normal apply: restore frame label when configured, then *scratch* in one
+window.  Interactive prefix arg: also open `scs/startup-state-files' in the
+legacy left/right split."
   (interactive "P")
   (cond
    ((not (display-graphic-p))
@@ -131,8 +145,10 @@ unless FORCE is non-nil (interactive prefix argument forces re-apply)."
     nil)
    (t
     (scs/startup-state--restore-frame)
-    (scs/startup-state--apply-layout
-     (scs/startup-state--resolve-files scs/startup-state-files))
+    (if (and (called-interactively-p 'interactive) force)
+        (scs/startup-state--apply-layout
+         (scs/startup-state--resolve-files scs/startup-state-files))
+      (scs/startup-state--show-scratch-window))
     (setq scs/startup-state--applied t)
     t)))
 
@@ -142,10 +158,19 @@ unless FORCE is non-nil (interactive prefix argument forces re-apply)."
     (with-selected-frame frame
       (scs/startup-state-apply))))
 
+(defun scs/startup-state--ensure-scratch-solo ()
+  "After init finishes, keep the curated GUI layout at one *scratch* window.
+
+Some init hooks run after `window-setup-hook' and can split the frame;
+this runs once at the end of startup to collapse back."
+  (when (and (display-graphic-p) scs/startup-state--applied)
+    (scs/startup-state--show-scratch-window)))
+
 ;;;###autoload
 (defun scs/startup-state-enable ()
   "Install hooks so curated startup runs once on graphic Emacs."
   (add-hook 'window-setup-hook #'scs/startup-state-apply)
+  (add-hook 'emacs-startup-hook #'scs/startup-state--ensure-scratch-solo 999)
   (add-hook 'after-make-frame-functions #'scs/startup-state--on-frame))
 
 (provide 'scs-startup-state)

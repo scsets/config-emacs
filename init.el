@@ -47,6 +47,8 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-29 -- scs/reveal-file: Finder or TTY Dired; copy path; C-c M-v
+;; add: 2026-08-22 -- consult-dir (C-x C-d, C-x C-j); TRAMP + SSH sources
 ;; add: 2026-08-21 -- howm link jump on s-TAB (physical Ctrl-Tab)
 ;; add: 2026-08-21 -- spell/ personal dicts in Git; scs/spell-dicts-install
 ;; add: 2026-08-21 -- jinx (en_GB-ise it_IT); keep idle flyspell/aspell
@@ -376,6 +378,9 @@ Intentionally not *scratch*; new frames land on persistent notes."
 (autoload 'scs/copy-path-project "scs-copy-path" nil t)
 (autoload 'scs/copy-path-truename "scs-copy-path" nil t)
 (autoload 'scs/copy-path-local-name "scs-copy-path" nil t)
+;; add: 2026-08-29 -- reveal visited file in Finder or TTY Dired; copy path
+(autoload 'scs/reveal-file "scs-reveal-file"
+  "Reveal the current file in Finder or Dired; copy absolute path." t)
 ;; add: 2026-08-20 -- sort pipe-separated fields on the current line
 (autoload 'scs/sort-line-fields "scs-sort-line-fields"
   "Sort pipe-separated fields on this line alphabetically." t)
@@ -644,6 +649,10 @@ exec ./configure --with-emacs=\"$em\"
          :type github
          :pkgname "minad/consult"
          :depends (compat))
+        (:name consult-dir
+         :type github
+         :pkgname "karthink/consult-dir"
+         :depends (consult))
         (:name marginalia
          :type github
          :pkgname "minad/marginalia"
@@ -1327,6 +1336,8 @@ working; see comments above this function for the syntax split."
 ;; Values that once lived in a persisted custom.el file, kept here so the
 ;; repo remains the single source of truth.  Theme lives under Frame / UI.
 ;; GUI home screen is curated by lisp/scs-startup-state.el (not desktop.el).
+;; Normal startup: *scratch* in one window.  C-u M-x scs/startup-state-apply
+;; opens the legacy progress-todo / init.el split.
 
 (blink-cursor-mode -1)
 (size-indication-mode t)
@@ -1502,8 +1513,9 @@ Embark) is left alone."
   (define-key scs/hyper-c-prefix-map (kbd "h") #'scs/org-ensure-buffer-header) ;; Header
   (define-key scs/hyper-c-prefix-map (kbd "R") #'scs/rename-visited-file-to-name-at-point) ;; Rename
   (define-key scs/hyper-c-prefix-map (kbd "v") #'scs/convert) ;; conVert
-  ;; Path: absolute by default; C-u H-c p prompts for format (relative, truename, …).
+  ;; Path: absolute by default; C-u H-c p prompts for format (relative, truename, ...).
   (define-key scs/hyper-c-prefix-map (kbd "p") #'scs/copy-path) ;; Path
+  (global-set-key (kbd "C-c M-v") #'scs/reveal-file) ;; Reveal in Finder / Dired
   (global-set-key (kbd "H-a") 'org-agenda)               ;; Agenda
   (global-set-key (kbd "H-l") 'org-store-link)           ;; Link
   (global-set-key (kbd "H-i") #'consult-imenu)            ;; Imenu
@@ -2178,6 +2190,36 @@ count (both run on `minibuffer-setup-hook')."
 (use-package embark-consult
   :after (embark consult)
   :demand t)
+
+;; ----------------------------------------------------------
+;; consult-dir
+;; ----------------------------------------------------------
+;;
+;; Insert a directory path into the active minibuffer prompt (dired
+;; copy targets, find-file, consult-grep with a prefix arg, and so
+;; on).  Outside the minibuffer, pick a directory then run
+;; `consult-dir-default-command' (find-file by default).  Sources:
+;; bookmarks, recentf dirs, project.el roots, `scs/tramp-hosts', and
+;; ~/.ssh/config hosts.  `recentf-mode' is already on in this init.
+
+(use-package consult-dir
+  :el-get t
+  :after (consult vertico)
+  :bind (("C-x C-d" . consult-dir)
+         :map vertico-map
+         ("C-x C-d" . consult-dir)
+         ("C-x C-j" . consult-dir-jump-file))
+  :init
+  ;; Set before consult-dir.el loads so `consult-dir--source-tramp-local'
+  ;; splices the host list at defvar time.
+  (require 'scs-tramp)
+  (setq consult-dir-tramp-local-hosts
+        (mapcar #'scs/tramp--default-directory scs/tramp-hosts))
+  :config
+  ;; README: optional SSH config source (narrow with s).
+  (add-to-list 'consult-dir-sources 'consult-dir--source-tramp-ssh t)
+  ;; Match M-s d: fd-backed async find under the prompt directory.
+  (setq consult-dir-jump-file-command #'consult-fd))
 
 ;; ----------------------------------------------------------
 ;; hl-todo
@@ -2876,13 +2918,7 @@ Run `scs/org-id-rebuild' after moving notes outside Emacs or repairing IDs."
 (use-package reveal-in-osx-finder
   :el-get t
   :if (eq system-type 'darwin)
-  :no-require t
-  :bind ("C-c M-v" .
-         (lambda () (interactive)
-           (call-process "/usr/bin/open" nil nil nil
-                         "-R" (expand-file-name
-                               (or (buffer-file-name)
-                                   default-directory))))))
+  :no-require t)
 
 ;; ----------------------------------------------------------
 ;; savehist

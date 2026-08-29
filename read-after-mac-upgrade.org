@@ -1,0 +1,113 @@
+#+TITLE: After a macOS Homebrew upgrade
+#+FILENAME: read-after-mac-upgrade.org
+#+DESCRIPTION: Operator checklist when Emacs or brew deps break after brew upgrade
+#+AUTHOR: SCS
+#+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
+#+DATE: 2026-08-29 Sat 14:57
+#+VERSION: 0.1.0
+#+LAST-UPDATED: 2026-08-29 Sat 14:57
+#+UPDATE: 1
+
+* Document role
+
+Short recipe for fixing Emacs on macOS after =brew upgrade=.  Read this when
+the Dock or Spotlight app fails to launch even though Homebrew says Emacs
+is installed.
+
+* Problem
+
+=emacs-plus@31= keeps the real build under Homebrew Cellar.  =/Applications/Emacs.app=
+is a *manual copy* for Dock and Spotlight.  Homebrew does not update that copy
+when it upgrades the formula.
+
+After =brew upgrade emacs-plus@31=, Cellar moves to a new version (for example
+=31.0.91= -> =31.1=) and removes the old Cellar tree.  If =/Applications/Emacs.app=
+still holds the previous binary, that binary still looks for paths such as:
+
+#+begin_example
+/opt/homebrew/Cellar/emacs-plus@31/31.0.91/share/emacs/31.0.91/lisp
+#+end_example
+
+Those directories are gone, so launch fails with charset or lisp-directory
+errors and Emacs exits immediately.
+
+* Why the terminal can still work
+
+The =emacs= command from =/opt/homebrew/bin/emacs= is a small wrapper.  It tries
+apps in this order:
+
+1. Cellar =Emacs.app= for the installed version (current build)
+2. =/Applications/Emacs.app=
+3. =~/Applications/Emacs.app=
+
+So =emacs= in a terminal may launch fine while the Dock icon still runs the
+stale =/Applications= copy.
+
+* Recipe: refresh /Applications/Emacs.app
+
+Run after every =brew upgrade emacs-plus@31= (or when launch errors mention a
+missing old Cellar version).
+
+** 1. Confirm Cellar has a working build
+
+#+begin_src shell
+brew list --versions emacs-plus@31
+/opt/homebrew/Cellar/emacs-plus@31/*/Emacs.app/Contents/MacOS/Emacs --version
+#+end_src
+
+Expect the version Homebrew just installed (for example =GNU Emacs 31.1=).
+
+** 2. Optional: move the stale app aside
+
+Safer than deleting outright; easy to remove once you are satisfied.
+
+#+begin_src shell
+mv /Applications/Emacs.app /Applications/Emacs.app.stale-$(date +%Y%m%d)
+#+end_src
+
+** 3. Copy the current Cellar app into /Applications
+
+#+begin_src shell
+cp -R "$(brew --prefix emacs-plus@31)/Emacs.app" /Applications/
+#+end_src
+
+Finder works too: open =$(brew --prefix emacs-plus@31)/Emacs.app= once and drag
+it onto =/Applications= when macOS offers to replace the existing app.
+
+** 4. Verify both launch paths
+
+#+begin_src shell
+/Applications/Emacs.app/Contents/MacOS/Emacs --version
+emacs --version
+/Applications/Emacs.app/Contents/MacOS/Emacs -Q --batch --eval '(message "OK")'
+#+end_src
+
+Both should report the same version with no warnings about missing Cellar
+paths.
+
+* Symptoms (quick match)
+
+| What you see | Likely cause |
+|--------------+--------------|
+| =charsets: No such file or directory= | Stale =/Applications/Emacs.app= |
+| Warning paths under an *old* =31.0.xx= Cellar dir | Same |
+| =emacs= in Terminal works; Dock does not | Same |
+| =Error: No such keg: .../Cellar/emacs= | Normal: this profile uses =emacs-plus@31=, not the =emacs= formula |
+
+* Native compilation (gcc / libgccjit)
+
+=early-init.el= discovers Homebrew =gcc= and =libgccjit= at startup for native
+comp compilation.  After upgrading those formulas, relink if brew warns:
+
+#+begin_src shell
+brew link gcc
+brew link libgccjit
+#+end_src
+
+If native comp still misbehaves, run =bin/emacs-diagnostic= (raises warning
+level) and check that =CC= and =LIBRARY_PATH= point at current prefixes.
+
+* Cleanup
+
+Old backups such as =/Applications/Emacs.app.stale-31.0.91= can be removed once
+Dock launch and your usual config load cleanly.

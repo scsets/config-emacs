@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-21 Fri 13:53
-#+UPDATE: 51
+#+LAST-UPDATED: 2026-08-22 Sat 17:47
+#+UPDATE: 54
 # $Id$
 
 * Document role
@@ -14,6 +14,32 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10, then
 normalized to lowercase =changelog.org= on 2026-07-27.
+
+* 2026-08-22  SCS  <scs@scs.re>
+
+- =early-init.el=: borrow karthink/.emacs.d startup polish while keeping
+  SmartOS PATH, VC/handler restore, and macOS modifier/native-comp blocks.
+  GUI: =inhibit-redisplay= during boot, silent =load-file= until init loads,
+  =load-suffixes= trim, scroll-bar alist entries.  Tier 2:
+  =fast-but-imprecise-scrolling=, non-selected cursor off,
+  =redisplay-skip-fontification-on-input=, =ffap-machine-p-known= reject.
+  =initial-buffer-choice= returns =*scratch*=.  All platforms:
+  =native-comp-async-report-warnings-errors= silent, deferred compilation,
+  =eln-cache/= on =native-comp-eln-load-path=, =bidi-inhibit-bpa=,
+  =auto-mode-case-fold= nil, =load-path-filter-function= on Emacs 30,
+  =inhibit-default-init=, fundamental initial buffer.  Menu-bar still on for
+  demos; did not copy =package-enable-at-startup nil= (el-get/MELPA path).
+  Dropped =initial-scratch-message nil= so *scratch* keeps the Emacs default
+  welcome text; use =scratch-buffer= (not =get-buffer-create=) when opening it.
+
+- =lisp/scs-startup-state.el=: normal GUI startup shows =*scratch*= in one
+  window (=delete-other-windows=); frame label restore unchanged.  Prefix
+  arg to =scs/startup-state-apply= keeps the old progress-todo / init.el split.
+
+- =init.el=: add =consult-dir= (el-get recipe + use-package).  Keys:
+  global and Vertico =C-x C-d= for =consult-dir=; Vertico =C-x C-j= for
+  =consult-dir-jump-file=.  TRAMP local hosts from =scs/tramp-hosts=;
+  SSH config source enabled; jump-file uses =consult-fd=.
 
 * 2026-08-21  SCS  <scs@scs.re>
 

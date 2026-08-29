@@ -5,9 +5,9 @@
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-07-24 Fri 12:07
-;; Version: 0.1.6
-;; Last-Updated: 2026-08-20 Thu 14:19
-;; Update #: 7
+;; Version: 0.1.7
+;; Last-Updated: 2026-08-29 Sat 15:00
+;; Update #: 8
 ;; Keywords: convenience, transient, completion
 ;; Package-Requires: ((emacs "29.1") (transient "0.5"))
 
@@ -33,6 +33,7 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; add: 2026-08-29 -- catalog entry for scs/reveal-file
 ;; add: 2026-08-20 -- catalog entry for scs/sort-line-fields
 ;; add: 2026-08-17 -- catalog entry for scs/sync-emacs-config
 ;; add: 2026-08-17 -- catalog uses completing-read (Vertico); drop Helm UI
@@ -114,7 +115,12 @@
      :title "Sort line fields"
      :summary "Sort pipe-separated fields on this line; prefix reverses"
      :tags (edit)
-     :keys "M-x scs/sort-line-fields"))
+     :keys "M-x scs/sort-line-fields")
+    (:name scs/reveal-file
+     :title "Reveal file"
+     :summary "Copy absolute path; Finder on GUI, Dired on TTY or TRAMP"
+     :tags (files favorite)
+     :keys "C-c M-v"))
   "Curated command catalog for the SCS command hub.
 
 Each entry is a plist with :name, :title, :summary, and optional
