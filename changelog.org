@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-22 Sat 17:47
-#+UPDATE: 54
+#+LAST-UPDATED: 2026-08-30 Sun 18:44
+#+UPDATE: 56
 # $Id$
 
 * Document role
@@ -14,6 +14,21 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10, then
 normalized to lowercase =changelog.org= on 2026-07-27.
+
+* 2026-08-30  SCS  <scs@scs.re>
+
+- =lisp/org-tools.el=: ~org-tools-config-directory~ defaults to
+  =~/.config/org~.  ~scs/org-insert-setupfile~ inserts a
+  =#+SETUPFILE:= line for =setup/*.org=.  ~scs/org-new-from-template~
+  copies =templates/*.org= to a new path and refuses overwrite.  No
+  global default SETUPFILE (letterhead must not attach to every Org
+  buffer).  ~scs/org-ensure-buffer-header~ still fills team metadata
+  only.  Command hub Org panel: insert SETUPFILE.
+
+- =lisp/org-tools.el=: =#+SCS_STATIONERY_FADE: 100= includes the source
+  letterhead PDF as-is.  It no longer rasterises a faded-100pct copy
+  (that pass flattened vectors and could leave the sheet looking pale).
+  Values 1-99 still build the Ghostscript/ImageMagick cache.
 
 * 2026-08-22  SCS  <scs@scs.re>
 

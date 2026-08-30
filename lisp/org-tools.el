@@ -1,13 +1,13 @@
 ;;; org-tools.el --- Org export and buffer helpers  -*- lexical-binding: t; -*-
 
 ;; Filename: org-tools.el
-;; Description: Org helpers: headers, zwsp, rename; line-prefix/stationery/PDFX export
+;; Description: Org helpers: headers, zwsp, rename; line-prefix/stationery/PDFX; setupfile kit
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-07-15 Tue 10:00
-;; Version: 0.2.3
-;; Last-Updated: 2026-07-24 Fri 09:57
-;; Update #: 5
+;; Version: 0.2.5
+;; Last-Updated: 2026-08-30 Sun 18:44
+;; Update #: 7
 ;; Keywords: org, export, convenience
 ;; Package-Requires: ((emacs "29.1") (org "9.0"))
 
@@ -35,6 +35,16 @@
 ;; ------------------------------
 ;;   emacs -batch -L lisp -l ert -l lisp/org-tools.el \
 ;;     -l test/org-tools-test.el -f ert-run-tests-batch-and-exit
+;;
+;; Export kit (setupfiles and templates)
+;; -------------------------------------
+;; Letterhead and HTML SETUPFILEs live in ~/.config/org (see
+;; `org-tools-config-directory').  A document opts in with
+;; #+SETUPFILE:.  This library does not apply a default setupfile, so
+;; ordinary notes never pick up stationery.  Use
+;; `scs/org-insert-setupfile' and `scs/org-new-from-template'.
+;; `scs/org-ensure-buffer-header' still fills the team metadata block
+;; only; it does not inject stationery keywords.
 ;;
 ;; ---------------------------------------------------------------------------
 ;; Org export helpers
@@ -164,11 +174,13 @@
 ;;
 ;;   #+LATEX_HEADER: \AddToShipoutPictureBG{...{SCS_STATIONERY_FADED_PDF}}}
 ;;
-;; On LaTeX export, org-tools rasterises the source PDF (Ghostscript),
-;; colorises it to the requested strength (ImageMagick), caches the result as
-;; e.g. scs-stationary-faded-27pct.pdf, and substitutes SCS_STATIONERY_FADED_PDF
-;; in the final .tex output.  FADE is the percentage of original colour kept
-;; (lower values look fainter).  Requires gs and magick on PATH.
+;; On LaTeX export, org-tools substitutes SCS_STATIONERY_FADED_PDF in the
+;; final .tex output.  FADE is the percentage of original colour kept
+;; (lower values look fainter).  Values 1-99 rasterise the source PDF
+;; (Ghostscript), colorise it (ImageMagick), and cache the result as
+;; e.g. scs-stationary-faded-27pct.pdf.  100 skips that pipeline and
+;; includes the source PDF as-is, so vectors and ink stay intact.
+;; Requires gs and magick on PATH only when FADE is 1-99.
 ;;
 ;;   M-x scs/org-regenerate-stationery RET   ; rebuild from current buffer
 ;;
@@ -189,6 +201,8 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; add: 2026-08-30 -- setupfile/template commands; org-tools-config-directory
+;; fix: 2026-08-30 -- FADE 100 includes the source PDF; no raster fade
 ;; fix: 2026-07-24 -- interactive export commands use scs/org- prefix
 ;; fix: 2026-07-24 -- autoload cookies only on interactive entry points
 ;; fix: 2026-07-24 -- restore export clarifying text as its own Commentary section
@@ -231,6 +245,22 @@
 Your Org file must define this command, e.g. in #+LATEX_HEADER."
   :group 'org-tools
   :type 'string)
+
+(defcustom org-tools-config-directory
+  (expand-file-name "~/.config/org")
+  "Directory of SCS Org setupfiles, templates, and HTML assets.
+
+Expected layout under this directory:
+
+  setup/       SETUPFILE Org files (print.org, html.org, macros.org)
+  templates/   copy-from document skeletons
+  html/        CSS and JS for HTML export
+
+`scs/org-insert-setupfile' and `scs/org-new-from-template' read this
+tree.  Export hooks never apply a default SETUPFILE; a document opts
+in with #+SETUPFILE: so notes and letterhead stay distinct."
+  :group 'org-tools
+  :type 'directory)
 
 ;;;###autoload
 (define-minor-mode scs/org-line-prefixes-mode
@@ -477,7 +507,9 @@ Set by `org-tools-prepare-stationery' and read by the final-output filter.")
 
 (defun org-tools--stationery-fade-percent ()
   "Return colour strength 1-100 from #+SCS_STATIONERY_FADE:, or nil.
-Values outside 1..100 are ignored so a typo does not build nonsense PDFs."
+Values outside 1..100 are ignored so a typo does not build nonsense PDFs.
+100 means keep every bit of original colour: include the source PDF
+unchanged rather than rasterising a faded copy."
   (when-let* ((raw (org-tools--stationery-keyword "SCS_STATIONERY_FADE"))
               (n (string-to-number (string-trim raw)))
               (_ (and (numberp n) (> n 0) (<= n 100))))
@@ -523,7 +555,10 @@ Signal `error' on missing binary or non-zero exit."
   (org-tools--run-process program args nil))
 
 (defun org-tools--regenerate-stationery-faded (source faded percent)
-  "Build FADED from SOURCE at PERCENT % colour strength."
+  "Build FADED from SOURCE at PERCENT % colour strength.
+PERCENT is 1-99.  A caller that wants 100% colour should pass the
+source path through instead of calling this; Ghostscript plus
+ImageMagick would still flatten vectors and can wash the ink."
   (let* ((tmpdir (make-temp-file "org-tools-stationery" t))
          (png-pattern (expand-file-name "page-%03d.png" tmpdir))
          (png-page (expand-file-name "page-001.png" tmpdir))
@@ -551,17 +586,22 @@ Signal `error' on missing binary or non-zero exit."
     faded))
 
 (defun org-tools-ensure-stationery-faded ()
-  "Ensure faded stationery for the current buffer exists; return its path."
+  "Return the stationery PDF path for the current Org buffer.
+When FADE is 1-99, build or reuse a faded cache.  When FADE is 100,
+return the source PDF: rasterising at full strength still goes through
+PNG and can dull colour."
   (when-let* ((percent (org-tools--stationery-fade-percent))
-              (source (org-tools--stationery-source-path))
-              (faded (org-tools--stationery-faded-path-for source percent)))
+              (source (org-tools--stationery-source-path)))
     (unless (file-readable-p source)
       (user-error "Stationery source not found: %s" source))
-    (when (org-tools--stationery-needs-regenerate-p source faded)
-      (message "org-tools: regenerating faded stationery (%d%%) -> %s"
-               percent faded)
-      (org-tools--regenerate-stationery-faded source faded percent))
-    faded))
+    (if (= percent 100)
+        source
+      (let ((faded (org-tools--stationery-faded-path-for source percent)))
+        (when (org-tools--stationery-needs-regenerate-p source faded)
+          (message "org-tools: regenerating faded stationery (%d%%) -> %s"
+                   percent faded)
+          (org-tools--regenerate-stationery-faded source faded percent))
+        faded))))
 
 (defun org-tools--substitute-stationery-in-string (contents path)
   "Return CONTENTS with stationery placeholder replaced by PATH."
@@ -573,7 +613,10 @@ Signal `error' on missing binary or non-zero exit."
     result))
 
 (defun org-tools-prepare-stationery (_backend)
-  "Build faded stationery PDF for the current export buffer."
+  "Choose the stationery PDF for the current export buffer.
+Clear any path left by a previous export first, so a later file
+without a valid FADE keyword cannot inherit another buffer's sheet."
+  (setq org-tools--stationery-faded-path nil)
   (when-let* ((faded (org-tools-ensure-stationery-faded)))
     (setq org-tools--stationery-faded-path faded))
   nil)
@@ -587,12 +630,16 @@ Signal `error' on missing binary or non-zero exit."
 
 ;;;###autoload
 (defun scs/org-regenerate-stationery ()
-  "Rebuild the faded stationery PDF for the current Org file."
+  "Rebuild the faded stationery PDF for the current Org file.
+When FADE is 100, there is nothing to rebuild: report the source path."
   (interactive)
   (unless (derived-mode-p 'org-mode)
     (user-error "Not in Org mode"))
-  (if-let* ((faded (org-tools-ensure-stationery-faded)))
-      (message "Faded stationery ready: %s" faded)
+  (if-let* ((percent (org-tools--stationery-fade-percent))
+            (faded (org-tools-ensure-stationery-faded)))
+      (if (= percent 100)
+          (message "Stationery 100%%: using source PDF as-is: %s" faded)
+        (message "Faded stationery ready: %s" faded))
     (user-error "Set #+SCS_STATIONERY_FADE: in this file")))
 
 (defun org-tools-enable-stationery ()
@@ -1050,6 +1097,76 @@ the same directory.  Typical binding: `H-c R'."
         (rename-file old new ok-if-exists)
         (set-visited-file-name new nil t)
         (message "Renamed to %s" new-base)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Export kit (~/.config/org setupfiles and templates)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun org-tools--org-files-in-subdir (subdir)
+  "Return alist of (basename . abs-path) for *.org files in SUBDIR.
+
+SUBDIR is relative to `org-tools-config-directory'.  Sorted by
+basename.  Skip names that start with a dot so lock files and
+backups are not offered.  Signal `user-error' if the directory is
+missing or has no .org files -- better a clear miss than an empty
+completing-read."
+  (let* ((dir (expand-file-name subdir org-tools-config-directory))
+         (files (and (file-directory-p dir)
+                     (directory-files dir t "\\.org\\'" t)))
+         (alist nil))
+    (unless (file-directory-p dir)
+      (user-error "Org config %s not found: %s" subdir dir))
+    (dolist (f files)
+      (let ((base (file-name-nondirectory f)))
+        (unless (string-prefix-p "." base)
+          (push (cons base (expand-file-name f)) alist))))
+    (setq alist (cl-sort alist #'string< :key #'car))
+    (unless alist
+      (user-error "No .org files in %s" dir))
+    alist))
+
+;;;###autoload
+(defun scs/org-insert-setupfile ()
+  "Insert a #+SETUPFILE: line for a file in setup/ under `org-tools-config-directory'.
+
+Prompt with completing-read over setup/*.org and insert at point.
+Does not apply a global setupfile -- the document must opt in.
+Signal `user-error' outside Org mode."
+  (interactive)
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Not in Org mode"))
+  (let* ((alist (org-tools--org-files-in-subdir "setup"))
+         (choice (completing-read "SETUPFILE: " (mapcar #'car alist) nil t))
+         (path (cdr (assoc choice alist))))
+    (unless path
+      (user-error "Unknown setupfile: %s" choice))
+    (insert (format "#+SETUPFILE: %s\n" path))
+    (message "Inserted SETUPFILE %s" choice)))
+
+;;;###autoload
+(defun scs/org-new-from-template ()
+  "Copy a file from templates/ under `org-tools-config-directory' to a new path.
+
+Prompt for the template, then for the destination.  Refuse to
+overwrite an existing file so a slip cannot clobber notes.  Visit
+the copy.  This is not an Org capture template: a print or HTML
+document is a new file, not an inbox entry."
+  (interactive)
+  (let* ((alist (org-tools--org-files-in-subdir "templates"))
+         (choice (completing-read "Template: " (mapcar #'car alist) nil t))
+         (src (cdr (assoc choice alist)))
+         (dest (expand-file-name
+                (read-file-name "New Org file: " nil nil nil choice))))
+    (unless src
+      (user-error "Unknown template: %s" choice))
+    (when (file-exists-p dest)
+      (user-error "Refusing to overwrite existing file: %s" dest))
+    (let ((parent (file-name-directory dest)))
+      (when parent
+        (make-directory parent t)))
+    (copy-file src dest)
+    (find-file dest)
+    (message "Copied %s -> %s" choice dest)))
 
 (provide 'org-tools)
 

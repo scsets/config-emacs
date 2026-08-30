@@ -5,9 +5,9 @@
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-07-22 Wed 12:00
-;; Version: 0.1.1
-;; Last-Updated: 2026-07-24 Fri 09:28
-;; Update #: 2
+;; Version: 0.1.3
+;; Last-Updated: 2026-08-30 Sun 18:44
+;; Update #: 4
 
 ;;; Commentary:
 ;;
@@ -21,6 +21,8 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; add: 2026-08-30 -- insert-setupfile and new-from-template ERT
+;; add: 2026-08-30 -- stationery FADE 100 uses source PDF as-is
 ;; fix: 2026-07-24 -- retarget suite from scs-org-tools to org-tools
 ;; fix: 2026-07-24 -- teachable Commentary for SCS team
 ;; add: 2026-07-23 -- rename-at-point ERT
@@ -289,6 +291,122 @@ parsing the whole buffer."
               (should (equal (buffer-string) "old again\n")))))
       (when (file-directory-p dir)
         (delete-directory dir t)))))
+
+(ert-deftest org-tools-stationery-fade-100-uses-source-as-is ()
+  "FADE 100 includes the source PDF; it does not rasterise a faded cache."
+  (let* ((dir (make-temp-file "org-tools-stat-" t))
+         (source (expand-file-name "letterhead.pdf" dir))
+         (ghost (expand-file-name "letterhead-faded-100pct.pdf" dir))
+         (regenerated nil))
+    (unwind-protect
+        (progn
+          (with-temp-file source (insert "%PDF-1.4 stub\n"))
+          (with-temp-buffer
+            (org-mode)
+            (insert (format "#+SCS_STATIONERY: %s\n" source))
+            (insert "#+SCS_STATIONERY_FADE: 100\n")
+            (cl-letf (((symbol-function 'org-tools--regenerate-stationery-faded)
+                       (lambda (&rest _)
+                         (setq regenerated t)
+                         ghost)))
+              (should (equal (org-tools-ensure-stationery-faded)
+                             (expand-file-name source)))
+              (should-not regenerated)
+              (should-not (file-exists-p ghost)))))
+      (when (file-directory-p dir)
+        (delete-directory dir t)))))
+
+(ert-deftest org-tools-stationery-fade-27-builds-cache ()
+  "FADE 27 still asks the raster pipeline for a faded-Npct cache."
+  (let* ((dir (make-temp-file "org-tools-stat-" t))
+         (source (expand-file-name "letterhead.pdf" dir))
+         (expected (expand-file-name "letterhead-faded-27pct.pdf" dir)))
+    (unwind-protect
+        (progn
+          (with-temp-file source (insert "%PDF-1.4 stub\n"))
+          (with-temp-buffer
+            (org-mode)
+            (insert (format "#+SCS_STATIONERY: %s\n" source))
+            (insert "#+SCS_STATIONERY_FADE: 27\n")
+            (cl-letf (((symbol-function 'org-tools--regenerate-stationery-faded)
+                       (lambda (src faded percent)
+                         (should (equal src (expand-file-name source)))
+                         (should (equal faded expected))
+                         (should (= percent 27))
+                         (with-temp-file faded (insert "fake-faded\n"))
+                         faded)))
+              (should (equal (org-tools-ensure-stationery-faded) expected))
+              (should (file-exists-p expected)))))
+      (when (file-directory-p dir)
+        (delete-directory dir t)))))
+
+(ert-deftest org-tools-stationery-prepare-clears-stale-path ()
+  "A later export without FADE must not inherit the previous sheet."
+  (let ((org-tools--stationery-faded-path "/tmp/stale-faded.pdf"))
+    (with-temp-buffer
+      (org-mode)
+      (insert "#+TITLE: no stationery keywords\n")
+      (org-tools-prepare-stationery 'latex)
+      (should-not org-tools--stationery-faded-path))))
+
+(ert-deftest scs/org-insert-setupfile-tempdir ()
+  "Insert #+SETUPFILE: from a fixture setup/ directory, not the live tree."
+  (let* ((root (make-temp-file "org-tools-cfg-" t))
+         (setup (expand-file-name "setup" root))
+         (print (expand-file-name "print.org" setup)))
+    (unwind-protect
+        (progn
+          (make-directory setup)
+          (with-temp-file print (insert "#+OPTIONS: toc:nil\n"))
+          (let ((org-tools-config-directory root))
+            (with-temp-buffer
+              (org-mode)
+              (cl-letf (((symbol-function 'completing-read)
+                         (lambda (&rest _) "print.org")))
+                (scs/org-insert-setupfile))
+              (should (equal (buffer-string)
+                             (format "#+SETUPFILE: %s\n" print))))))
+      (when (file-directory-p root)
+        (delete-directory root t)))))
+
+(ert-deftest scs/org-insert-setupfile-requires-org-mode ()
+  "Refuse to insert a SETUPFILE outside Org mode."
+  (with-temp-buffer
+    (should-error (scs/org-insert-setupfile) :type 'user-error)))
+
+(ert-deftest scs/org-new-from-template-tempdir ()
+  "Copy a templates/ file to a new path; refuse overwrite."
+  (let* ((root (make-temp-file "org-tools-tpl-" t))
+         (templates (expand-file-name "templates" root))
+         (src (expand-file-name "print-document.org" templates))
+         (dest-dir (expand-file-name "out" root))
+         (dest (expand-file-name "letter.org" dest-dir))
+         (visited nil))
+    (unwind-protect
+        (progn
+          (make-directory templates)
+          (with-temp-file src (insert "#+TITLE:\n"))
+          (let ((org-tools-config-directory root))
+            (cl-letf (((symbol-function 'completing-read)
+                       (lambda (&rest _) "print-document.org"))
+                      ((symbol-function 'read-file-name)
+                       (lambda (&rest _) dest))
+                      ((symbol-function 'find-file)
+                       (lambda (file)
+                         (setq visited file)
+                         (find-file-noselect file))))
+              (scs/org-new-from-template)
+              (should (file-exists-p dest))
+              (should (equal visited dest))
+              (with-temp-buffer
+                (insert-file-contents dest)
+                (should (equal (buffer-string) "#+TITLE:\n")))
+              (should-error (scs/org-new-from-template) :type 'user-error))))
+      (when visited
+        (let ((buf (find-buffer-visiting visited)))
+          (when buf (kill-buffer buf))))
+      (when (file-directory-p root)
+        (delete-directory root t)))))
 
 (provide 'org-tools-test)
 

@@ -5,9 +5,9 @@
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-07-24 Fri 12:07
-;; Version: 0.1.2
-;; Last-Updated: 2026-08-20 Thu 14:19
-;; Update #: 3
+;; Version: 0.1.3
+;; Last-Updated: 2026-08-30 Sun 18:44
+;; Update #: 4
 
 ;;; Commentary:
 ;;
@@ -18,6 +18,7 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; add: 2026-08-30 -- catalog includes scs/org-insert-setupfile
 ;; add: 2026-08-20 -- catalog includes scs/sort-line-fields
 ;; add: 2026-07-24 -- group/format ERT for catalog UI
 ;; add: 2026-07-24 -- catalog accessor and validation ERT
@@ -47,6 +48,12 @@
   (let ((entry (scs/command-hub-find-by-name 'scs/reload-config)))
     (should entry)
     (should (equal (scs/command-hub-entry-title entry) "Reload config"))))
+
+(ert-deftest scs/command-hub-includes-org-insert-setupfile ()
+  "Catalog lists `scs/org-insert-setupfile' so the export kit stays findable."
+  (let ((entry (scs/command-hub-find-by-name 'scs/org-insert-setupfile)))
+    (should entry)
+    (should (equal (scs/command-hub-entry-title entry) "Insert Org SETUPFILE"))))
 
 (ert-deftest scs/command-hub-includes-sort-line-fields ()
   "Catalog lists `scs/sort-line-fields' so it stays findable."

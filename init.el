@@ -371,6 +371,8 @@ Intentionally not *scratch*; new frames land on persistent notes."
 (autoload 'scs/org-insert-creation-date "org-tools" nil t)
 (autoload 'scs/org-append-zwsp-markers "org-tools" nil t)
 (autoload 'scs/org-ensure-buffer-header "org-tools" nil t)
+(autoload 'scs/org-insert-setupfile "org-tools" nil t)
+(autoload 'scs/org-new-from-template "org-tools" nil t)
 (autoload 'scs/rename-visited-file-to-name-at-point "org-tools" nil t)
 ;; add: 2026-07-24 -- Transient command hub home on C-c ?
 (autoload 'scs/command-hub "scs-command-hub"

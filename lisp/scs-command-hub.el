@@ -5,9 +5,9 @@
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-07-24 Fri 12:07
-;; Version: 0.1.7
-;; Last-Updated: 2026-08-29 Sat 15:00
-;; Update #: 8
+;; Version: 0.1.8
+;; Last-Updated: 2026-08-30 Sun 18:44
+;; Update #: 9
 ;; Keywords: convenience, transient, completion
 ;; Package-Requires: ((emacs "29.1") (transient "0.5"))
 
@@ -33,6 +33,7 @@
 
 ;;; Change Log:
 ;; Newest first.  File-local so readers need not dig through VCS.
+;; add: 2026-08-30 -- catalog entries for setupfile and template commands
 ;; add: 2026-08-29 -- catalog entry for scs/reveal-file
 ;; add: 2026-08-20 -- catalog entry for scs/sort-line-fields
 ;; add: 2026-08-17 -- catalog entry for scs/sync-emacs-config
@@ -101,6 +102,16 @@
      :summary "Insert a creation-date stamp for the current Org note"
      :tags (org notes favorite)
      :keys "H-c d")
+    (:name scs/org-insert-setupfile
+     :title "Insert Org SETUPFILE"
+     :summary "Insert #+SETUPFILE: for a file in ~/.config/org/setup"
+     :tags (org)
+     :keys "M-x scs/org-insert-setupfile")
+    (:name scs/org-new-from-template
+     :title "New Org from template"
+     :summary "Copy a ~/.config/org/templates file to a new path"
+     :tags (org)
+     :keys "M-x scs/org-new-from-template")
     (:name scs/el-get-report
      :title "el-get report"
      :summary "Show package name, source, and installed revision"
@@ -331,6 +342,8 @@ runs the command.  Section headers come from catalog :tags."
   "Org and notes helpers."
   [["Dates"
     ("d" "Insert creation date" scs/org-insert-creation-date)]
+   ["Export kit"
+    ("s" "Insert SETUPFILE" scs/org-insert-setupfile)]
    ["Org ID"
     ("r" "Rebuild org-id locations" scs/org-id-rebuild)
     ("u" "Report duplicate org-ids" scs/org-id-report-duplicates)]]

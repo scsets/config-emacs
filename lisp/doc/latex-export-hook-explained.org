@@ -15,6 +15,7 @@ checklists and similar documents.  The pieces work together:
 | Faded letterhead   | =org-tools.el=          | Reads Org keywords, builds faded PDF, patches =.tex= |
 | PDF/X-1a output    | =pdf2pdfx1a.sh=         | Post-processes exported PDF for print prepress       |
 | Canon fonts        | =scs-fontspec.tex=      | Simoncini body, Adobe Garamond small caps & headers  |
+| Export kit         | =~/.config/org=         | SETUPFILEs and templates; document opts in with =#+SETUPFILE:= |
 | Org document       | e.g. =packing-list.org= | Keywords, =#+LATEX_HEADER=, body text                |
 
 Enable once in your init file:
@@ -43,7 +44,9 @@ sequenceDiagram
   Org->>Org: Copy buffer for export
   Org->>org_tools: prepare-stationery (before parsing)
   org_tools->>Disk: read #+SCS_STATIONERY_FADE:
-  alt faded PDF missing or stale
+  alt FADE is 100
+    org_tools->>Disk: use source PDF as-is
+  else faded PDF missing or stale
     org_tools->>gs: PDF → 300 dpi PNG
     gs->>Disk: page-001.png
     org_tools->>magick: white colorize
@@ -230,12 +233,12 @@ background (=eso-pic=).
 | Keyword                    | Meaning                                                           |
 |----------------------------+-------------------------------------------------------------------|
 | =#+SCS_STATIONERY:=        | Source letterhead PDF (default: =~/Documents/scs-stationary.pdf=) |
-| =#+SCS_STATIONERY_FADE:=   | Percentage of *original colour kept* (27 = quite faint)           |
+| =#+SCS_STATIONERY_FADE:=   | Percentage of *original colour kept* (27 = faint; 100 = source PDF as-is) |
 | =SCS_STATIONERY_FADED_PDF= | Placeholder in =#+LATEX_HEADER=; replaced in final =.tex=         |
 
 Do *not* use =@@SCS_STATIONERY@@= — Org treats =@@...@@= as export snippets.
 
-**Cached output path**
+**Cached output path** (FADE 1-99 only)
 
 #+begin_example
 {source-dir}/{basename}-faded-{N}pct.pdf
@@ -244,7 +247,8 @@ Do *not* use =@@SCS_STATIONERY@@= — Org treats =@@...@@= as export snippets.
 Example: =/Users/scs/Documents/scs-stationary-faded-27pct.pdf=
 
 Changing =FADE= from 27 to 20 creates a separate cached file;
-old percentages remain on disk.
+old percentages remain on disk.  =FADE: 100= does not write a cache:
+the placeholder is replaced with the source PDF path.
 
 **Fade math**
 
@@ -253,6 +257,7 @@ ImageMagick colorize% = 100 − FADE%
 
 FADE 27  →  colorize 73% white  (27% colour remains)
 FADE 50  →  colorize 50% white
+FADE 100 ->  skip rasterise; include the source PDF
 #+end_example
 
 * Step 2 behind the scenes (raster fade)
@@ -261,9 +266,11 @@ When =org-tools-prepare-stationery= runs:
 
 1. *Read keywords* from the export buffer (first 32 KiB), via regex on
    =#+SCS_STATIONERY:= and =#+SCS_STATIONERY_FADE:=.
-2. *Compute paths* — source PDF and faded output =...-faded-Npct.pdf=.
-3. *Skip or rebuild* — rebuild only if faded file missing or older than source.
-4. *Run three external commands* in a temp directory (=call-process=, not a
+2. *If FADE is 100*, store the source PDF path and stop.  Rasterising at
+   full strength still flattens vectors and can wash colour.
+3. *Compute paths* — source PDF and faded output =...-faded-Npct.pdf=.
+4. *Skip or rebuild* — rebuild only if faded file missing or older than source.
+5. *Run three external commands* in a temp directory (=call-process=, not a
    shell script on disk):
 
 | Step | Program  | Arguments (conceptually)         | Result                           |
@@ -272,15 +279,15 @@ When =org-tools-prepare-stationery= runs:
 | B    | =magick= | white background, =-colorize N%= | =faded.png=                      |
 | C    | =magick= | 300 dpi, zip compress            | =scs-stationary-faded-27pct.pdf= |
 
-5. *Delete temp directory* (=unwind-protect=).
-6. *Store path* in =org-tools--stationery-faded-path= for this export.
+6. *Delete temp directory* (=unwind-protect=).
+7. *Store path* in =org-tools--stationery-faded-path= for this export.
 
 Elisp entry points:
 
 | Function                                 | Purpose                                    |
 |------------------------------------------+--------------------------------------------|
 | =org-tools-prepare-stationery=           | Hook: ensure faded PDF exists              |
-| =org-tools-ensure-stationery-faded=      | Read keywords, cache logic, maybe rebuild  |
+| =org-tools-ensure-stationery-faded=      | Read keywords; 100 -> source, else cache |
 | =org-tools--regenerate-stationery-faded= | Run gs + magick pipeline                   |
 | =org-tools-filter-stationery-output=     | Replace placeholder in final =.tex= string |
 | =scs/org-regenerate-stationery=        | =M-x= — rebuild without exporting          |
@@ -294,11 +301,13 @@ flowchart TD
   B -->|yes| C[Resolve source PDF path]
   C --> D{Source exists?}
   D -->|no| E[user-error]
-  D -->|yes| F[Compute faded-Npct.pdf path]
+  D -->|yes| FC{FADE = 100?}
+  FC -->|yes| J[Store path in variable]
+  FC -->|no| F[Compute faded-Npct.pdf path]
   F --> G{Faded missing or older than source?}
   G -->|yes| H[gs → magick → magick]
   G -->|no| I[Reuse cache]
-  H --> J[Store path in variable]
+  H --> J
   I --> J
   J --> K[Org continues export]
   K --> L[filter-stationery-output patches .tex]
@@ -370,6 +379,12 @@ pdf2pdfx1a --man                           # full manual
 
 * Example packing-list.org skeleton
 
+The copy-from letterhead file is
+=~/.config/org/templates/print-document.org= (it
+=#+SETUPFILE:=s =~/.config/org/setup/print.org=).  The example below is
+the same idea written out so you can see which keywords the setupfile
+stands in for.
+
 #+begin_example
 #+TITLE: Packing checklist
 #+SCS_STATIONERY: /Users/scs/Documents/scs-stationary.pdf
@@ -416,6 +431,7 @@ pdf2pdfx1a --man                           # full manual
 | =--= not an en-dash in =!sc= | Missing =Ligatures=TeX=           | Update =scs-fontspec.tex=                                 |
 | Header brackets missing      | Fragile =\textsc= in =\fancyhead= | Use =\runheadertext{...}=                                 |
 | Wrong stationery in PDF      | Stale cache                       | Touch source PDF or =M-x scs/org-regenerate-stationery= |
+| Letterhead still pale        | =FADE= is 27, or =0= (ignored)    | Set =#+SCS_STATIONERY_FADE: 100= (source PDF as-is)     |
 | Export error “gs not found”  | Ghostscript missing               | Install Ghostscript                                       |
 | PDF/X step skipped           | No =#+SCS_PDFX:= or value =off=   | Add =#+SCS_PDFX: yes= for print PDFs                      |
 | PDF/X fails on ICC profile   | Adobe SWOP profile missing        | Install Creative Cloud / check =SWOP_ICC_PROFILE=          |
@@ -476,3 +492,5 @@ Diagram PNGs are written beside this file (=export-pipeline.png=,
   failed on TeX Live 2026 fontspec.
 - Stationery placeholder moved from =@@...@@= to =SCS_STATIONERY_FADED_PDF=
   because Org interprets double-@ as export snippets.
+- =FADE: 100= includes the source PDF as-is.  A raster pass at colorize 0%
+  still flattened vectors and could leave the letterhead looking pale.
