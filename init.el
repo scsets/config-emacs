@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-31 Mon 12:52
-;; Update #: 56
+;; Last-Updated: 2026-08-31 Mon 13:17
+;; Update #: 57
 ;;
 ;;; Commentary:
 ;;
@@ -47,6 +47,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-31 -- skip gitea.el when laptop Gitea is unreachable (SmartOS)
 ;; add: 2026-08-31 -- howm :build tries gem install rdtool when rd2 is missing
 ;; add: 2026-08-29 -- scs/backward-kill-word: blank line is its own M-DEL
 ;; fix: 2026-08-29 -- demand consult-dir; recursive minibuffers for C-x C-d
@@ -500,8 +501,12 @@ Intentionally not *scratch*; new frames land on persistent notes."
          :features embark
          :depends (compat))
         (:name gitea
-         ;; Private repo: HTTPS needs interactive credentials (fails on
-         ;; SmartOS/daemon).  SSH works with the host key already on PATH.
+         ;; Private repo on GitHub.  The package talks to laptop Gitea
+         ;; (http://127.0.0.1:3000).  On SmartOS that URL is down, so
+         ;; scs/el-get-skip-unavailable-local-packages drops this source
+         ;; and clears stuck `required' status.  Otherwise el-get clones,
+         ;; fails or installs a useless copy, marks `required', and every
+         ;; startup does remove + retry.
          :type git
          :url "git@github.com:scsets/gitea.el.git"
          :branch "trunk"
@@ -761,30 +766,32 @@ Side effects: mutates `el-get-sources'."
                               url)))))
 
 (defun scs/el-get-skip-unavailable-local-packages ()
-  "Drop session sources that need host-local services when unavailable.
+  "Drop session sources that need the laptop Gitea when it is down.
 
-`org-web-clipper' lives on laptop Gitea (http://127.0.0.1:3000/...).  On
-SmartOS and other hosts that URL fails every init: el-get marks the
-package `required', then each startup does remove + reinstall + fail.
-Skipping the source here and clearing a stuck `required' status stops
+`org-web-clipper' is hosted on that instance
+(http://127.0.0.1:3000/scs/org-web-clipper.git).  `gitea' is the Emacs
+API client for the same host.  On SmartOS (and any machine without
+that instance) HTTP to 127.0.0.1:3000 fails.  el-get then marks the
+package `required', and each startup does remove + reinstall + fail.
+Skipping the source here and clearing stuck `required' status stops
 that thrash without deleting the recipe from init.el."
-  (let ((local-gitea "http://127.0.0.1:3000/"))
+  (let ((local-gitea "http://127.0.0.1:3000/")
+        (skip '("org-web-clipper" "gitea")))
     (unless (scs/el-get-http-url-reachable-p local-gitea)
-      (let ((skip '("org-web-clipper")))
-        (setq el-get-sources
-              (cl-remove-if
-               (lambda (candidate)
-                 (member (el-get-source-name candidate) skip))
-               el-get-sources))
-        (dolist (pkg skip)
-          (when (member (el-get-read-package-status pkg)
-                        '("required" "removed"))
-            ;; Keep a failed/partial checkout from looping forever.
-            (ignore-errors
-              (el-get-save-package-status pkg "removed"))
-            (message
-             "el-get: skipping %s (local Gitea %s not reachable)"
-             pkg local-gitea)))))))
+      (setq el-get-sources
+            (cl-remove-if
+             (lambda (candidate)
+               (member (el-get-source-name candidate) skip))
+             el-get-sources))
+      (dolist (pkg skip)
+        (when (member (el-get-read-package-status pkg)
+                      '("required" "removed"))
+          ;; Keep a failed/partial checkout from looping forever.
+          (ignore-errors
+            (el-get-save-package-status pkg "removed"))
+          (message
+           "el-get: skipping %s (local Gitea %s not reachable)"
+           pkg local-gitea))))))
 
 (scs/el-get-skip-unavailable-local-packages)
 
