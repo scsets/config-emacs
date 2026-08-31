@@ -8,8 +8,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-23 Mon 07:36
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-31 Mon 12:52
-;; Update #: 1
+;; Last-Updated: 2026-08-31 Mon 13:11
+;; Update #: 2
 ;;
 ;;; Commentary:
 ;;
@@ -39,6 +39,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; fix: 2026-08-31 -- do not inhibit redisplay on TTY (blank screen, C-x C-c still quits)
 ;; add: 2026-08-31 -- SmartOS pkgin guard installs missing GNU tools
 ;; fix: 2026-08-22 -- use scratch-buffer (not get-buffer-create) for welcome text
 ;; fix: 2026-08-22 -- drop initial-scratch-message nil (restore Emacs default text)
@@ -100,28 +101,50 @@
 
 (setq vc-handled-backends nil)
 
+(defun scs/early-init-graphical-session-p ()
+  "Return non-nil when this process is expected to open a GUI frame.
+
+early-init runs before the first frame, so `display-graphic-p' is often
+nil even on macOS.  Do not use it here.
+
+A TTY session that still sets `inhibit-redisplay' stays blank: keys
+work (C-x C-c quits) but nothing is drawn.  `-nw' is definitive.
+Darwin without `-nw' is this profile's GUI app.  Other hosts need
+DISPLAY or WAYLAND_DISPLAY (X11/Wayland).  SSH on SmartOS has neither,
+so this returns nil and the terminal is allowed to draw."
+  (cond
+   ((member "-nw" command-line-args) nil)
+   ((eq system-type 'darwin) t)
+   ((or (getenv "DISPLAY") (getenv "WAYLAND_DISPLAY")) t)
+   (t nil)))
+
 (if (or (daemonp) noninteractive)
     (setq file-name-handler-alist nil)
-  ;; Interactive GUI: trim handlers and suffixes (karthink/.emacs.d early-init).
+  ;; Interactive: trim handlers and suffixes (karthink/.emacs.d early-init).
   (set-default-toplevel-value
    'file-name-handler-alist
    (if (eval-when-compile (locate-file-internal "calc-loaddefs.el" load-path))
        nil
      (list (rassq 'jka-compr-handler scs--file-name-handler-alist))))
   (set-default-toplevel-value 'load-suffixes '(".elc" ".el"))
-  (setq-default inhibit-redisplay t
-                inhibit-message t)
-  (add-hook 'window-setup-hook
-            (lambda ()
-              (setq-default inhibit-redisplay nil
-                            inhibit-message nil)
-              (redisplay)))
-  ;; Site init and el-get load many files; "Loading ..." forces redisplay and
-  ;; can flash an unstyled frame.  Silence only until init.el is about to load.
-  (define-advice load-file (:override (file) silence)
-    (load file nil 'nomessage))
-  (define-advice startup--load-user-init-file (:before (&rest _) nomessage-remove)
-    (advice-remove #'load-file #'load-file@silence)))
+  ;; GUI only.  On a TTY these two stay nil so the screen can draw.
+  (when (scs/early-init-graphical-session-p)
+    (setq-default inhibit-redisplay t
+                  inhibit-message t)
+    (add-hook 'window-setup-hook
+              (lambda ()
+                (setq inhibit-redisplay nil
+                      inhibit-message nil)
+                (setq-default inhibit-redisplay nil
+                              inhibit-message nil)
+                (redisplay)))
+    ;; Site init and el-get load many files; "Loading ..." forces
+    ;; redisplay and can flash an unstyled frame.  Silence only until
+    ;; init.el is about to load.
+    (define-advice load-file (:override (file) silence)
+      (load file nil 'nomessage))
+    (define-advice startup--load-user-init-file (:before (&rest _) nomessage-remove)
+      (advice-remove #'load-file #'load-file@silence))))
 
 (add-hook 'emacs-startup-hook
           (lambda ()
