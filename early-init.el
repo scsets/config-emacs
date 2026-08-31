@@ -6,6 +6,10 @@
 ;; Description: Performance, UI, packages, PATH, and macOS native-comp setup before init.el.
 ;; Author: SCS
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
+;; Created: 2026-03-23 Mon 07:36
+;; Version: 0.1.0
+;; Last-Updated: 2026-08-31 Mon 12:52
+;; Update #: 1
 ;;
 ;;; Commentary:
 ;;
@@ -21,7 +25,7 @@
 ;;   - GUI-only redisplay/load-file silencing to avoid startup flash
 ;;   - Prefer GNU/user tool prefixes on PATH (SmartOS /opt/tools, pkgsrc,
 ;;     Homebrew, FreeBSD ports) before thin system /usr/bin; on SmartOS
-;;     exit immediately if core GNU tools are still missing
+;;     install missing GNU tools via pkgin, then exit if any remain missing
 ;;   - Homebrew paths for native compilation on macOS (LIBRARY_PATH, CC)
 ;;   - Native-comp eln-cache/, quiet async warnings, deferred compilation
 ;;   - Quiet warnings during normal startup (use bin/emacs-diagnostic to debug)
@@ -35,6 +39,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-31 -- SmartOS pkgin guard installs missing GNU tools
 ;; fix: 2026-08-22 -- use scratch-buffer (not get-buffer-create) for welcome text
 ;; fix: 2026-08-22 -- drop initial-scratch-message nil (restore Emacs default text)
 ;; add: 2026-08-22 -- tier 2 borrow: scroll/cursor perf; scratch-only GUI startup
@@ -136,15 +141,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; SmartOS login PATH often puts /usr/bin before /opt/tools/bin.  System sed,
-;; make, awk, find, grep, ls then win over gsed/gmake/gawk/gfind/ggrep/gls
-;; (and the unprefixed symlinks that pkgsrc/tools install beside them).
+;; make, awk, find, grep, ls then win over gsed/gmake/gawk/gfind/gls
+;; (and the unprefixed GNU binaries that pkgsrc/tools install beside them).
 ;; Package builds (el-get/howm make) and Emacs subprocesses inherit that
 ;; order.  Prepend known tool directories early so both PATH and exec-path
 ;; agree before configure/make and before init.el probes helpers.
 ;;
-;; On SmartOS/Illumos this config then *requires* the core GNU helpers.  A
-;; bare zone without /opt/tools (or equivalent) exits immediately with a
-;; clear message instead of failing halfway through package builds.
+;; On SmartOS this config then *requires* those GNU helpers.  Missing ones
+;; are installed with pkgin (see `scs/smartos-gnu-tool-packages').  If any
+;; are still missing after that attempt, Emacs exits with a clear message
+;; instead of failing halfway through package builds.
+;;
+;; el-get cannot do this job: it loads later from init.el and talks to Git,
+;; not pkgin.  howm's el-get :build may install Ruby rd2; that is separate.
 ;;
 ;; Directories that do not exist are skipped (macOS has no /opt/tools, a bare
 ;; SmartOS zone may lack pkgsrc, etc.).
@@ -196,57 +205,146 @@ usual pkgsrc/tools prefixes so plain SVR4 hosts are not treated as SmartOS."
            (file-directory-p "/opt/tools")
            (file-directory-p "/opt/local"))))
 
-(defvar scs/smartos-required-gnu-tools
-  '("gsed" "gmake" "gawk" "gfind" "ggrep" "gls")
-  "Core GNU tool names that must exist on SmartOS after PATH setup.
+;; Probe name -> pkgin package on the SmartOS *tools* repo
+;; (https://pkgsrc.smartos.org/packages/SmartOS/trunk/tools/All).
+;; Names verified on ckg1 2026-08-31 (pkgin pkg-content).
+;;
+;; grep is the pkgsrc package *and* the unprefixed binary.  The same
+;; package also ships ggrep under /opt/tools/bin.  Stock /usr/bin/grep
+;; is illumos, not GNU, and must not satisfy the probe.
+;; gsed/gmake/gawk/gfind/gls keep the g-prefix so /usr/bin/sed and
+;; friends cannot sneak through.  Keep in sync with
+;; bin/smartos-emacs-deps.sh.
+(defvar scs/smartos-gnu-tool-packages
+  '(("gsed"  . "gsed")
+    ("gmake" . "gmake")
+    ("gawk"  . "gawk")
+    ("gfind" . "findutils")
+    ("grep"  . "grep")
+    ("gls"   . "coreutils"))
+  "Alist of GNU probe binaries to pkgin packages for SmartOS host deps.
 
-Require g-prefixed binaries explicitly.  Accepting plain sed/make/awk
-would pass on stock /usr/bin (illumos sed is not GNU and breaks package
-builds that assume GNU tools).  /opt/tools usually also ships unprefixed
-symlinks (sed -> gsed); PATH prepending makes those work for Makefiles
-that call sed/make without the g.
+Each CAR is what we look for after PATH setup.  Each CDR is the pkgin
+package that provides it.  Optional howm HTML docs need `rd2' (Ruby gem
+rdtool); that is not a global Emacs startup requirement -- see the howm
+el-get recipe in init.el and bin/smartos-emacs-deps.sh.")
 
-Optional howm HTML docs need `rd2' (Ruby gem rdtool) — that is *not*
-a global Emacs startup requirement; see the howm el-get recipe in
-init.el and bin/smartos-emacs-deps.sh.")
+(defun scs/smartos-in-tool-prefix-p (path)
+  "Return non-nil when PATH lives under a GNU/user tool prefix.
+
+Stock /usr/bin does not count.  Prefixes match `scs/setup-tool-path'."
+  (and (stringp path)
+       (let ((p (expand-file-name path)))
+         (or (string-prefix-p "/opt/tools/" p)
+             (string-prefix-p "/opt/local/" p)
+             (string-prefix-p "/usr/local/" p)
+             (string-prefix-p "/opt/homebrew/" p)))))
+
+(defun scs/smartos-tool-prefix-executable (name)
+  "Return `executable-find' of NAME only if it is in a GNU/user prefix."
+  (let ((path (executable-find name)))
+    (and path (scs/smartos-in-tool-prefix-p path) path)))
+
+(defun scs/smartos-gnu-tool-path (binary)
+  "Return absolute path of GNU BINARY, or nil.
+
+BINARY is a CAR from `scs/smartos-gnu-tool-packages'.  For grep, accept
+ggrep or grep only when the file lives under a tool prefix.  Illumos
+/usr/bin/grep does not count."
+  (cond
+   ((string= binary "grep")
+    (or (scs/smartos-tool-prefix-executable "ggrep")
+        (scs/smartos-tool-prefix-executable "grep")))
+   (t
+    (executable-find binary))))
+
+(defun scs/smartos-missing-gnu-tools ()
+  "Return probe names from `scs/smartos-gnu-tool-packages' that are missing."
+  (let (missing)
+    (dolist (cell scs/smartos-gnu-tool-packages (nreverse missing))
+      (unless (scs/smartos-gnu-tool-path (car cell))
+        (push (car cell) missing)))))
 
 (defun scs/gnu-tool-path (base)
   "Return absolute path of gBASE or BASE on `exec-path', or nil.
 
-BASE is the unprefixed name (\"sed\", \"awk\", …).  Prefers gBASE."
+BASE is the unprefixed name (\"sed\", \"awk\", ...).  Prefers gBASE."
   (or (executable-find (concat "g" base))
       (executable-find base)))
 
-(defun scs/early-init-fail (fmt &rest args)
-  "Print FMT with ARGS to the echo area and stderr, then exit Emacs."
+(defun scs/early-init-echo (fmt &rest args)
+  "Print FMT with ARGS even when `inhibit-message' is t on a TTY."
   (let ((msg (apply #'format fmt args)))
     (message "%s" msg)
-    ;; TTY / SSH users see stderr even when the echo area is gone.
+    ;; TTY / SSH users see stderr even when the echo area is silenced.
     (ignore-errors
-      (princ (concat msg "\n") #'external-debugging-output))
-    (kill-emacs 1)))
+      (princ (concat msg "\n") #'external-debugging-output))))
+
+(defun scs/early-init-fail (fmt &rest args)
+  "Print FMT with ARGS to the echo area and stderr, then exit Emacs."
+  (apply #'scs/early-init-echo fmt args)
+  (kill-emacs 1))
+
+(defun scs/smartos-pkgin-install (packages)
+  "Install PACKAGES with pkgin -y.  Return the process exit status.
+
+PACKAGES is a list of pkgin names.  Output goes to stderr so a TTY SSH
+session can see the download.  Return 127 when pkgin is missing."
+  (let ((pkgin (or (executable-find "pkgin") "/opt/tools/bin/pkgin")))
+    (cond
+     ((not (file-executable-p pkgin))
+      (scs/early-init-echo "pkgin not found at %s" pkgin)
+      127)
+     (t
+      (scs/early-init-echo
+       "SCS Emacs: pkgin -y install %s"
+       (mapconcat #'identity packages " "))
+      (with-temp-buffer
+        (let ((status (apply #'call-process pkgin nil t nil
+                             (append '("-y" "install") packages))))
+          (scs/early-init-echo "%s" (buffer-string))
+          status))))))
+
+(defun scs/smartos-install-gnu-tools (missing)
+  "Map MISSING probe names to pkgin packages and install them.
+
+MISSING is a list of CARs from `scs/smartos-gnu-tool-packages'.
+No-op when MISSING is nil.  After pkgin returns, refresh PATH so
+the new binaries are visible to `executable-find'."
+  (when missing
+    (let ((pkgs (delete-dups
+                 (mapcar (lambda (bin)
+                           (cdr (assoc bin scs/smartos-gnu-tool-packages)))
+                         missing))))
+      (setq pkgs (delq nil pkgs))
+      (when pkgs
+        (scs/smartos-pkgin-install pkgs)
+        (scs/setup-tool-path)))))
 
 (defun scs/require-smartos-gnu-tools ()
-  "On SmartOS, exit unless core g* GNU tools are on PATH after setup.
+  "On SmartOS, install missing GNU tools via pkgin, then exit if any remain.
 
-No-op on macOS, FreeBSD, and Linux.  Requires gsed, gmake, gawk, gfind,
-ggrep, and gls by those exact names so thin /usr/bin sed/awk cannot
-satisfy the check.  Does not require rd2 (howm-only; see init.el)."
+No-op on macOS, FreeBSD, and Linux.  Probes gsed, gmake, gawk, gfind,
+gls by those g-prefixed names, and GNU grep as grep (or ggrep) under
+/opt/tools -- never illumos /usr/bin/grep.  Does not require rd2
+(howm-only; see init.el).  el-get is not used here: it is not loaded
+yet and it does not speak pkgin."
   (when (scs/smartos-p)
-    (let ((missing
-           (let (out)
-             (dolist (name scs/smartos-required-gnu-tools (nreverse out))
-               (unless (executable-find name)
-                 (push name out))))))
+    (let ((missing (scs/smartos-missing-gnu-tools)))
+      (when missing
+        (scs/early-init-echo
+         "SCS Emacs on SmartOS: missing GNU tools: %s"
+         (mapconcat #'identity missing ", "))
+        (scs/smartos-install-gnu-tools missing)
+        (setq missing (scs/smartos-missing-gnu-tools)))
       (when missing
         (scs/early-init-fail
          (concat
           "SCS Emacs on SmartOS requires GNU tools on PATH after early-init.\n"
-          "Missing: %s\n"
-          "Install under /opt/tools/bin (preferred) or /opt/local/bin, then\n"
-          "restart Emacs.  Need at least: gsed gmake gawk gfind ggrep gls\n"
-          "(unprefixed sed/make/awk/find/grep/ls symlinks are optional but\n"
-          "recommended so Makefiles that call plain sed still get GNU).\n"
+          "Still missing after pkgin: %s\n"
+          "Need pkgin packages: gsed gmake gawk findutils grep coreutils\n"
+          "(binaries: gsed gmake gawk gfind grep/ggrep gls under /opt/tools).\n"
+          "Install as root, then restart Emacs.\n"
           "Tip: run bin/smartos-emacs-deps.sh on a new SmartOS host.\n"
           "Current PATH=%s")
          (mapconcat #'identity missing ", ")

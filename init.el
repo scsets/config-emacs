@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-29 Sat 16:34
-;; Update #: 55
+;; Last-Updated: 2026-08-31 Mon 12:52
+;; Update #: 56
 ;;
 ;;; Commentary:
 ;;
@@ -47,6 +47,7 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; add: 2026-08-31 -- howm :build tries gem install rdtool when rd2 is missing
 ;; add: 2026-08-29 -- scs/backward-kill-word: blank line is its own M-DEL
 ;; fix: 2026-08-29 -- demand consult-dir; recursive minibuffers for C-x C-d
 ;; fix: 2026-08-29 -- scs/consult-dir: active-minibuffer-window for Vertico
@@ -412,9 +413,13 @@ Intentionally not *scratch*; new frames land on persistent notes."
 ;; Package managers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;; el-get installs third-party packages from Git and similar sources.
+;; el-get installs third-party Emacs Lisp from Git and similar sources.
 ;; use-package (below) declares what we want; :el-get ensures recipes exist
 ;; and packages are synced before config runs.
+;;
+;; Host GNU tools on SmartOS (pkgin grep, gsed, gmake, ...) are not
+;; el-get's job.  el-get loads here, after early-init, and does not speak
+;; pkgin.  See scs/require-smartos-gnu-tools in early-init.el.
 
 ;; ----------------------------------------------------------
 ;; el-get
@@ -506,12 +511,13 @@ Intentionally not *scratch*; new frames land on persistent notes."
          :type github
          :pkgname "port19x/haproxy-mode")
         ;; howm: stock upstream build (configure + make) including HTML docs
-        ;; under doc/.  Docs need `rd2` from the Ruby gem rdtool
-        ;; (gem install rdtool).  On SmartOS install host deps with
-        ;; bin/smartos-emacs-deps.sh.  early-init sets MAKEFLAGS SHELL=bash
-        ;; so make recipes are not run under ksh93 (echo -n / bcomp.el).
-        ;; The configure step fails this package only if rd2 is missing,
-        ;; without making rd2 a global Emacs startup dependency.
+        ;; under doc/.  Docs need `rd2` from the Ruby gem rdtool.  This
+        ;; :build tries `gem install rdtool` when rd2 is missing -- that
+        ;; is the el-get-shaped host dep.  GNU grep/gsed/gmake stay in
+        ;; early-init (pkgin); el-get cannot install those.  early-init
+        ;; also sets MAKEFLAGS SHELL=bash so make recipes are not run
+        ;; under ksh93 (echo -n / bcomp.el).  rd2 is still not a global
+        ;; Emacs startup dependency.
         (:name howm
          :website "https://kaorahi.github.io/howm/"
          :description "Write fragmentarily and read collectively."
@@ -520,7 +526,13 @@ Intentionally not *scratch*; new frames land on persistent notes."
          :build (("sh" "-c" "\
 set -e
 if ! command -v rd2 >/dev/null 2>&1; then
-  echo 'howm: rd2 not on PATH (needed for doc/*.html).' >&2
+  echo 'howm: rd2 not on PATH; trying gem install rdtool' >&2
+  if command -v gem >/dev/null 2>&1; then
+    gem install rdtool --no-document || true
+  fi
+fi
+if ! command -v rd2 >/dev/null 2>&1; then
+  echo 'howm: rd2 still missing (needed for doc/*.html).' >&2
   echo 'Install: gem install rdtool' >&2
   echo 'Or on SmartOS: bin/smartos-emacs-deps.sh' >&2
   exit 1

@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-30 Sun 18:44
-#+UPDATE: 56
+#+LAST-UPDATED: 2026-08-31 Mon 12:52
+#+UPDATE: 57
 # $Id$
 
 * Document role
@@ -14,6 +14,20 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10, then
 normalized to lowercase =changelog.org= on 2026-07-27.
+
+* 2026-08-31  SCS  <scs@scs.re>
+
+- =early-init.el= (~scs/require-smartos-gnu-tools~): On SmartOS, missing
+  GNU host tools are installed with ~pkgin -y~ instead of exiting at
+  once.  Probe table maps =gsed= =gmake= =gawk= =gfind= =grep= =gls= to
+  packages =gsed= =gmake= =gawk= =findutils= =grep= =coreutils=.  GNU
+  grep is the unprefixed =grep= under =/opt/tools= (the package also
+  ships =ggrep=); illumos =/usr/bin/grep= does not count.  el-get is
+  not used for these: it loads later and does not speak pkgin.
+- =bin/smartos-emacs-deps.sh=: Same table; actually ~pkgin -y install~
+  missing packages, then gem-installs =rdtool= when =rd2= is missing.
+- =init.el= (howm el-get recipe): =:build= tries ~gem install rdtool~
+  when =rd2= is missing (el-get-shaped host dep for howm docs only).
 
 * 2026-08-30  SCS  <scs@scs.re>
 

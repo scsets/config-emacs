@@ -6,8 +6,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-03-05 Thu 17:59
 #+VERSION: 0.1.1
-#+LAST-UPDATED: 2026-08-30 Sun 18:44
-#+UPDATE: 18
+#+LAST-UPDATED: 2026-08-31 Mon 12:52
+#+UPDATE: 19
 
 * Document role
 
@@ -194,6 +194,8 @@ it over the network.  That is intentional for a single-user profile.
 | Tool | Class | Notes |
 |------+-------+-------|
 | Git | required | el-get bootstrap and VC |
+| SmartOS GNU tools | required on SmartOS | =gsed= =gmake= =gawk= =gfind= GNU =grep= =gls= under =/opt/tools=; early-init ~pkgin -y install~ if missing.  Not el-get (Git/Elisp only).  See =bin/smartos-emacs-deps.sh=. |
+| ~rd2~ (Ruby rdtool) | howm docs | el-get howm =:build= tries ~gem install rdtool~; also the deps script |
 | ~rg~ | optional | howm search; falls back to grep |
 | ~fd~ / ~fdfind~ | optional | Consult ~consult-fd~; fd-dired |
 | ~ugrep~ | optional | ~xref-search-program~ when present |
