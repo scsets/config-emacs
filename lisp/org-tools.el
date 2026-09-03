@@ -1067,22 +1067,29 @@ string.  The result may still contain a directory component."
                     (file-name-nondirectory trimmed))))
     (and base (not (string-empty-p base)) base)))
 
+;; Name-at-point only: same directory, basename taken from point.
+;; To type a new path in the minibuffer, use `rename-visited-file'
+;; (Emacs 29+; M-x).  This command never prompts for a name.
 ;;;###autoload
 (defun scs/rename-visited-file-to-name-at-point ()
   "Rename the visited file to the basename at point.
 Confirm with \"OLD: rename to: NEW\".  If the target already exists and
 is not the same file, ask a second time before overwriting.  Stays in
-the same directory.  Typical binding: `H-c R'."
+the same directory.  Typical binding: `H-c R'.
+
+To type the new name or directory yourself, use
+`M-x rename-visited-file' instead."
   (interactive)
   (unless buffer-file-name
-    (user-error "Buffer is not visiting a file"))
+    (user-error "Buffer is not visiting a file (M-x rename-visited-file to type a path)"))
   (let* ((old buffer-file-name)
          (old-base (file-name-nondirectory old))
          (new-base (or (scs/org--basename-at-point)
-                       (user-error "No filename at point")))
+                       (user-error "No filename at point (M-x rename-visited-file to type a path)")))
          (new (expand-file-name new-base (file-name-directory old))))
     (if (string-equal (expand-file-name old) (expand-file-name new))
-        (message "Already named %s" old-base)
+        (message "Already named %s (M-x rename-visited-file to type a path)"
+                 old-base)
       (unless (yes-or-no-p (format "%s: rename to: %s " old-base new-base))
         (user-error "Rename aborted"))
       ;; rename-file needs ok-if-exists when target exists; we still confirm first.
