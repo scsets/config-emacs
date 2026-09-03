@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-08-31 Mon 13:17
-;; Update #: 57
+;; Last-Updated: 2026-09-03 Thu 08:47
+;; Update #: 61
 ;;
 ;;; Commentary:
 ;;
@@ -47,6 +47,8 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; fix: 2026-09-03 -- csv-mode from emacsmirror (stock ELPA recipe never landed)
+;; add: 2026-09-03 -- csv-mode/.tsv; align on; TSV header line and TAB indent
 ;; add: 2026-08-31 -- skip gitea.el when laptop Gitea is unreachable (SmartOS)
 ;; add: 2026-08-31 -- howm :build tries gem install rdtool when rd2 is missing
 ;; add: 2026-08-29 -- scs/backward-kill-word: blank line is its own M-DEL
@@ -465,6 +467,13 @@ Intentionally not *scratch*; new frames land on persistent notes."
          :type github
          :pkgname "company-mode/company-mode"
          :features company)
+        ;; GNU csv-mode (includes tsv-mode).  Clone from GitHub like the
+        ;; other emacsmirror recipes.  The stock el-get recipe is
+        ;; `:type elpa'; that install can stall at status "required"
+        ;; with no checkout, after which :mode autoloads fail.
+        (:name csv-mode
+         :type github
+         :pkgname "emacsmirror/csv-mode")
         (:name compat
          :type github
          :pkgname "emacs-compat/compat")
@@ -1817,6 +1826,34 @@ Embark) is left alone."
   (define-key company-active-map (kbd "RET") #'my-company-return)
 
   (global-company-mode))
+
+;; ----------------------------------------------------------
+;; csv-mode
+;; ----------------------------------------------------------
+
+;; GNU ELPA field editor (align, sort, kill).  csv-mode is comma;
+;; tsv-mode is a derived major mode that locks the separator to TAB.
+;; Without that, a .tsv file would still be parsed as CSV.  Installed
+;; from emacsmirror via the local el-get recipe (not stock `:type elpa').
+;; https://elpa.gnu.org/packages/csv-mode.html
+(use-package csv-mode
+  :el-get t
+  :mode (("\\.csv\\'" . csv-mode)
+         ("\\.tsv\\'" . tsv-mode))
+  :hook
+  ;; Visual columns via display properties; the file on disk stays raw.
+  (csv-mode . csv-align-mode)
+  (tsv-mode . csv-align-mode)
+  ;; Pin row 1 in the window header so it stays visible while scrolling.
+  (tsv-mode . csv-header-line)
+  (tsv-mode . scs/tsv-indent-tabs)
+  :init
+  (defun scs/tsv-indent-tabs ()
+    "Insert real TAB characters in `tsv-mode' buffers.
+
+TAB is the TSV field separator.  If `indent-tabs-mode' stayed nil,
+the TAB key would insert spaces and those rows would stop being TSV."
+    (setq indent-tabs-mode t)))
 
 ;; ----------------------------------------------------------
 ;; delight
