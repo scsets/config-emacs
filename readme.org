@@ -5,9 +5,9 @@
 #+AUTHOR: SCS
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-03-05 Thu 17:59
-#+VERSION: 0.1.1
-#+LAST-UPDATED: 2026-08-31 Mon 12:52
-#+UPDATE: 19
+#+VERSION: 0.1.2
+#+LAST-UPDATED: 2026-09-03 Thu 09:36
+#+UPDATE: 20
 
 * Document role
 
@@ -79,6 +79,7 @@ material.
 | =scs-frame-state.el= | autoload | Frame geometry save/restore |
 | =scs-tramp.el= | TRAMP ~:config~ + autoload | Known hosts, cleanup, no-trace policy |
 | =scs-backward-kill-word.el= | autoload; ~M-DEL~ / ~C-<backspace>~ | Word rub-out that treats a blank line as its own unit |
+| =scs-mx-history.el= | Vertico ~:config~; ~scs/mx-history-setup~ | Pin last M-x command on ~extended-command-history~ even if it errors |
 | =flycheck-org-lint-workaround.el= | ~flycheck~ block | Advice for broken Flycheck/org-lint line-cell handling |
 
 ** Frame Geometry Save/Restore

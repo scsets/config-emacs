@@ -5,8 +5,8 @@
 #+COPYRIGHT: Copyright (C) 2026, SCS, all rights reserved.
 #+DATE: 2026-07-10 Fri 10:54
 #+VERSION: 0.1.0
-#+LAST-UPDATED: 2026-08-31 Mon 12:52
-#+UPDATE: 57
+#+LAST-UPDATED: 2026-09-03 Thu 09:36
+#+UPDATE: 58
 # $Id$
 
 * Document role
@@ -14,6 +14,14 @@
 Historical, user-visible changes.  Not the open backlog (=tasks.org=).
 Formerly =changes.org=; renamed to =CHANGELOG.org= on 2026-07-10, then
 normalized to lowercase =changelog.org= on 2026-07-27.
+
+* 2026-09-03  SCS  <scs@scs.re>
+
+- =init.el= (Vertico): ~vertico-sort~ is loaded so M-x lists last
+  commands first, then frecency (duplicate history entries), then
+  shorter names.  el-get had left ~vertico-sort-function~ nil.
+- =lisp/scs-mx-history.el=: a command that errors is still prepended
+  on ~extended-command-history~, so the next M-x keeps it on top.
 
 * 2026-08-31  SCS  <scs@scs.re>
 

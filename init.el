@@ -6,8 +6,8 @@
 ;; Copyright: Copyright (C) 2026, SCS, all rights reserved.
 ;; Created: 2026-03-05 Thu 17:59
 ;; Version: 0.1.0
-;; Last-Updated: 2026-09-03 Thu 08:47
-;; Update #: 61
+;; Last-Updated: 2026-09-03 Thu 09:50
+;; Update #: 63
 ;;
 ;;; Commentary:
 ;;
@@ -47,6 +47,8 @@
 ;;
 ;; Newest first.  File-local so readers need not dig through VCS.
 ;;
+;; doc: 2026-09-03 -- el-get audit: vertico-sort fboundp default is unique
+;; add: 2026-09-03 -- M-x: Vertico history/frecency sort; pin failed commands
 ;; fix: 2026-09-03 -- csv-mode from emacsmirror (stock ELPA recipe never landed)
 ;; add: 2026-09-03 -- csv-mode/.tsv; align on; TSV header line and TAB indent
 ;; add: 2026-08-31 -- skip gitea.el when laptop Gitea is unreachable (SmartOS)
@@ -410,6 +412,9 @@ Intentionally not *scratch*; new frames land on persistent notes."
 ;; add: 2026-08-29 -- M-DEL kills a word, then a blank line, then the word above
 (autoload 'scs/backward-kill-word "scs-backward-kill-word"
   "Kill backward by a small visible unit; do not skip a blank line." t)
+;; add: 2026-09-03 -- pin last M-x command on history even if it errors
+(autoload 'scs/mx-history-setup "scs-mx-history"
+  "Advise M-x so a failing command still sits at the front of history.")
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -699,6 +704,10 @@ exec ./configure --with-emacs=\"$em\"
          :type github
          :pkgname "oantolin/orderless"
          :depends (compat))
+        ;; Extra dir is so (require 'vertico-sort) etc. can find the
+        ;; files.  Those cookies do not land in el-get/.loaddefs.el
+        ;; (see the vertico use-package); this is the only el-get
+        ;; recipe here with that shape.
         (:name vertico
          :type github
          :pkgname "minad/vertico"
@@ -1226,6 +1235,11 @@ git-commit buffers so we do not fight tools or mangle huge logs."
 ;; Minibuffer histories honor `history-length'.  The rings below
 ;; have their own max variables; keep each at least 1000 so savehist
 ;; can restore a useful slice of kill, mark, and search state.
+;;
+;; Leave `history-delete-duplicates' nil (the Emacs default).  Vertico
+;; ranks M-x by `extended-command-history': the newest name stays
+;; first, and extra copies of the same name are frequency.  Deduping
+;; the list would flatten that frecency.
 
 (setq-default history-length 10000)
 
@@ -2197,6 +2211,22 @@ count (both run on `minibuffer-setup-hook')."
   (add-hook 'minibuffer-setup-hook #'vertico-repeat-save)
   (keymap-global-set "M-R" #'vertico-repeat)
   (keymap-set vertico-map "M-P" #'vertico-repeat-previous)
+  ;; Vertico's default sort is decided at load time:
+  ;;   (and (fboundp 'vertico-sort-history-length-alpha) 'that-symbol)
+  ;; Those functions live in extensions/vertico-sort.el.  el-get puts
+  ;; that dir on load-path, but Emacs 31 `loaddefs-generate' will not
+  ;; write those cookies into el-get/.loaddefs.el -- the outfile sits
+  ;; outside the extensions directory, so generation for that dir is
+  ;; empty.  The defcustom therefore sees nil and M-x is unsorted.
+  ;; Require the extension and set the sort function ourselves.
+  ;; (Audit 2026-09-03: no other el-get package here uses this
+  ;; fboundp-at-defcustom pattern.  slime/contrib is on load-path too,
+  ;; but slime-setup loads contribs by name and uses slime's own
+  ;; autoload file.)
+  (require 'vertico-sort)
+  (setq vertico-sort-function #'vertico-sort-history-length-alpha)
+  (require 'scs-mx-history)
+  (scs/mx-history-setup)
   (keymap-global-set "C-x C-f" #'find-file)
   ;; Vertico README: nested minibuffers so C-x C-d / C-x C-r can run
   ;; from find-file.  Depth indicator shows when more than one prompt
